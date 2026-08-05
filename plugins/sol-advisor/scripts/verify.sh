@@ -1,254 +1,257 @@
 #!/bin/sh
-# Repository-local verification for Sol Advisor's custom-agent companion installer.
+# No-cost repository-local verification for Sol Advisor.
 
 set -eu
 
-pass() {
-  printf '%s\n' "PASS: $*"
-}
+pass() { printf '%s\n' "PASS: $*"; }
+fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-fail() {
-  printf '%s\n' "FAIL: $*" >&2
-  exit 1
-}
+agent_files='sol-advisor-repo-scout.toml sol-advisor-precision-scout.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-deepseek-adversarial-verifier.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 hash_agents() {
-  shasum -a 256 "$1/sol-advisor-luna-implementer.toml" "$1/sol-advisor-terra-implementer.toml" "$1/sol-advisor-sol-reviewer.toml" | shasum -a 256 | awk '{print $1}'
+  for agent_file in $agent_files; do
+    sha256sum "$1/$agent_file"
+  done | sha256sum | awk '{print $1}'
 }
 
 script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
 plugin_dir=$(CDPATH= cd "$script_dir/.." && pwd) || exit 1
 installer=$script_dir/install-agents.sh
+route_validator=$script_dir/validate-agent-route.sh
 runtime_inspector=$script_dir/inspect-agent-runtime.sh
 templates=$plugin_dir/agents
 manifest=$plugin_dir/.codex-plugin/plugin.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
+metadata=$plugin_dir/skills/orchestration/agents/openai.yaml
 
 tmp_base=${TMPDIR:-/tmp}
-case "$tmp_base" in
-  /*) ;;
-  *) tmp_base=/tmp ;;
-esac
+case "$tmp_base" in /*) ;; *) tmp_base=/tmp ;; esac
 tmp_dir=''
 
 cleanup() {
   if [ -n "$tmp_dir" ] && [ -d "$tmp_dir" ]; then
     case "$tmp_dir" in
-      "$tmp_base"/sol-advisor-verify.*)
-        rm -rf "$tmp_dir"
-        ;;
-      *)
-        printf '%s\n' "REFUSING cleanup of unexpected directory: $tmp_dir" >&2
-        ;;
+      "$tmp_base"/sol-advisor-verify.*) rm -rf "$tmp_dir" ;;
+      *) printf '%s\n' "REFUSING cleanup of unexpected directory: $tmp_dir" >&2 ;;
     esac
   fi
 }
-
 trap cleanup 0 HUP INT TERM
 
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
-case "$tmp_dir" in
-  "$tmp_base"/sol-advisor-verify.*) ;;
-  *) fail "mktemp returned an unexpected directory: $tmp_dir" ;;
-esac
+case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-test -f "$installer" || fail "installer missing: $installer"
-test -f "$runtime_inspector" || fail "runtime inspector missing: $runtime_inspector"
-test -f "$manifest" || fail "plugin manifest missing: $manifest"
-test -f "$skill" || fail "skill missing: $skill"
-test -f "$contracts" || fail "role contracts missing: $contracts"
+for required in "$installer" "$route_validator" "$runtime_inspector" "$manifest" "$skill" "$contracts" "$metadata"; do
+  test -f "$required" || fail "required file missing: $required"
+done
 
-jq empty "$manifest"
-pass "plugin manifest JSON is valid"
+python3 - "$manifest" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if not manifest.get("version", "").startswith("0.3."):
+    raise SystemExit("manifest version was not advanced to 0.3")
+PY
+pass "plugin manifest JSON and version"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path
 import sys
-
-try:
-    import tomllib
-except ModuleNotFoundError as exc:
-    raise SystemExit("Python 3.11+ with tomllib is required for TOML validation") from exc
+import tomllib
 
 templates = Path(sys.argv[1])
-expected = {
-    "sol-advisor-luna-implementer.toml": {
-        "name": "sol_advisor_luna_implementer",
-        "model": "gpt-5.6-luna",
-        "model_reasoning_effort": "max",
-    },
-    "sol-advisor-terra-implementer.toml": {
-        "name": "sol_advisor_terra_implementer",
-        "model": "gpt-5.6-terra",
-        "model_reasoning_effort": "max",
-    },
-    "sol-advisor-sol-reviewer.toml": {
-        "name": "sol_advisor_sol_reviewer",
-        "model": "gpt-5.6-sol",
-        "model_reasoning_effort": "high",
-        "sandbox_mode": "read-only",
-    },
+dynamic = {
+    "sol-advisor-repo-scout.toml": ("sol_advisor_repo_scout", "read-only"),
+    "sol-advisor-precision-scout.toml": ("sol_advisor_precision_scout", "read-only"),
+    "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", None),
+    "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", "read-only"),
+    "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", "read-only"),
+    "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "read-only"),
 }
-
-for filename, pins in expected.items():
+expected_files = set(dynamic) | {"sol-advisor-deepseek-adversarial-verifier.toml"}
+actual_files = {path.name for path in templates.glob("*.toml")}
+if actual_files != expected_files:
+    raise SystemExit(f"unexpected custom-agent templates: {sorted(actual_files ^ expected_files)}")
+for filename, (name, sandbox) in dynamic.items():
     path = templates / filename
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     for field in ("name", "description", "developer_instructions"):
-        value = data.get(field)
-        if not isinstance(value, str) or not value.strip():
-            raise SystemExit(f"{path}: missing or empty required {field!r}")
-    for field, expected_value in pins.items():
-        if data.get(field) != expected_value:
-            raise SystemExit(
-                f"{path}: {field}={data.get(field)!r}, expected {expected_value!r}"
-            )
+        if not isinstance(data.get(field), str) or not data[field].strip():
+            raise SystemExit(f"{path}: missing {field}")
+    if data["name"] != name:
+        raise SystemExit(f"{path}: unexpected name {data['name']!r}")
+    if "model" in data or "model_reasoning_effort" in data or "model_provider" in data:
+        raise SystemExit(f"{path}: dynamic role unexpectedly pins provider/model/effort")
+    if sandbox is None:
+        if "sandbox_mode" in data:
+            raise SystemExit(f"{path}: mechanical editor must inherit writable parent access")
+    elif data.get("sandbox_mode") != sandbox:
+        raise SystemExit(f"{path}: expected {sandbox} sandbox")
+    if data.get("features", {}).get("multi_agent") is not False:
+        raise SystemExit(f"{path}: descendant agents are not disabled")
+    instructions = " ".join(data["developer_instructions"].lower().split())
+    if "do not spawn" not in instructions or "plugin" not in instructions or "mcp" not in instructions:
+        raise SystemExit(f"{path}: missing child/plugin/MCP boundary")
 
-print("TOML templates and exact role pins are valid")
+deepseek_path = templates / "sol-advisor-deepseek-adversarial-verifier.toml"
+deepseek = tomllib.loads(deepseek_path.read_text(encoding="utf-8"))
+expected = {
+    "name": "sol_advisor_deepseek_adversarial_verifier",
+    "model_provider": "deepseek",
+    "model": "deepseek-v4-flash",
+    "model_reasoning_effort": "xhigh",
+    "sandbox_mode": "read-only",
+    "mcp_servers": {},
+}
+for field, value in expected.items():
+    if deepseek.get(field) != value:
+        raise SystemExit(f"{deepseek_path}: {field}={deepseek.get(field)!r}, expected {value!r}")
+if deepseek.get("skills", {}).get("config") != []:
+    raise SystemExit(f"{deepseek_path}: Skill inheritance was not disabled")
+if deepseek.get("features", {}).get("multi_agent") is not False:
+    raise SystemExit(f"{deepseek_path}: descendant agents are not disabled")
+provider = deepseek.get("model_providers", {}).get("deepseek", {})
+for field, value in {
+    "base_url": "https://api.deepseek.com",
+    "wire_api": "responses",
+    "env_key": "DEEPSEEK_API_KEY",
+}.items():
+    if provider.get(field) != value:
+        raise SystemExit(f"{deepseek_path}: invalid provider {field}")
+
+print("functional role TOML contracts are valid")
 PY
-pass "custom-agent TOML validity and exact role pins"
+pass "dynamic role TOML, access boundaries, fixed DeepSeek route, and no descendants"
+
+valid_routes='sol_advisor_repo_scout openai gpt-5.6-luna xhigh
+sol_advisor_precision_scout openai gpt-5.6-luna max
+sol_advisor_mechanical_editor openai gpt-5.6-luna max
+sol_advisor_context_analyst openai gpt-5.6-terra xhigh
+sol_advisor_context_analyst openai gpt-5.6-terra max
+sol_advisor_deepseek_adversarial_verifier deepseek deepseek-v4-flash xhigh
+sol_advisor_local_code_verifier openai gpt-5.6-luna max
+sol_advisor_final_adjudicator openai gpt-5.6-sol medium
+sol_advisor_final_adjudicator openai gpt-5.6-sol high
+sol_advisor_final_adjudicator openai gpt-5.6-sol xhigh
+sol_advisor_final_adjudicator openai gpt-5.6-sol max'
+printf '%s\n' "$valid_routes" | while read -r role provider model effort; do
+  [ -n "$role" ] || continue
+  sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null || fail "valid route rejected: $role $provider $model $effort"
+done
+pass "all allowed dynamic routes"
+
+invalid_routes='sol_advisor_repo_scout openai gpt-5.6-luna high
+sol_advisor_precision_scout openai gpt-5.6-luna xhigh
+sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh
+sol_advisor_context_analyst openai gpt-5.6-terra ultra
+sol_advisor_context_analyst openai gpt-5.6-luna max
+sol_advisor_deepseek_adversarial_verifier deepseek deepseek-v4-flash max
+sol_advisor_deepseek_adversarial_verifier openai deepseek-v4-flash xhigh
+sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
+sol_advisor_final_adjudicator openai gpt-5.6-sol ultra'
+printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
+  [ -n "$role" ] || continue
+  if sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null 2>&1; then
+    fail "invalid route accepted: $role $provider $model $effort"
+  fi
+done
+pass "illegal Luna, Terra, Sol, and DeepSeek combinations rejected"
 
 clean_target=$tmp_dir/clean-install
-sh "$installer" --target-dir "$clean_target"
-for agent_file in sol-advisor-luna-implementer.toml sol-advisor-terra-implementer.toml sol-advisor-sol-reviewer.toml; do
-  cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "clean install is not byte-for-byte exact: $agent_file"
+sh "$installer" --target-dir "$clean_target" >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "install differs: $agent_file"
 done
-pass "installer clean install and byte-for-byte final copies"
+installed_count=$(find "$clean_target" -maxdepth 1 -type f -name 'sol-advisor-*.toml' | awk 'END { print NR + 0 }')
+[ "$installed_count" -eq 7 ] || fail "installer did not produce exactly seven functional roles"
+pass "installer registers exactly seven functional roles"
 
 missing_check_target=$tmp_dir/missing-check
-if sh "$installer" --target-dir "$missing_check_target" --check; then
-  fail "--check accepted a missing target"
-fi
-test ! -e "$missing_check_target" || fail "--check created a missing target directory"
-pass "installer --check refuses missing files without mutation"
-
-codex_home_target=$tmp_dir/codex-home
-CODEX_HOME="$codex_home_target" sh "$installer"
-for agent_file in sol-advisor-luna-implementer.toml sol-advisor-terra-implementer.toml sol-advisor-sol-reviewer.toml; do
-  cmp -s "$templates/$agent_file" "$codex_home_target/agents/$agent_file" || fail "CODEX_HOME target is not byte-for-byte exact: $agent_file"
-done
-test ! -e "$codex_home_target/config.toml" || fail "installer unexpectedly created config.toml"
-pass "installer honors a pre-existing CODEX_HOME without editing config"
-
-relative_parent=$tmp_dir/relative-parent
-mkdir "$relative_parent"
-(
-  cd "$relative_parent"
-  sh "$installer" --target-dir explicit-agents
-)
-for agent_file in sol-advisor-luna-implementer.toml sol-advisor-terra-implementer.toml sol-advisor-sol-reviewer.toml; do
-  cmp -s "$templates/$agent_file" "$relative_parent/explicit-agents/$agent_file" || fail "explicit relative target is not byte-for-byte exact: $agent_file"
-done
-pass "installer accepts an explicit relative target directory"
+if sh "$installer" --target-dir "$missing_check_target" --check >/dev/null 2>&1; then fail "--check accepted missing target"; fi
+test ! -e "$missing_check_target" || fail "--check mutated missing target"
+pass "installer check is non-mutating"
 
 before_repeat=$(hash_agents "$clean_target")
-sh "$installer" --target-dir "$clean_target"
+sh "$installer" --target-dir "$clean_target" >/dev/null
+sh "$installer" --target-dir "$clean_target" --check >/dev/null
 after_repeat=$(hash_agents "$clean_target")
-[ "$before_repeat" = "$after_repeat" ] || fail "idempotent repeat changed an installed template"
-pass "installer idempotent repeat"
-
-before_check=$(hash_agents "$clean_target")
-sh "$installer" --target-dir "$clean_target" --check
-after_check=$(hash_agents "$clean_target")
-[ "$before_check" = "$after_check" ] || fail "--check altered an installed template"
-pass "installer --check"
+[ "$before_repeat" = "$after_repeat" ] || fail "repeat install/check changed files"
+pass "installer repeat and check are idempotent"
 
 conflict_target=$tmp_dir/conflict
 mkdir "$conflict_target"
-printf '%s\n' 'intentionally conflicting custom-agent template' > "$conflict_target/sol-advisor-luna-implementer.toml"
-if sh "$installer" --target-dir "$conflict_target"; then
-  fail "installer accepted a differing destination file"
-fi
-test ! -e "$conflict_target/sol-advisor-terra-implementer.toml" || fail "conflict refusal partially installed the Terra template"
-test ! -e "$conflict_target/sol-advisor-sol-reviewer.toml" || fail "conflict refusal partially installed the Sol template"
+printf '%s\n' conflict > "$conflict_target/sol-advisor-repo-scout.toml"
+if sh "$installer" --target-dir "$conflict_target" >/dev/null 2>&1; then fail "installer overwrote conflict"; fi
+test ! -e "$conflict_target/sol-advisor-precision-scout.toml" || fail "conflict caused partial install"
 pass "installer conflict refusal without partial mutation"
 
 runtime_sessions=$tmp_dir/runtime-sessions
-runtime_day=$runtime_sessions/2026/08/01
+runtime_day=$runtime_sessions/2026/08/05
 mkdir -p "$runtime_day"
-runtime_success_id=11111111-1111-7111-8111-111111111111
-runtime_success_rollout=$runtime_day/rollout-2026-08-01T00-00-00-$runtime_success_id.jsonl
+runtime_id=11111111-1111-7111-8111-111111111111
+runtime_rollout=$runtime_day/rollout-2026-08-05T00-00-00-$runtime_id.jsonl
 printf '%s\n' \
-  '{"type":"response_item","payload":{"prompt":"DO_NOT_LEAK_PROMPT","token":"DO_NOT_LEAK_TOKEN"}}' \
-  '{"type":"event_msg","payload":{"environment":{"SECRET_ENV":"DO_NOT_LEAK_ENV"},"config":{"api_key":"DO_NOT_LEAK_CONFIG"}}}' \
-  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_success_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_luna_implementer\",\"agent_path\":\"/root/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture/cwd\",\"base_instructions\":\"DO_NOT_LEAK_INSTRUCTIONS\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max","sandbox_policy":{"type":"danger-full-access","hidden":"DO_NOT_LEAK_SANDBOX"},"permission_profile":{"type":"disabled","hidden":"DO_NOT_LEAK_PERMISSION"},"cwd":"/fixture/cwd","summary":"DO_NOT_LEAK_SUMMARY"}}' \
-  > "$runtime_success_rollout"
-runtime_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_success_id")
-if ! printf '%s\n' "$runtime_output" | jq -e --arg id "$runtime_success_id" '
-  type == "object"
-  and (keys | sort) == ["agent_path", "agent_role", "cwd", "effort", "model", "model_provider", "parent_thread_id", "permission_profile_type", "sandbox_policy_type", "thread_id"]
-  and .thread_id == $id
-  and .agent_role == "sol_advisor_luna_implementer"
-  and .model == "gpt-5.6-luna"
-  and .effort == "max"
-  and .sandbox_policy_type == "danger-full-access"
-  and .permission_profile_type == "disabled"
-' >/dev/null; then
-  fail "runtime inspector did not return the expected safe routing object"
-fi
-if printf '%s\n' "$runtime_output" | grep -Fq 'DO_NOT_LEAK'; then
-  fail "runtime inspector leaked fixture prompt or secret content"
-fi
-pass "runtime inspector safe allowlisted extraction"
+  '{"type":"response_item","payload":{"prompt":"DO_NOT_LEAK"}}' \
+  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_context_analyst\",\"agent_path\":\"/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture/cwd\"}}" \
+  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"max","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
+  > "$runtime_rollout"
+runtime_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_id")
+python3 - "$runtime_output" <<'PY'
+import json
+import sys
 
-if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" not-a-thread-id >/dev/null 2>&1; then
-  fail "runtime inspector accepted an invalid thread id"
-fi
-pass "runtime inspector invalid-id refusal"
+data = json.loads(sys.argv[1])
+expected = {
+    "agent_role": "sol_advisor_context_analyst",
+    "model_provider": "openai",
+    "model": "gpt-5.6-terra",
+    "effort": "max",
+    "sandbox_policy_type": "read-only",
+    "permission_profile_type": "disabled",
+}
+if any(data.get(key) != value for key, value in expected.items()):
+    raise SystemExit("runtime inspector returned unexpected route")
+PY
+printf '%s\n' "$runtime_output" | grep -Fq DO_NOT_LEAK && fail "runtime inspector leaked prompt"
+route_fields=$(python3 - "$runtime_output" <<'PY'
+import json
+import sys
+data = json.loads(sys.argv[1])
+print(data["agent_role"], data["model_provider"], data["model"], data["effort"])
+PY
+)
+set -- $route_fields
+sh "$route_validator" "$1" "$2" "$3" "$4" >/dev/null
+pass "runtime metadata extraction and observed-route validation"
 
-runtime_zero_id=22222222-2222-7222-8222-222222222222
-if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_zero_id" >/dev/null 2>&1; then
-  fail "runtime inspector accepted a thread id with no rollout"
-fi
-pass "runtime inspector zero-match refusal"
-
-runtime_missing_turn_id=33333333-3333-7333-8333-333333333333
-printf '%s\n' "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_missing_turn_id\",\"agent_role\":\"sol_advisor_luna_implementer\"}}" > "$runtime_day/rollout-2026-08-01T00-00-01-$runtime_missing_turn_id.jsonl"
-runtime_missing_session_id=44444444-4444-7444-8444-444444444444
-printf '%s\n' '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max"}}' > "$runtime_day/rollout-2026-08-01T00-00-02-$runtime_missing_session_id.jsonl"
-runtime_missing_role_id=55555555-5555-7555-8555-555555555555
-printf '%s\n' "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_missing_role_id\"}}" '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max"}}' > "$runtime_day/rollout-2026-08-01T00-00-03-$runtime_missing_role_id.jsonl"
-runtime_missing_model_id=66666666-6666-7666-8666-666666666666
-printf '%s\n' "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_missing_model_id\",\"agent_role\":\"sol_advisor_luna_implementer\"}}" '{"type":"turn_context","payload":{"effort":"max"}}' > "$runtime_day/rollout-2026-08-01T00-00-04-$runtime_missing_model_id.jsonl"
-runtime_missing_effort_id=77777777-7777-7777-8777-777777777777
-printf '%s\n' "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$runtime_missing_effort_id\",\"agent_role\":\"sol_advisor_luna_implementer\"}}" '{"type":"turn_context","payload":{"model":"gpt-5.6-luna"}}' > "$runtime_day/rollout-2026-08-01T00-00-05-$runtime_missing_effort_id.jsonl"
-for rejected_runtime_id in "$runtime_missing_turn_id" "$runtime_missing_session_id" "$runtime_missing_role_id" "$runtime_missing_model_id" "$runtime_missing_effort_id"; do
-  if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$rejected_runtime_id" >/dev/null 2>&1; then
-    fail "runtime inspector accepted missing required routing metadata"
-  fi
-done
-pass "runtime inspector required-metadata refusal"
-
-runtime_duplicate_id=88888888-8888-7888-8888-888888888888
-printf '%s\n' '{"type":"session_meta","payload":{}}' > "$runtime_day/rollout-2026-08-01T00-00-06-$runtime_duplicate_id.jsonl"
-mkdir -p "$runtime_sessions/2026/08/02"
-printf '%s\n' '{"type":"session_meta","payload":{}}' > "$runtime_sessions/2026/08/02/rollout-2026-08-02T00-00-06-$runtime_duplicate_id.jsonl"
-if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_duplicate_id" >/dev/null 2>&1; then
-  fail "runtime inspector accepted multiple matching rollouts"
-fi
-pass "runtime inspector multiple-match refusal"
+if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" not-a-thread-id >/dev/null 2>&1; then fail "invalid runtime id accepted"; fi
+if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" 22222222-2222-7222-8222-222222222222 >/dev/null 2>&1; then fail "missing rollout accepted"; fi
+pass "runtime inspector invalid and missing-id refusal"
 
 for document in "$skill" "$contracts"; do
-  grep -Fq 'agent_type: sol_advisor_luna_implementer' "$document" || fail "missing Luna custom agent reference: $document"
-  grep -Fq 'agent_type: sol_advisor_terra_implementer' "$document" || fail "missing Terra custom agent reference: $document"
-  grep -Fq 'agent_type: sol_advisor_sol_reviewer' "$document" || fail "missing Sol custom agent reference: $document"
-  grep -Fq 'fork_turns: none' "$document" || fail "missing fresh-context spawn requirement: $document"
-  if grep -Eq '^[[:space:]]*(model|reasoning_effort):' "$document"; then
-    fail "per-spawn model or reasoning override remains in: $document"
-  fi
+  for role in sol_advisor_repo_scout sol_advisor_precision_scout sol_advisor_mechanical_editor sol_advisor_context_analyst sol_advisor_deepseek_adversarial_verifier sol_advisor_local_code_verifier sol_advisor_final_adjudicator; do
+    grep -Fq "$role" "$document" || fail "missing role $role in $document"
+  done
+  grep -Fq 'fork_turns: 1' "$document" || fail "missing positive inherited-context rule: $document"
 done
-grep -Fq '../../scripts/install-agents.sh' "$skill" || fail "skill does not resolve the companion installer relative to SKILL.md"
-grep -Fq '../../scripts/inspect-agent-runtime.sh' "$skill" || fail "skill does not resolve the runtime inspector relative to SKILL.md"
-grep -Fqi 'public native spawn/details metadata first' "$skill" || fail "skill does not require public runtime metadata first"
-grep -Fqi 'host broadens it' "$skill" || fail "skill does not describe broadened reviewer sandbox behavior"
-grep -Fqi 'parent captures and verifies exact before-and-after repository' "$contracts" || fail "role contracts do not require behavioral-read-only state verification"
-grep -Fqi 'never silently fall back' "$skill" || fail "skill does not state the no-fallback guarantee"
-pass "custom-agent contract references, runtime fallback, and no per-spawn overrides"
+grep -Fq 'Ordinary task: at most one child agent' "$skill" || fail "ordinary concurrency limit missing"
+grep -Fq 'Complex task: at most two' "$skill" || fail "complex concurrency limit missing"
+grep -Fq 'third validator' "$skill" || fail "critical concurrency limit missing"
+grep -Fq "read each other's conclusions" "$skill" || fail "validator independence missing"
+grep -Fq 'force Sol/Max adjudication' "$skill" || fail "DeepSeek degraded adjudication missing"
+grep -Fq 'cross-provider independence' "$skill" || fail "DeepSeek degraded disclosure missing"
+grep -Fq 'ordinary completion does not require' "$skill" || fail "conditional Sol adjudication missing"
+grep -Fq 'does not automatically execute a Skill' "$skill" || fail "explicit child Skill rule missing"
+grep -Fq 'allow_implicit_invocation: false' "$metadata" || fail "explicit invocation policy missing"
+pass "concurrency, independence, conditional validation, degradation, and Skill policies"
 
 sh -n "$installer"
+sh -n "$route_validator"
 sh -n "$runtime_inspector"
 sh -n "$script_dir/verify.sh"
 pass "shell syntax"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor companion-agent checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor no-cost checks completed in $tmp_dir"

@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage: install-agents.sh [--target-dir <path>] [--check]
 
-Install the three Sol Advisor custom-agent templates into the target directory.
+Install the seven routed Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents". The script never overwrites a differing file.
 
@@ -69,7 +69,7 @@ esac
 
 [ "$target_dir" != "/" ] || fail "refusing to use the filesystem root as an agent target directory."
 
-agent_files='sol-advisor-luna-implementer.toml sol-advisor-terra-implementer.toml sol-advisor-sol-reviewer.toml'
+agent_files='sol-advisor-repo-scout.toml sol-advisor-precision-scout.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-deepseek-adversarial-verifier.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 # Validate all shipped sources before looking at or mutating the destination.
 for agent_file in $agent_files; do

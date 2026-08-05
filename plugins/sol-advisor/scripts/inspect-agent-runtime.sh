@@ -94,63 +94,47 @@ esac
 IFS= read -r rollout_file < "$matches_file" || fail "could not read the matched rollout filename."
 [ -f "$rollout_file" ] || fail "matched rollout is unavailable."
 
-# The jq program reads only the matched JSONL and constructs a new allowlisted object.
-# It rejects absent or conflicting required routing values instead of inferring them.
-if ! jq -ce -s --arg expected_thread_id "$thread_id" '
-  def string_or_null:
-    if type == "string" then . else null end;
+# Read only the matched JSONL and construct a new allowlisted object. Reject absent
+# or conflicting required routing values instead of inferring them.
+if ! python3 - "$rollout_file" "$thread_id" 2>/dev/null <<'PY'
+import json
+from pathlib import Path
+import sys
 
-  [ .[] | select(.type == "session_meta") | .payload ] as $sessions |
-  [ .[] | select(.type == "turn_context") | .payload ] as $turns |
-  if ($sessions | length) != 1 then
-    error("missing or ambiguous session metadata")
-  elif ($turns | length) == 0 then
-    error("missing turn context")
-  else
-    $sessions[0] as $session |
-    ($session.id? | string_or_null) as $session_thread_id |
-    ($session.parent_thread_id? | string_or_null) as $parent_thread_id |
-    ($session.agent_role? | string_or_null) as $agent_role |
-    ($session.agent_path? | string_or_null) as $agent_path |
-    ($session.model_provider? | string_or_null) as $model_provider |
-    [ $turns[] | (.model? | string_or_null) ] as $models |
-    [ $turns[] | (.effort? | string_or_null) ] as $efforts |
-    [ $turns[] | ((.sandbox_policy? // {}) | .type? | string_or_null) ] as $sandbox_types |
-    [ $turns[] | ((.permission_profile? // {}) | .type? | string_or_null) ] as $permission_types |
-    [ $turns[] | (.cwd? | string_or_null) ] as $cwds |
-    if $session_thread_id == null or $session_thread_id != $expected_thread_id then
-      error("session metadata does not identify the requested thread")
-    elif $agent_role == null or $agent_role == "" then
-      error("missing agent role")
-    elif any($models[]; . == null or . == "") then
-      error("missing model")
-    elif any($efforts[]; . == null or . == "") then
-      error("missing effort")
-    elif ($models | unique | length) != 1 then
-      error("conflicting models")
-    elif ($efforts | unique | length) != 1 then
-      error("conflicting efforts")
-    elif ($sandbox_types | unique | length) != 1 then
-      error("conflicting sandbox policy types")
-    elif ($permission_types | unique | length) != 1 then
-      error("conflicting permission profile types")
-    elif ($cwds | unique | length) != 1 then
-      error("conflicting working directories")
-    else
-      {
-        thread_id: $session_thread_id,
-        parent_thread_id: $parent_thread_id,
-        agent_role: $agent_role,
-        agent_path: $agent_path,
-        model_provider: $model_provider,
-        model: $models[0],
-        effort: $efforts[0],
-        sandbox_policy_type: $sandbox_types[0],
-        permission_profile_type: $permission_types[0],
-        cwd: $cwds[0]
-      }
-    end
-  end
-' "$rollout_file" 2>/dev/null; then
+rollout = Path(sys.argv[1])
+expected_thread_id = sys.argv[2]
+items = [json.loads(line) for line in rollout.read_text(encoding="utf-8").splitlines() if line.strip()]
+sessions = [item.get("payload", {}) for item in items if item.get("type") == "session_meta"]
+turns = [item.get("payload", {}) for item in items if item.get("type") == "turn_context"]
+if len(sessions) != 1 or not turns:
+    raise SystemExit(1)
+
+session = sessions[0]
+if session.get("id") != expected_thread_id or not isinstance(session.get("agent_role"), str) or not session["agent_role"]:
+    raise SystemExit(1)
+
+def one_required(values):
+    if any(not isinstance(value, str) or not value for value in values):
+        raise SystemExit(1)
+    unique = set(values)
+    if len(unique) != 1:
+        raise SystemExit(1)
+    return values[0]
+
+result = {
+    "thread_id": session["id"],
+    "parent_thread_id": session.get("parent_thread_id") if isinstance(session.get("parent_thread_id"), str) else None,
+    "agent_role": session["agent_role"],
+    "agent_path": session.get("agent_path") if isinstance(session.get("agent_path"), str) else None,
+    "model_provider": session.get("model_provider") if isinstance(session.get("model_provider"), str) else None,
+    "model": one_required([turn.get("model") for turn in turns]),
+    "effort": one_required([turn.get("effort") for turn in turns]),
+    "sandbox_policy_type": one_required([(turn.get("sandbox_policy") or {}).get("type") for turn in turns]),
+    "permission_profile_type": one_required([(turn.get("permission_profile") or {}).get("type") for turn in turns]),
+    "cwd": one_required([turn.get("cwd") for turn in turns]),
+}
+print(json.dumps(result, separators=(",", ":"), ensure_ascii=True))
+PY
+then
   fail "rollout is missing, ambiguous, invalid, or inconsistent required routing metadata."
 fi
