@@ -8,10 +8,6 @@ repository work. It uses functional custom-agent roles and chooses Luna, Terra, 
 reasoning strength from task shape. DeepSeek V4 Flash is reserved for cross-model
 adversarial verification. Trivial one-step work stays outside the workflow.
 
-## Go deeper
-
-I write [**Attention Heads**](https://attentionheads.substack.com/?utm_source=github&utm_medium=readme&utm_campaign=sol-advisor) — deep, evidence-backed writing on AI, cognition, and agentic engineering. The **Agentic Engineering Field Notes** series is where I publish practical advice on the craft of using AI. [Subscribe](https://attentionheads.substack.com/subscribe?utm_source=github&utm_medium=readme&utm_campaign=sol-advisor) to get new posts to your inbox.
-
 | Functional role | Model route | Access | Purpose |
 |---|---|---|---|
 | `sol_advisor_repo_scout` | Luna/xHigh | read-only | Ordinary files, symbols, and tests |
@@ -38,7 +34,7 @@ Requirements:
   `sha256sum`). On Windows, use WSL for the shell scripts.
 
 ~~~sh
-codex plugin marketplace add DannyMac180/sol-advisor --ref main
+codex plugin marketplace add shjqwert/sol-advisor-auto --ref main
 codex plugin add sol-advisor@sol-advisor
 ~~~
 
