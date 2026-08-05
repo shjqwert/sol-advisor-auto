@@ -58,8 +58,19 @@ import sys
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 if not manifest.get("version", "").startswith("0.4.1+"):
     raise SystemExit("manifest version was not advanced to 0.4.1")
+expected = {
+    "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
+    "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
+    "repository": "https://github.com/shjqwert/sol-advisor-auto",
+}
+for field, value in expected.items():
+    if manifest.get(field) != value:
+        raise SystemExit(f"manifest {field} does not identify the standalone repository")
+interface = manifest.get("interface", {})
+if interface.get("developerName") != "shjqwert" or interface.get("websiteURL") != expected["repository"]:
+    raise SystemExit("manifest interface ownership metadata is stale")
 PY
-pass "plugin manifest JSON and version"
+pass "plugin manifest JSON, version, and standalone ownership metadata"
 
 python3 - "$templates" <<'PY'
 from pathlib import Path

@@ -1,13 +1,13 @@
 {
   "name": "sol-advisor",
-  "version": "0.4.1+codex.20260806000643",
+  "version": "0.4.1+codex.20260806002401",
   "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and conditional cross-model verification.",
   "author": {
-    "name": "Daniel McAteer",
-    "url": "https://github.com/DannyMac180"
+    "name": "shjqwert",
+    "url": "https://github.com/shjqwert"
   },
-  "homepage": "https://github.com/DannyMac180/sol-advisor#readme",
-  "repository": "https://github.com/DannyMac180/sol-advisor",
+  "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
+  "repository": "https://github.com/shjqwert/sol-advisor-auto",
   "license": "MIT",
   "keywords": [
     "codex",
@@ -20,13 +20,13 @@
     "displayName": "Sol Advisor",
     "shortDescription": "Automatically delegate bounded discovery, research, editing, and validation.",
     "longDescription": "Sol Advisor automatically evaluates non-trivial repository work and dynamically routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, conditional DeepSeek adversarial verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
-    "developerName": "Daniel McAteer",
+    "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/DannyMac180/sol-advisor",
+    "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
       "Handle this non-trivial repository task; let Sol Advisor automatically route only bounded supporting work.",
       "Keep complex implementation in the primary session and validate any functional-agent dispatch plan.",
