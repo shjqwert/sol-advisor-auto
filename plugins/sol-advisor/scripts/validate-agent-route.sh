@@ -25,6 +25,8 @@ effort=$4
 case "$role:$provider:$model:$effort" in
   sol_advisor_repo_scout:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_precision_scout:openai:gpt-5.6-luna:max | \
+  sol_advisor_external_researcher:openai:gpt-5.6-luna:xhigh | \
+  sol_advisor_external_researcher:openai:gpt-5.6-luna:max | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:max | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:xhigh | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:max | \

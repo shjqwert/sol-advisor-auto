@@ -1,11 +1,12 @@
 # Sol Advisor
 
-**Keep complex implementation in the primary Codex session. Delegate bounded search,
-long-context analysis, deterministic edits, and conditional independent verification.**
+**Automatically keep complex implementation in the primary Codex session while
+delegating bounded search, research, deterministic edits, and conditional validation.**
 
-Sol Advisor is an explicitly invoked Codex orchestration workflow. It uses functional
-custom-agent roles and chooses Luna, Terra, or Sol reasoning strength from task shape.
-DeepSeek V4 Flash is reserved for cross-model adversarial verification.
+Sol Advisor is an implicitly matched Codex orchestration workflow for non-trivial
+repository work. It uses functional custom-agent roles and chooses Luna, Terra, or Sol
+reasoning strength from task shape. DeepSeek V4 Flash is reserved for cross-model
+adversarial verification. Trivial one-step work stays outside the workflow.
 
 ## Go deeper
 
@@ -15,7 +16,8 @@ I write [**Attention Heads**](https://attentionheads.substack.com/?utm_source=gi
 |---|---|---|---|
 | `sol_advisor_repo_scout` | Luna/xHigh | read-only | Ordinary files, symbols, and tests |
 | `sol_advisor_precision_scout` | Luna/Max | read-only | Exact call paths, boundaries, and local behavior |
-| `sol_advisor_mechanical_editor` | Luna/Max | writable | Fully determined, mechanically verifiable edits |
+| `sol_advisor_external_researcher` | Luna/xHigh or Max | read-only | Current external facts with source-quality checks |
+| `sol_advisor_mechanical_editor` | Luna/Max | workspace-write | Fully determined, mechanically verifiable edits |
 | `sol_advisor_context_analyst` | Terra/xHigh or Max | read-only | Long-context compression or cross-module constraints |
 | `sol_advisor_deepseek_adversarial_verifier` | DeepSeek V4 Flash/Max | read-only | Cross-model adversarial verification only |
 | `sol_advisor_local_code_verifier` | Luna/Max | read-only | Local code, boundary, and test-gap attack |
@@ -39,7 +41,7 @@ codex plugin marketplace add DannyMac180/sol-advisor --ref main
 codex plugin add sol-advisor@sol-advisor
 ~~~
 
-Plugin installation does not write user-owned custom-agent files. Install the seven
+Plugin installation does not write user-owned custom-agent files. Install the eight
 routed templates separately:
 
 ~~~sh
@@ -52,8 +54,9 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 The installer adds only missing routed templates, never edits `config.toml`, and
 refuses to overwrite a differing file.
 
-Start a new Codex task after installation so native roles are rediscovered. Invoke the
-Skill explicitly; it does not intercept ordinary requests:
+Start a new Codex task after installation so native roles are rediscovered. The Skill
+can then activate automatically when a non-trivial repository task matches its scoped
+description. Explicit invocation remains available:
 
 ~~~text
 Use $sol-advisor:orchestration for this task. Keep complex implementation in the main
@@ -73,6 +76,8 @@ is a deterministic edit.
 - Terra is a third validator only for a separate cross-module attack angle.
 - Validators cannot read each other's conclusions; shared files, dependency chains,
   and all mechanical writes stay serial.
+- Total child budgets are 1 ordinary, 3 complex, and 5 critical; at most two fix rounds
+  are allowed.
 
 Low-risk work does not require a child review. Material uncertainty triggers DeepSeek
 adversarial verification. Critical risk uses independent parallel validation and Sol
@@ -85,9 +90,11 @@ that cross-provider independence was unavailable.
 ## Route and runtime evidence
 
 Luna, Terra, and Sol role files do not pin model or effort. The Skill passes the
-allowed combination at spawn time and validates it before and after spawn:
+allowed combination at spawn time and validates it before and after spawn. Every batch
+must first pass the executable dispatch-plan validator:
 
 ~~~sh
+python3 "$plugin_dir/scripts/validate-dispatch-plan.py" /path/to/temporary-plan.json
 sh "$plugin_dir/scripts/validate-agent-route.sh" \
   sol_advisor_context_analyst openai gpt-5.6-terra max
 ~~~
@@ -106,20 +113,25 @@ not accepted and is never silently replaced.
 
 DeepSeek is the only fixed route. Its template pins the provider, V4 Flash model,
 Codex xHigh reasoning (DeepSeek Max), read-only sandbox, empty Skill/MCP configuration,
-and no descendant agents. It receives a complete narrow contract through the smallest
-positive inherited context, normally one turn.
+and no descendant agents. Every role receives a self-contained native `message` with
+`fork_context: false` and a unique response token. Missing tokens are task-delivery
+failures even when routing metadata is correct.
 
 ## Child results
 
 Output follows the task instead of a universal report template:
 
 - discovery returns paths, symbols, and short relevance;
+- external research returns direct links, source class, dates, applicability, and
+  fact/inference labels;
 - adversarial verification returns a reproducible trigger, impact, and location;
 - mechanical editing returns changed files and actual verification;
 - no finding returns checked scope and “no blocking issue found”.
 
 The primary session selectively reopens evidence that can change the implementation or
 delivery decision, always inspects mechanical diffs, and reruns minimum relevant tests.
+Sol Advisor tracks main-thread context and total model tokens separately: subagents can
+reduce main-thread context pollution while increasing total tokens.
 
 ## Local development
 
@@ -139,10 +151,10 @@ sh plugins/sol-advisor/scripts/verify.sh
 git diff --check
 ~~~
 
-The verifier checks manifest and TOML syntax, dynamic route allowlists and illegal
-combinations, installer idempotence and conflict safety, role access boundaries,
-concurrency and DeepSeek-degradation contracts, safe runtime metadata extraction, and
-shell syntax. It does not invoke a model or API.
+The verifier checks manifest and TOML syntax, dynamic route allowlists, dispatch-plan
+classification and budgets, installer idempotence and conflict safety, role access and
+tool boundaries, current spawn-contract metadata, safe runtime extraction, and shell
+syntax. It does not invoke a model or API.
 
 Actual native-agent smoke tests can incur model/API cost and should be run only after
 explicit authorization. Acceptance must inspect observed role, provider, model,

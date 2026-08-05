@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.3.0+codex.20260802080254",
-  "description": "Explicit Codex workflow for dynamic functional subagents, primary-session implementation, and conditional cross-model verification.",
+  "version": "0.4.0+codex.20260805225357",
+  "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and conditional cross-model verification.",
   "author": {
     "name": "Daniel McAteer",
     "url": "https://github.com/DannyMac180"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Keep complex implementation primary; delegate bounded discovery and validation.",
-    "longDescription": "Sol Advisor dynamically routes functional custom agents for repository discovery, long-context analysis, deterministic mechanical edits, conditional DeepSeek adversarial verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
+    "shortDescription": "Automatically delegate bounded discovery, research, editing, and validation.",
+    "longDescription": "Sol Advisor automatically evaluates non-trivial repository work and dynamically routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, conditional DeepSeek adversarial verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
     "developerName": "Daniel McAteer",
     "category": "Productivity",
     "capabilities": [
@@ -28,9 +28,9 @@
     ],
     "websiteURL": "https://github.com/DannyMac180/sol-advisor",
     "defaultPrompt": [
-      "Use Sol Advisor to investigate this task and keep complex implementation in the primary session.",
-      "Route only bounded independent work through the appropriate Sol Advisor functional agent.",
-      "Use conditional cross-model verification for material uncertainty or critical risk."
+      "Handle this non-trivial repository task; let Sol Advisor automatically route only bounded supporting work.",
+      "Keep complex implementation in the primary session and validate any functional-agent dispatch plan.",
+      "Apply conditional cross-model verification only for material uncertainty or critical risk."
     ]
   }
 }

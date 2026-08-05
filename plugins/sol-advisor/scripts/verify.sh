@@ -6,7 +6,7 @@ set -eu
 pass() { printf '%s\n' "PASS: $*"; }
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-agent_files='sol-advisor-repo-scout.toml sol-advisor-precision-scout.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-deepseek-adversarial-verifier.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
+agent_files='sol-advisor-repo-scout.toml sol-advisor-precision-scout.toml sol-advisor-external-researcher.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-deepseek-adversarial-verifier.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 hash_agents() {
   for agent_file in $agent_files; do
@@ -18,6 +18,7 @@ script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
 plugin_dir=$(CDPATH= cd "$script_dir/.." && pwd) || exit 1
 installer=$script_dir/install-agents.sh
 route_validator=$script_dir/validate-agent-route.sh
+dispatch_validator=$script_dir/validate-dispatch-plan.py
 runtime_inspector=$script_dir/inspect-agent-runtime.sh
 templates=$plugin_dir/agents
 manifest=$plugin_dir/.codex-plugin/plugin.json
@@ -42,7 +43,7 @@ trap cleanup 0 HUP INT TERM
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
 case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-for required in "$installer" "$route_validator" "$runtime_inspector" "$manifest" "$skill" "$contracts" "$metadata"; do
+for required in "$installer" "$route_validator" "$dispatch_validator" "$runtime_inspector" "$manifest" "$skill" "$contracts" "$metadata"; do
   test -f "$required" || fail "required file missing: $required"
 done
 
@@ -52,8 +53,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.3."):
-    raise SystemExit("manifest version was not advanced to 0.3")
+if not manifest.get("version", "").startswith("0.4."):
+    raise SystemExit("manifest version was not advanced to 0.4")
 PY
 pass "plugin manifest JSON and version"
 
@@ -66,7 +67,8 @@ templates = Path(sys.argv[1])
 dynamic = {
     "sol-advisor-repo-scout.toml": ("sol_advisor_repo_scout", "read-only"),
     "sol-advisor-precision-scout.toml": ("sol_advisor_precision_scout", "read-only"),
-    "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", None),
+    "sol-advisor-external-researcher.toml": ("sol_advisor_external_researcher", "read-only"),
+    "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", "workspace-write"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", "read-only"),
     "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", "read-only"),
     "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "read-only"),
@@ -85,11 +87,10 @@ for filename, (name, sandbox) in dynamic.items():
         raise SystemExit(f"{path}: unexpected name {data['name']!r}")
     if "model" in data or "model_reasoning_effort" in data or "model_provider" in data:
         raise SystemExit(f"{path}: dynamic role unexpectedly pins provider/model/effort")
-    if sandbox is None:
-        if "sandbox_mode" in data:
-            raise SystemExit(f"{path}: mechanical editor must inherit writable parent access")
-    elif data.get("sandbox_mode") != sandbox:
+    if data.get("sandbox_mode") != sandbox:
         raise SystemExit(f"{path}: expected {sandbox} sandbox")
+    if data.get("mcp_servers") != {} or data.get("skills", {}).get("config") != []:
+        raise SystemExit(f"{path}: inherited MCP or Skill surface was not cleared")
     if data.get("features", {}).get("multi_agent") is not False:
         raise SystemExit(f"{path}: descendant agents are not disabled")
     instructions = " ".join(data["developer_instructions"].lower().split())
@@ -124,10 +125,12 @@ for field, value in {
 
 print("functional role TOML contracts are valid")
 PY
-pass "dynamic role TOML, access boundaries, fixed DeepSeek route, and no descendants"
+pass "dynamic role TOML, narrow tool/access boundaries, fixed DeepSeek route, and no descendants"
 
 valid_routes='sol_advisor_repo_scout openai gpt-5.6-luna xhigh
 sol_advisor_precision_scout openai gpt-5.6-luna max
+sol_advisor_external_researcher openai gpt-5.6-luna xhigh
+sol_advisor_external_researcher openai gpt-5.6-luna max
 sol_advisor_mechanical_editor openai gpt-5.6-luna max
 sol_advisor_context_analyst openai gpt-5.6-terra xhigh
 sol_advisor_context_analyst openai gpt-5.6-terra max
@@ -145,6 +148,7 @@ pass "all allowed dynamic routes"
 
 invalid_routes='sol_advisor_repo_scout openai gpt-5.6-luna high
 sol_advisor_precision_scout openai gpt-5.6-luna xhigh
+sol_advisor_external_researcher openai gpt-5.6-luna high
 sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh
 sol_advisor_context_analyst openai gpt-5.6-terra ultra
 sol_advisor_context_analyst openai gpt-5.6-luna max
@@ -160,14 +164,122 @@ printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
 done
 pass "illegal Luna, Terra, Sol, and DeepSeek combinations rejected"
 
+python3 - "$dispatch_validator" <<'PY'
+from copy import deepcopy
+import importlib.util
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("dispatch_validator", path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+
+counter = 0
+
+def route(kind, angle=None):
+    global counter
+    counter += 1
+    role, provider, model, efforts, access = module.ROUTES[kind]
+    return {
+        "task_kind": kind,
+        "role": role,
+        "provider": provider,
+        "model": model,
+        "effort": sorted(efforts)[-1],
+        "access": access,
+        "question": f"bounded question {counter}",
+        "expected_evidence": "concrete locator and observation",
+        "response_token": f"SOL_ADVISOR_TEST_ROUTE_{counter:02d}",
+        "output_limit_chars": 2000,
+        "attack_angle": angle,
+    }
+
+def plan(tier, phase, mode, routes, deepseek="not-required", **extra):
+    value = {
+        "tier": tier,
+        "phase": phase,
+        "mode": mode,
+        "deepseek": deepseek,
+        "fix_round": 0,
+        "max_fix_rounds": 2,
+        "spawned_so_far": 0,
+        "max_total_children": module.TOTAL_CAPS[tier],
+        "routes": routes,
+    }
+    value.update(extra)
+    return value
+
+ordinary = plan("ordinary", "investigation", "serial", [route("repo_search")])
+critical = plan(
+    "critical", "verification", "parallel",
+    [route("adversarial_verification", "cross-model behavior"),
+     route("local_verification", "local code and tests"),
+     route("cross_module", "integration boundaries")],
+    deepseek="available",
+)
+fallback = plan(
+    "critical", "verification", "parallel",
+    [route("local_verification", "local code and tests"),
+     route("cross_module", "integration boundaries")],
+    deepseek="unavailable", degraded_independence=True,
+)
+adjudication = plan(
+    "critical", "adjudication", "serial", [route("adjudicate_max")],
+    deepseek="unavailable", degraded_independence=True,
+)
+for valid in (ordinary, critical, fallback, adjudication):
+    assert module.validate(valid)["valid"] is True
+
+invalid = []
+too_many = deepcopy(ordinary)
+too_many["mode"] = "parallel"
+too_many["routes"].append(route("external_research", "source freshness"))
+invalid.append(too_many)
+
+duplicate_angle = deepcopy(critical)
+duplicate_angle["routes"][1]["attack_angle"] = duplicate_angle["routes"][0]["attack_angle"]
+invalid.append(duplicate_angle)
+
+bad_round = deepcopy(ordinary)
+bad_round["fix_round"] = 3
+bad_round["max_fix_rounds"] = 3
+invalid.append(bad_round)
+
+bad_token = deepcopy(ordinary)
+bad_token["routes"][0]["response_token"] = "bad"
+invalid.append(bad_token)
+
+bad_fallback = deepcopy(fallback)
+bad_fallback["degraded_independence"] = False
+invalid.append(bad_fallback)
+
+parallel_write = plan(
+    "complex", "editing", "parallel",
+    [route("mechanical_edit", "write path"), route("repo_search", "read path")],
+)
+invalid.append(parallel_write)
+
+for rejected in invalid:
+    try:
+        module.validate(rejected)
+    except ValueError:
+        continue
+    raise SystemExit(f"invalid dispatch plan accepted: {rejected}")
+
+print("dispatch-plan policy is valid")
+PY
+pass "executable dispatch-plan classification, routing, concurrency, budget, and fallback policy"
+
 clean_target=$tmp_dir/clean-install
 sh "$installer" --target-dir "$clean_target" >/dev/null
 for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "install differs: $agent_file"
 done
 installed_count=$(find "$clean_target" -maxdepth 1 -type f -name 'sol-advisor-*.toml' | awk 'END { print NR + 0 }')
-[ "$installed_count" -eq 7 ] || fail "installer did not produce exactly seven functional roles"
-pass "installer registers exactly seven functional roles"
+[ "$installed_count" -eq 8 ] || fail "installer did not produce exactly eight functional roles"
+pass "installer registers exactly eight functional roles"
 
 missing_check_target=$tmp_dir/missing-check
 if sh "$installer" --target-dir "$missing_check_target" --check >/dev/null 2>&1; then fail "--check accepted missing target"; fi
@@ -232,21 +344,31 @@ if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" 22222222-2222-7222
 pass "runtime inspector invalid and missing-id refusal"
 
 for document in "$skill" "$contracts"; do
-  for role in sol_advisor_repo_scout sol_advisor_precision_scout sol_advisor_mechanical_editor sol_advisor_context_analyst sol_advisor_deepseek_adversarial_verifier sol_advisor_local_code_verifier sol_advisor_final_adjudicator; do
+  for role in sol_advisor_repo_scout sol_advisor_precision_scout sol_advisor_external_researcher sol_advisor_mechanical_editor sol_advisor_context_analyst sol_advisor_deepseek_adversarial_verifier sol_advisor_local_code_verifier sol_advisor_final_adjudicator; do
     grep -Fq "$role" "$document" || fail "missing role $role in $document"
   done
-  grep -Fq 'fork_turns: 1' "$document" || fail "missing positive inherited-context rule: $document"
+  grep -Fq 'fork_context: false' "$document" || fail "missing current isolated-context spawn rule: $document"
+  if grep -Fq 'fork_turns' "$document"; then fail "obsolete fork_turns remains in: $document"; fi
+  grep -Fq 'RESPONSE TOKEN' "$document" || fail "missing task-delivery response token: $document"
 done
-grep -Fq 'Ordinary task: at most one child agent' "$skill" || fail "ordinary concurrency limit missing"
-grep -Fq 'Complex task: at most two' "$skill" || fail "complex concurrency limit missing"
-grep -Fq 'third validator' "$skill" || fail "critical concurrency limit missing"
+grep -Fq '../../scripts/validate-dispatch-plan.py' "$skill" || fail "dispatch validator reference missing"
+grep -Fq 'Ordinary: at most one concurrent and one total child' "$skill" || fail "ordinary concurrency limit missing"
+grep -Fq 'Complex: at most two concurrent and three total children' "$skill" || fail "complex concurrency limit missing"
+grep -Fq 'Critical: at most three concurrent and five total children' "$skill" || fail "critical concurrency limit missing"
 grep -Fq "read each other's conclusions" "$skill" || fail "validator independence missing"
-grep -Fq 'force Sol/Max adjudication' "$skill" || fail "DeepSeek degraded adjudication missing"
-grep -Fq 'cross-provider independence' "$skill" || fail "DeepSeek degraded disclosure missing"
-grep -Fq 'ordinary completion does not require' "$skill" || fail "conditional Sol adjudication missing"
-grep -Fq 'does not automatically execute a Skill' "$skill" || fail "explicit child Skill rule missing"
-grep -Fq 'allow_implicit_invocation: false' "$metadata" || fail "explicit invocation policy missing"
-pass "concurrency, independence, conditional validation, degradation, and Skill policies"
+grep -Fq 'serial Sol/Max adjudication' "$skill" || fail "DeepSeek degraded adjudication missing"
+grep -Fq 'lost cross-provider independence' "$skill" || fail "DeepSeek degraded disclosure missing"
+grep -Fq 'Allow at most two fix rounds' "$skill" || fail "fix-round budget missing"
+grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
+pass "automatic invocation, current spawn interface, budgets, independence, and degradation policies"
+
+python3 - "$dispatch_validator" <<'PY'
+import ast
+from pathlib import Path
+import sys
+ast.parse(Path(sys.argv[1]).read_text(encoding="utf-8"))
+PY
+pass "Python dispatch-validator syntax"
 
 sh -n "$installer"
 sh -n "$route_validator"
