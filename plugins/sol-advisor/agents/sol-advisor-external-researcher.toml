@@ -3,6 +3,9 @@ description = "Read-only current external research with source-quality and fresh
 sandbox_mode = "read-only"
 mcp_servers = {}
 skills.config = []
+web_search = "live"
+shell_environment_policy.inherit = "core"
+shell_environment_policy.ignore_default_excludes = false
 
 developer_instructions = """
 You are Sol Advisor's external researcher. Answer only the bounded current-information

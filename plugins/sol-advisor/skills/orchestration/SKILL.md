@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: "Automatically evaluate non-trivial repository development, debugging, investigation, refactoring, implementation, and code-review tasks for Sol Advisor orchestration. Keep complex implementation in the primary Codex session; delegate only bounded repository search, current external research, long-context analysis, deterministic mechanical edits, or conditional independent verification. Do not activate for trivial one-step questions, simple formatting, casual explanation, or work where delegation cannot reduce context, latency, or verification risk."
+description: "Automatically activate Sol Advisor only when a repository task is likely to benefit from bounded delegation: broad or multi-module search, current external research, long logs or documents, deterministic bulk edits, material implementation uncertainty, critical risk, or independent adversarial verification. Keep complex implementation in the primary Codex session. Do not activate for bounded single-module implementation or debugging the primary can inspect directly, trivial one-step questions, simple formatting, casual explanation, or work where delegation cannot reduce context, latency, or verification risk."
 ---
 
 # Sol Advisor Orchestration
@@ -29,6 +29,12 @@ Elevate one tier when evidence is incomplete. Keep an immediate blocking lookup 
 primary session unless it is large enough to cause material context pollution and the
 primary can continue independent work while the child runs.
 
+Record explicit `risk_flags` from the dispatch schema. The validator derives a minimum
+tier from those flags and conservative critical-risk terms in the task summary; the
+declared tier may be higher but never lower. This is a guard against accidental
+under-classification, not proof that a model described every semantic risk. When a risk
+cannot be classified confidently, do not claim machine-enforced classification.
+
 ## Preflight once, validate every batch
 
 Resolve scripts relative to this SKILL.md:
@@ -38,6 +44,7 @@ skill_dir=<directory-containing-this-SKILL.md>
 installer="$skill_dir/../../scripts/install-agents.sh"
 route_validator="$skill_dir/../../scripts/validate-agent-route.sh"
 dispatch_validator="$skill_dir/../../scripts/validate-dispatch-plan.py"
+result_validator="$skill_dir/../../scripts/validate-agent-result.py"
 runtime_inspector="$skill_dir/../../scripts/inspect-agent-runtime.sh"
 sh "$installer" --check
 ~~~
@@ -53,17 +60,20 @@ Require these native agent types:
 - `sol_advisor_local_code_verifier`
 - `sol_advisor_final_adjudicator`
 
-Before every spawn batch, write a temporary dispatch-plan JSON outside the repository
-using the schema in the role contracts and run:
+Before the first batch, create one private temporary run directory outside the
+repository and retain its state file until the run finishes. Before every spawn batch,
+write a dispatch-plan JSON there using the schema in the role contracts and run:
 
 ~~~sh
-python3 "$dispatch_validator" <temporary-plan.json>
+python3 "$dispatch_validator" <temporary-plan.json> \
+  --state-file <temporary-run-directory>/state.json
 ~~~
 
-Spawn only when it returns `"valid":true`. Delete the temporary plan after use. The
-validator enforces task-role-model-effort mappings, per-tier concurrency, total child
-budgets, serial writes, independent attack angles, output limits, fix-round limits,
-and the DeepSeek fallback. Do not manually bypass a rejected plan.
+Spawn only when it returns `"valid":true`. The state file records pending results,
+monotonic batch/fix counters, consumed child budget, sticky DeepSeek unavailability,
+and completed fallback evidence. Do not delete, replace, or switch state files to reset
+a run. Delete the temporary run directory only after completion. Do not manually bypass
+a rejected plan.
 
 ## Allowed routes
 
@@ -85,27 +95,47 @@ disputes, High for ordinary semantic conflicts, xHigh for critical code or inter
 risk, and Max for architecture rethink, irreversible action, severe verifier conflict,
 or DeepSeek-degraded adjudication.
 
-## Spawn with the current native interface
+## Probe capabilities and spawn with the exposed interface
 
-Send a self-contained task in the native `message` field and set
-`fork_context: false`. Do not use a legacy turn-count field; it is not part of the
-current native spawn interface. For Luna, Terra, and Sol, pass the validated `model` and
+Before dispatch validation, inspect the exact spawn schema, exposed custom-agent types,
+available providers/models, and the parent turn's effective sandbox and permission
+profile. Put those observed capabilities into the plan. Never infer availability from
+the repository table and never silently substitute a model.
+
+The supported Codex surfaces currently expose two isolated spawn envelopes:
+
+- Desktop `multi_agent_v1`: send `agent_type`, self-contained `message`, validated
+  model/effort overrides, and `fork_context: false`.
+- Native CLI: send `agent_type`, unique `task_name`, self-contained `message`, validated
+  model/effort overrides, and `fork_turns: "none"`.
+
+Use only the envelope actually exposed by the current tool schema. Reject any other
+surface or field combination. For Luna, Terra, and Sol, pass the validated `model` and
 `reasoning_effort`. For the fixed DeepSeek role, omit both overrides.
 
-Every message must include `RESPONSE TOKEN:` followed by the unique token from the
-validated dispatch plan.
-Reject a result that does not return that exact token, even when routing metadata is
-correct. This distinguishes task delivery from role selection.
+Every message must require one JSON result conforming to the task-adaptive nucleus in
+the role contracts and include `RESPONSE TOKEN:` followed by the unique token from the
+validated dispatch plan. Save the exact returned text outside the repository and run
+`validate-agent-result.py` with the same state file. It validates the actual character
+count, exact token, common scope/status fields, and the role-specific evidence nucleus.
+Reject a result that fails validation even when routing metadata is correct.
 
 After spawn, inspect public native metadata first. If it omits provider, model, effort,
 sandbox, or permission profile and a local rollout is accessible, run the runtime
 inspector with the exact child thread id. Public and local values must agree. Run the
 route validator against observed values.
 
-Accept a read-only lane only when its observed sandbox is `read-only`. Accept the
-mechanical editor only when its observed sandbox is `workspace-write`; reject
-`danger-full-access`, read-only, unobservable, or broadened access. Custom profiles
-request narrow access, but live parent overrides can supersede profile defaults.
+Subagents inherit the parent turn's live sandbox and permission overrides. Therefore,
+before spawn, require the parent's effective sandbox to be exactly `read-only` for every
+investigator, researcher, verifier, analyst, or adjudicator, and exactly
+`workspace-write` for the mechanical editor. Never spawn from `danger-full-access` or
+with unobservable permission metadata. A post-spawn rejection cannot undo an earlier
+side effect. After spawn, pass observed sandbox and permission profile to
+`validate-agent-route.sh` and require an exact lane match.
+
+If the required model, agent type, provider, interface, or permission lane is missing,
+warn and keep the work in the primary session. For critical verification, report the
+lost assurance and do not describe a reduced route as equivalent validation.
 
 ## Delegation and budgets
 
@@ -120,12 +150,15 @@ request narrow access, but live parent overrides can supersede profile defaults.
   read each other's conclusions.
 - Keep shared files, dependency chains, mechanical writes, and adjudication serial.
 - No child may spawn descendants.
+- Never reset the run state to regain budget. A dispatched child consumes budget even
+  when delivery or validation fails.
 
-The role profiles clear inherited Skill and MCP configuration. Keep tool use local and
-read-only except for the mechanical editor's workspace changes. Use the external
-researcher only with side-effect-free search/fetch operations. Keep a task requiring a
-specialized Skill or write-capable connector in the primary session unless a separately
-reviewed role explicitly provides that narrow tool.
+The role profiles clear inherited Skill and MCP configuration, but current custom-agent
+configuration does not prove a complete denylist for every built-in web, connector,
+shell-environment, or plugin capability. Keep a task requiring credentials, specialized
+Skills, connectors, or sensitive environment access in the primary session. If the live
+surface cannot prove the needed tool boundary, do not spawn and do not call the boundary
+"strict".
 
 ## Verification and adjudication
 
@@ -138,18 +171,23 @@ After primary implementation and primary verification:
 4. Merge duplicate findings. Reproduce only findings that change implementation,
    block delivery, or require adjudication.
 5. Fix clear defects in the primary session and rerun the minimum relevant checks.
-6. Send genuine evidence conflicts to the dynamic-strength Sol adjudicator.
+6. Send genuine evidence conflicts to the dynamic-strength Sol adjudicator. Its plan
+   must name the completed evidence batches in `evidence_batch_ids` and summarize the
+   unresolved conflict in `conflict_summary`; never use adjudication as a first batch.
 
 If DeepSeek is unavailable, warn explicitly. For critical verification, run Luna/Max
-and Terra/Max in parallel, disclose lost cross-provider independence, and then require
-serial Sol/Max adjudication. Never describe the fallback as equivalent independence.
+and Terra/Max in parallel, validate both result nuclei into the same run state, disclose
+lost cross-provider independence, and only then permit serial Sol/Max adjudication.
+DeepSeek availability is sticky within a run. Never describe the fallback as equivalent
+independence.
 
 ## Accept child evidence
 
-Child output is a claim, not proof. Require the task-specific evidence nucleus defined
-in the role contracts and enforce the validated output character limit. Open only
-evidence that can change the plan or delivery decision. Always inspect the actual diff
-after a mechanical edit and rerun the minimum relevant checks.
+Child output is a claim, not proof. Require result-validator acceptance first, then open
+only evidence that can change the plan or delivery decision. Result validation proves
+shape and delivery, not truth. Verify at least one decisive locator for every accepted
+material conclusion. Always inspect the actual diff after a mechanical edit and rerun
+the minimum relevant checks.
 
 Track main-thread context, total model tokens, elapsed time, child count, rework, and
 escaped defects separately. Subagents can reduce main-thread context pollution while

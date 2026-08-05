@@ -61,11 +61,14 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-# Make explicitly supplied relative paths unambiguous before any file operation.
-case "$target_dir" in
-  /*) ;;
-  *) target_dir=$(pwd -P)/$target_dir ;;
-esac
+# Canonicalize existing and non-existing paths before any destination operation.
+# This rejects aliases such as /tmp/.. that otherwise resolve to the filesystem root.
+target_dir=$(python3 - "$target_dir" <<'PY'
+from pathlib import Path
+import sys
+print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+PY
+) || fail "could not canonicalize target directory."
 
 [ "$target_dir" != "/" ] || fail "refusing to use the filesystem root as an agent target directory."
 

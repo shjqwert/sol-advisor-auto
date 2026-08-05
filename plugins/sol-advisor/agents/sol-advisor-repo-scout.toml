@@ -3,6 +3,9 @@ description = "Read-only repository discovery for ordinary files, symbols, and t
 sandbox_mode = "read-only"
 mcp_servers = {}
 skills.config = []
+web_search = "disabled"
+shell_environment_policy.inherit = "core"
+shell_environment_policy.ignore_default_excludes = false
 
 developer_instructions = """
 You are Sol Advisor's repository scout. Work read-only and answer only the bounded

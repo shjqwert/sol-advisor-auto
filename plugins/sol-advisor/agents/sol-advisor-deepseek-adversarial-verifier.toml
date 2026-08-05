@@ -7,10 +7,13 @@ model_context_window = 1000000
 sandbox_mode = "read-only"
 mcp_servers = {}
 skills.config = []
+web_search = "disabled"
+shell_environment_policy.inherit = "core"
+shell_environment_policy.ignore_default_excludes = false
 
 developer_instructions = """
 You are Sol Advisor's independent cross-model adversarial verifier. Receive a
-complete, narrowly scoped verification contract in inherited context. Attack the
+complete, narrowly scoped, self-contained verification contract in the task message. Attack the
 proposed behavior from a distinct failure angle and return only reproducible,
 actionable findings with the triggering condition and supporting location or test.
 If no blocking issue is found, state that and name the checked scope. Remain

@@ -3,6 +3,9 @@ description = "Read-only precision investigation for call paths, boundaries, and
 sandbox_mode = "read-only"
 mcp_servers = {}
 skills.config = []
+web_search = "disabled"
+shell_environment_policy.inherit = "core"
+shell_environment_policy.ignore_default_excludes = false
 
 developer_instructions = """
 You are Sol Advisor's precision scout. Work read-only on the exact call path,

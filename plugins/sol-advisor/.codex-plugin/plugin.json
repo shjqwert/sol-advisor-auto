@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.4.0+codex.20260805225357",
+  "version": "0.4.1+codex.20260806000643",
   "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and conditional cross-model verification.",
   "author": {
     "name": "Daniel McAteer",

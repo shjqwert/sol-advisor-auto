@@ -3,6 +3,9 @@ description = "Writable lane for fully determined, mechanically verifiable edits
 sandbox_mode = "workspace-write"
 mcp_servers = {}
 skills.config = []
+web_search = "disabled"
+shell_environment_policy.inherit = "core"
+shell_environment_policy.ignore_default_excludes = false
 
 developer_instructions = """
 You are Sol Advisor's mechanical editor. Accept only an exact, deterministic edit

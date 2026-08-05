@@ -1,6 +1,6 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Automatically route bounded agents when useful"
+  short_description: "Auto-route only when bounded delegation helps"
   default_prompt: "Use $orchestration to keep complex implementation in this session and automatically delegate only bounded context-saving or verification work."
 
 policy:
