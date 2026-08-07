@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.4.1+codex.20260806002401",
-  "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and conditional cross-model verification.",
+  "version": "0.5.0+codex.20260807203702",
+  "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and independent verification.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Automatically delegate bounded discovery, research, editing, and validation.",
-    "longDescription": "Sol Advisor automatically evaluates non-trivial repository work and dynamically routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, conditional DeepSeek adversarial verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
+    "longDescription": "Sol Advisor automatically evaluates non-trivial repository work and dynamically routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, independent Luna and Terra verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,7 +30,7 @@
     "defaultPrompt": [
       "Handle this non-trivial repository task; let Sol Advisor automatically route only bounded supporting work.",
       "Keep complex implementation in the primary session and validate any functional-agent dispatch plan.",
-      "Apply conditional cross-model verification only for material uncertainty or critical risk."
+      "Apply independent verification only for material uncertainty or critical risk."
     ]
   }
 }

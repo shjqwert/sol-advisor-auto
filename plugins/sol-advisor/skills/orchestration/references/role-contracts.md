@@ -5,15 +5,16 @@ contract is adaptive, but every child message must state:
 
 - exact question and bounded scope;
 - decision the result can change;
-- access and excluded actions;
+- behavioral boundaries and excluded actions;
 - expected evidence and output character limit;
 - unique response token and stop condition;
-- one JSON-only result using the common envelope and task-specific nucleus below.
+- one concise visible Markdown result plus one hidden JSON machine payload using the
+  common envelope and task-specific nucleus below.
 
-Send the complete contract through native `message`. Use `fork_context: false` only
-with the exposed Desktop `multi_agent_v1` interface. Use a unique `task_name` and
-`fork_turns: "none"` only with the exposed native CLI interface. Reject unsupported or
-mixed envelopes. Reject a result that fails `validate-agent-result.py`.
+Send the complete contract through Desktop `desktop_collaboration_v2` `message`. Every
+route uses a unique `task_name` and `fork_turns: "none"` so the child is visible in
+the sidebar and receives no inherited conversation. Reject CLI or mixed envelopes.
+Reject a result that fails `validate-agent-result.py`.
 
 ## Dispatch-plan schema
 
@@ -30,44 +31,46 @@ persistent state file for the whole run:
   "tier": "complex",
   "phase": "investigation",
   "mode": "parallel",
-  "deepseek": "not-required",
   "fix_round": 0,
-  "spawn_interface": "multi_agent_v1",
-  "fork_context": false,
-  "parent_sandbox": "read-only",
-  "parent_permission_profile_type": "disabled",
+  "spawn_interface": "desktop_collaboration_v2",
+  "fork_turns": "none",
   "available_agent_types": [
-    "sol_advisor_repo_scout",
-    "sol_advisor_external_researcher"
+    "sol_advisor_investigator"
   ],
-  "available_models": ["gpt-5.6-luna"],
+  "available_models": ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
+  "available_model_overrides": ["gpt-5.6-terra", "gpt-5.6-sol"],
   "available_providers": ["openai"],
+  "agent_base_models": {
+    "sol_advisor_investigator": "gpt-5.6-luna"
+  },
   "routes": [
     {
       "task_kind": "repo_search",
-      "role": "sol_advisor_repo_scout",
+      "role": "sol_advisor_investigator",
       "provider": "openai",
       "model": "gpt-5.6-luna",
       "effort": "xhigh",
-      "access": "read-only",
+      "difficulty": "standard",
       "question": "Locate the routing entry points.",
       "expected_evidence": "Repository paths, symbols, and relevance.",
       "response_token": "SOL_ADVISOR_ROUTE_A1B2C3D4",
       "output_limit_chars": 2000,
       "attack_angle": "repository ownership and entry points"
+      ,"task_name": "investigate_routing_a1"
     },
     {
       "task_kind": "external_research",
-      "role": "sol_advisor_external_researcher",
+      "role": "sol_advisor_investigator",
       "provider": "openai",
       "model": "gpt-5.6-luna",
       "effort": "xhigh",
-      "access": "read-only",
+      "difficulty": "standard",
       "question": "Confirm the current upstream API contract.",
       "expected_evidence": "Primary links, dates, applicability, and fact versus inference.",
       "response_token": "SOL_ADVISOR_ROUTE_E5F6G7H8",
       "output_limit_chars": 2500,
       "attack_angle": "current upstream contract"
+      ,"task_name": "research_upstream_e5"
     }
   ]
 }
@@ -77,20 +80,19 @@ persistent state file for the whole run:
 python3 ../../scripts/validate-dispatch-plan.py plan.json --state-file state.json
 ~~~
 
-For native CLI plans, replace `spawn_interface`/`fork_context` with
-`"spawn_interface":"native_cli"` and `"fork_turns":"none"`, then add a unique
-lowercase `task_name` to every route.
+The normalized route includes `model_override`. Omit the spawn `model` field when it
+is null, because the role's TOML base-model pin is authoritative. Supply the override
+only when it is non-null and exposed by the live Desktop schema.
 
 An adjudication batch additionally requires unique `evidence_batch_ids` naming prior
 completed batches in the same state file and a concise `conflict_summary`. Adjudication
 cannot be the first batch and a `batch_id` cannot be reused within a run.
 
 The validator derives a minimum tier from `risk_flags` and conservative critical terms,
-binds route kinds to phases, verifies current model/agent/provider availability, gates
-spawn on the effective parent sandbox, and persists budget/degradation state. It cannot
-prove that a model identified every semantic risk. Continue to use
-`validate-agent-route.sh` after spawn against observed runtime metadata, including
-sandbox and permission profile.
+binds route kinds to phases, and verifies current model/agent/provider availability. It
+persists budget state but does not restrict inherited child permissions. It cannot prove
+that a model identified every semantic risk. Continue to use
+`validate-agent-route.sh` after spawn against observed role, provider, model, and effort.
 
 ## Evidence nucleus
 
@@ -105,7 +107,29 @@ Do not force one universal report. Require only the nucleus relevant to the clai
 - mechanical edit: actual changed paths, verification command, and result;
 - unresolved fact: state what remains unknown and why it matters.
 
-Every child returns one JSON object. The common envelope is intentionally small:
+Every child returns this exact two-layer structure. The first section is rendered in
+the sidebar; the HTML comment keeps the machine record out of the visible result:
+
+~~~text
+## 结论 / Result
+
+<exactly the same text as the JSON summary>
+
+- 状态 / Status: `<exact JSON status>`
+- 范围 / Scope: <compact human-readable scope>
+- 详情 / Details: <concise evidence, changed files, unknowns, or decision>
+
+<!-- SOL_ADVISOR_RESULT_JSON_START
+{"response_token":"...","status":"...","summary":"...","scope":["..."]}
+SOL_ADVISOR_RESULT_JSON_END -->
+~~~
+
+Do not expose the JSON in a code fence or anywhere else. Do not put any text after the
+closing marker. The visible Markdown is capped at 2000 characters; the validated
+`output_limit_chars` applies to the hidden JSON payload. The visible section must use
+the exact machine summary and status. Raw JSON-only output is invalid.
+
+The hidden common envelope is intentionally small:
 
 ~~~json
 {
@@ -127,22 +151,33 @@ Then add only the task-specific nucleus:
 - adjudication: `decision` (`ship|fix-first|rethink`) and `rationale`;
 - unresolved result: `unknowns`; no-finding result relies on the checked `scope`.
 
-Save the exact JSON text and run:
+Repository and precision results must not include `sources`; external-research results
+must not include repository `locators`. If assigned investigation difficulty is too
+low, return `unresolved` and name the required upgrade in `unknowns`.
+
+Save the exact returned Markdown and hidden payload without reformatting, then run:
 
 ~~~sh
-python3 ../../scripts/validate-agent-result.py result.json --state-file state.json
+python3 ../../scripts/validate-agent-result.py result.json \
+  --state-file state.json --runtime-metadata runtime.json
 ~~~
 
-Result validation proves delivery, size, and required evidence shape. It does not prove
-the claim true; the primary still verifies decisive evidence.
+Result validation first extracts exactly one hidden JSON payload, checks the visible
+heading plus exact summary/status and bounded size, then binds the child runtime role,
+provider, model, and effort to the pending route and proves delivery and evidence shape.
+Sandbox and permission metadata are diagnostic only and do not gate acceptance.
+Validation does not prove the claim true; the primary still verifies decisive evidence.
 
 The primary verifies only evidence that changes implementation or delivery, but it
 must verify at least one concrete locator for every accepted material conclusion.
 
 ## Discovery
 
-Use `sol_advisor_repo_scout` with Luna/xHigh for bounded repository discovery, or
-`sol_advisor_precision_scout` with Luna/Max for exact call paths and boundaries.
+Use `sol_advisor_investigator` with Luna/xHigh for standard bounded repository
+discovery and Luna/Max for deep discovery. Precision search is always deep. Multiple
+modules, difficult debugging, incomplete evidence, or critical risk also require deep.
+For local task kinds, explicitly forbid web use even though the unified role keeps
+live read-only search available for external research.
 
 ~~~text
 QUESTION: <one repository question>
@@ -156,8 +191,9 @@ STOP: remain read-only; no general review or implementation.
 
 ## External research
 
-Use `sol_advisor_external_researcher` with Luna/xHigh. Escalate to Luna/Max only for
-high-stakes reconciliation across multiple primary sources.
+Use `sol_advisor_investigator` with Luna/xHigh for standard external research. Use
+Luna/Max deep for high-stakes reconciliation, incomplete evidence, or conflicting
+primary sources.
 
 ~~~text
 QUESTION: <one current external fact question>
@@ -173,7 +209,8 @@ STOP: read-only search/fetch only; no forms, messages, downloads, or external wr
 ## Context analysis
 
 Use `sol_advisor_context_analyst` with Terra/xHigh for long-context compression or
-Terra/Max for independent cross-module constraints.
+Terra/Max for critical independent cross-module verification. Use the Luna/Max
+investigator for ordinary cross-module investigation.
 
 ~~~text
 QUESTION: <one long-context or cross-module question>
@@ -187,8 +224,11 @@ STOP: remain read-only and omit unrelated summary.
 
 ## Mechanical editing
 
-Use `sol_advisor_mechanical_editor` with Luna/Max only for an exact deterministic
-transformation. Never share its batch with another route.
+Use `sol_advisor_mechanical_editor` with Luna/xHigh for a standard deterministic edit
+or Luna/Max for a deep deterministic edit. Terra requires `difficulty: deep`, a
+`long_context` risk, and `selection_reason: long_context`; use Terra/xHigh for one
+module and Terra/Max when `multiple_modules` is also present. Never share its batch
+with another route.
 
 ~~~text
 CHANGE: <exact transformation>
@@ -206,10 +246,10 @@ inspect the actual diff, reject any out-of-scope path, and rerun the minimum che
 
 ## Independent verification
 
-Use `sol_advisor_deepseek_adversarial_verifier` for the cross-model angle and
-`sol_advisor_local_code_verifier` with Luna/Max for the local code/test angle. Add
-Terra/Max only for a distinct cross-module angle. Spawn all members of a parallel
-batch before accepting any result so none can see another conclusion.
+Use `sol_advisor_local_code_verifier` with Luna/Max for substantive implementation
+uncertainty. For critical risk, pair it with `sol_advisor_context_analyst` at Terra/Max
+for a distinct cross-module angle. Spawn both members of the parallel batch before
+accepting either result so neither can see the other's conclusion.
 
 ~~~text
 PROPOSED BEHAVIOR: <claim being attacked>
@@ -221,8 +261,9 @@ RESPONSE TOKEN: <validated unique token>
 STOP: remain read-only; do not implement or inspect another verifier result.
 ~~~
 
-For DeepSeek, omit model and reasoning overrides because its profile is fixed. Use a
-self-contained native message and the validated envelope for the current surface.
+Use a self-contained native message. Omit the model field for the role's validated base
+model; pass a model override only for an explicitly allowed exception, and always pass
+the validated reasoning effort.
 
 ## Sol adjudication
 
@@ -230,7 +271,6 @@ Use `sol_advisor_final_adjudicator` only for a genuine evidence conflict or crit
 decision. Choose the task kind matching the validated effort:
 
 - `adjudicate_low` -> Medium
-- `adjudicate_standard` -> High
 - `adjudicate_critical` -> xHigh
 - `adjudicate_max` -> Max
 
@@ -244,8 +284,8 @@ RETURN: exact token, one verdict, minimum decisive rationale, and required actio
 STOP: remain read-only; do not implement.
 ~~~
 
-When DeepSeek is unavailable for critical verification, first validate and run a
-parallel Luna/Max plus Terra/Max batch with `degraded_independence: true`. Validate both
-results into the same state file. Only then can a separate serial Sol/Max adjudication
-batch with the same disclosure pass. DeepSeek cannot become available again within that
-run.
+Critical verification requires one Luna/Max local-code route and one Terra/Max
+cross-module route with distinct attack angles. If either route is unavailable, keep
+the verification in the primary session and report the missing assurance. Sol effort
+remains dynamic and adjudication is permitted only for a genuine conflict backed by
+completed evidence batches.

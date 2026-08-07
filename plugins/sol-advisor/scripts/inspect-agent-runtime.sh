@@ -121,6 +121,15 @@ def one_required(values):
         raise SystemExit(1)
     return values[0]
 
+def diagnostic_value(values):
+    normalized = [value if isinstance(value, str) and value else None for value in values]
+    present = {value for value in normalized if value is not None}
+    if not present:
+        return None
+    if len(present) == 1 and all(value is not None for value in normalized):
+        return next(iter(present))
+    return "mixed-or-partial"
+
 result = {
     "thread_id": session["id"],
     "parent_thread_id": session.get("parent_thread_id") if isinstance(session.get("parent_thread_id"), str) else None,
@@ -129,8 +138,8 @@ result = {
     "model_provider": session.get("model_provider") if isinstance(session.get("model_provider"), str) else None,
     "model": one_required([turn.get("model") for turn in turns]),
     "effort": one_required([turn.get("effort") for turn in turns]),
-    "sandbox_policy_type": one_required([(turn.get("sandbox_policy") or {}).get("type") for turn in turns]),
-    "permission_profile_type": one_required([(turn.get("permission_profile") or {}).get("type") for turn in turns]),
+    "sandbox_policy_type": diagnostic_value([(turn.get("sandbox_policy") or {}).get("type") for turn in turns]),
+    "permission_profile_type": diagnostic_value([(turn.get("permission_profile") or {}).get("type") for turn in turns]),
     "cwd": one_required([turn.get("cwd") for turn in turns]),
 }
 print(json.dumps(result, separators=(",", ":"), ensure_ascii=True))

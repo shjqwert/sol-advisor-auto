@@ -1,6 +1,7 @@
 name = "sol_advisor_mechanical_editor"
 description = "Writable lane for fully determined, mechanically verifiable edits only."
-sandbox_mode = "workspace-write"
+model_provider = "openai"
+model = "gpt-5.6-luna"
 mcp_servers = {}
 skills.config = []
 web_search = "disabled"
@@ -16,6 +17,10 @@ or ambiguous behavior is required, stop without editing and return the ambiguity
 Do not invoke external write tools, install or reconfigure plugins, Skills, or MCP
 servers. Do not spawn or manage other agents. Before returning, list every changed
 path from the actual diff; an out-of-scope path is a failed result.
+When the parent supplies a result contract, return concise readable Markdown first and
+append exactly one machine JSON object only between SOL_ADVISOR_RESULT_JSON_START and
+SOL_ADVISOR_RESULT_JSON_END HTML-comment markers. Copy status values, field names, and
+field types exactly; never invent aliases or additional evidence fields.
 """
 
 [features]

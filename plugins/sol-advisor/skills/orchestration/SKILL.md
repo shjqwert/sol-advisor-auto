@@ -51,12 +51,9 @@ sh "$installer" --check
 
 Require these native agent types:
 
-- `sol_advisor_repo_scout`
-- `sol_advisor_precision_scout`
-- `sol_advisor_external_researcher`
+- `sol_advisor_investigator`
 - `sol_advisor_mechanical_editor`
 - `sol_advisor_context_analyst`
-- `sol_advisor_deepseek_adversarial_verifier`
 - `sol_advisor_local_code_verifier`
 - `sol_advisor_final_adjudicator`
 
@@ -70,70 +67,81 @@ python3 "$dispatch_validator" <temporary-plan.json> \
 ~~~
 
 Spawn only when it returns `"valid":true`. The state file records pending results,
-monotonic batch/fix counters, consumed child budget, sticky DeepSeek unavailability,
-and completed fallback evidence. Do not delete, replace, or switch state files to reset
+monotonic batch/fix counters, consumed child budget, and completed evidence batches.
+Do not delete, replace, or switch state files to reset
 a run. Delete the temporary run directory only after completion. Do not manually bypass
 a rejected plan.
 
 ## Allowed routes
 
-| Task kind | Agent | Model / effort | Access |
+| Task kind | Agent | Model / effort | Behavioral boundary |
 |---|---|---|---|
-| `repo_search` | `sol_advisor_repo_scout` | Luna / xHigh | read-only |
-| `precision_search` | `sol_advisor_precision_scout` | Luna / Max | read-only |
-| `external_research` | `sol_advisor_external_researcher` | Luna / xHigh; Max only for high-stakes multi-source reconciliation | read-only |
-| `mechanical_edit` | `sol_advisor_mechanical_editor` | Luna / Max | workspace-write |
-| `long_context` | `sol_advisor_context_analyst` | Terra / xHigh | read-only |
-| `cross_module` | `sol_advisor_context_analyst` | Terra / Max | read-only |
-| `adversarial_verification` | `sol_advisor_deepseek_adversarial_verifier` | fixed DeepSeek V4 Flash / Codex xHigh (DeepSeek Max) | read-only |
-| `local_verification` | `sol_advisor_local_code_verifier` | Luna / Max | read-only |
-| adjudication | `sol_advisor_final_adjudicator` | Sol / Medium, High, xHigh, or Max | read-only |
+| `repo_search` | `sol_advisor_investigator` | Luna / xHigh standard; Max deep | no edits |
+| `precision_search` | `sol_advisor_investigator` | Luna / Max deep | no edits |
+| `external_research` | `sol_advisor_investigator` | Luna / xHigh standard; Max deep | no external writes |
+| `mechanical_edit` | `sol_advisor_mechanical_editor` | Luna / xHigh standard; Max deep; Terra only for explicit long context | bounded serial edits |
+| `long_context` | `sol_advisor_context_analyst` | Terra / xHigh | no edits |
+| `cross_module` | `sol_advisor_context_analyst` | Terra / Max, critical verification only | no edits |
+| `local_verification` | `sol_advisor_local_code_verifier` | Luna / Max | no edits |
+| adjudication | `sol_advisor_final_adjudicator` | Sol / Medium, xHigh, or Max | no edits |
 
 Luna permits only `xhigh|max`; Terra permits only `xhigh|max`; Sol permits only
-`medium|high|xhigh|max`. Ultra is forbidden. Use Sol Medium for bounded low-impact
-disputes, High for ordinary semantic conflicts, xHigh for critical code or interface
-risk, and Max for architecture rethink, irreversible action, severe verifier conflict,
-or DeepSeek-degraded adjudication.
+`medium|xhigh|max`. Ultra is forbidden. Use Sol Medium for bounded low-impact
+disputes, xHigh for critical code or interface risk, and Max for architecture rethink,
+irreversible action, severe verifier conflict, or severe evidence conflict.
 
-## Probe capabilities and spawn with the exposed interface
+Every investigation and mechanical-edit route declares `difficulty` as `standard` or
+`deep`. Standard Luna routes use xHigh and deep Luna routes use Max. Precision search
+is always deep. Multiple modules, difficult debugging, incomplete evidence, or a
+critical risk force deep investigation. Terra mechanical editing requires explicit
+`long_context` risk and `selection_reason: long_context`; it uses xHigh for one module
+and Max when `multiple_modules` is also present. Ordinary cross-module investigation
+uses the Luna/Max investigator rather than the context analyst.
+
+## Probe capabilities and spawn in Desktop
 
 Before dispatch validation, inspect the exact spawn schema, exposed custom-agent types,
-available providers/models, and the parent turn's effective sandbox and permission
-profile. Put those observed capabilities into the plan. Never infer availability from
+and available providers/models. Put those observed capabilities into the plan. Never infer availability from
 the repository table and never silently substitute a model.
 
-The supported Codex surfaces currently expose two isolated spawn envelopes:
+The only supported operational surface is Desktop `desktop_collaboration_v2` so every
+child is visible in the sidebar. Send `agent_type`, a unique `task_name`, a self-contained
+`message`, `fork_turns: "none"`, and the validated `reasoning_effort`. Do not use
+`codex exec` or native CLI spawning for ordinary Sol Advisor execution.
 
-- Desktop `multi_agent_v1`: send `agent_type`, self-contained `message`, validated
-  model/effort overrides, and `fork_context: false`.
-- Native CLI: send `agent_type`, unique `task_name`, self-contained `message`, validated
-  model/effort overrides, and `fork_turns: "none"`.
+Each role file pins its base model: Luna for investigator, mechanical editor, and
+local verifier; Terra for context analyst; Sol for final adjudicator. When the desired
+route uses that base model, omit the spawn `model` field (`model_override` is null in
+the validated plan). Pass a model override only for an allowed exception, currently
+Terra mechanical editing selected by the long-context gate. Treat the catalog model
+list, the live schema's model-override list, and the installed role base models as
+separate capabilities; reject unavailable combinations without substitution.
 
-Use only the envelope actually exposed by the current tool schema. Reject any other
-surface or field combination. For Luna, Terra, and Sol, pass the validated `model` and
-`reasoning_effort`. For the fixed DeepSeek role, omit both overrides.
+Every message must require the readable result envelope in the role contracts and
+include `RESPONSE TOKEN:` followed by the unique token from the validated dispatch
+plan. The visible section starts with `## 结论 / Result` and shows the exact summary,
+status, scope, and concise details. One machine JSON object follows only inside the
+`SOL_ADVISOR_RESULT_JSON_START` / `SOL_ADVISOR_RESULT_JSON_END` HTML comment, so the
+sidebar renders readable Markdown while validation retains structured evidence. Save
+the exact returned text outside the repository, inspect the exact child rollout, and
+save the runtime inspector JSON beside it. Run
+`validate-agent-result.py` with both the state file and `--runtime-metadata`; it refuses
+to mutate state until runtime role, provider, model, and effort match the pending route,
+then validates the visible Markdown and hidden JSON contract. Raw JSON-only results are
+invalid.
 
-Every message must require one JSON result conforming to the task-adaptive nucleus in
-the role contracts and include `RESPONSE TOKEN:` followed by the unique token from the
-validated dispatch plan. Save the exact returned text outside the repository and run
-`validate-agent-result.py` with the same state file. It validates the actual character
-count, exact token, common scope/status fields, and the role-specific evidence nucleus.
-Reject a result that fails validation even when routing metadata is correct.
+Subagents inherit the parent turn's live sandbox and permission profile. Role files do
+not declare a sandbox override, and Sol Advisor does not reject or compare inherited
+permissions. Behavioral instructions still prohibit out-of-role actions, and every
+mechanical edit remains bounded and serial, but these are not sandbox guarantees.
 
-After spawn, inspect public native metadata first. If it omits provider, model, effort,
-sandbox, or permission profile and a local rollout is accessible, run the runtime
-inspector with the exact child thread id. Public and local values must agree. Run the
-route validator against observed values.
+After spawn, inspect the exact child rollout with the runtime inspector. Pass its JSON
+to `validate-agent-result.py --runtime-metadata` and pass role, provider, model, and
+effort to `validate-agent-route.sh`. Both must accept before child evidence is used. A
+mismatched identity or model route must leave the batch pending. Observed sandbox and
+permission fields are diagnostic only.
 
-Subagents inherit the parent turn's live sandbox and permission overrides. Therefore,
-before spawn, require the parent's effective sandbox to be exactly `read-only` for every
-investigator, researcher, verifier, analyst, or adjudicator, and exactly
-`workspace-write` for the mechanical editor. Never spawn from `danger-full-access` or
-with unobservable permission metadata. A post-spawn rejection cannot undo an earlier
-side effect. After spawn, pass observed sandbox and permission profile to
-`validate-agent-route.sh` and require an exact lane match.
-
-If the required model, agent type, provider, interface, or permission lane is missing,
+If the required model, agent type, provider, or interface is missing,
 warn and keep the work in the primary session. For critical verification, report the
 lost assurance and do not describe a reduced route as equivalent validation.
 
@@ -142,10 +150,10 @@ lost assurance and do not describe a reduced route as equivalent validation.
 - Use no child when the primary already has sufficient evidence.
 - Ordinary: at most one concurrent and one total child.
 - Complex: at most two concurrent and three total children.
-- Critical: at most three concurrent and five total children.
+- Critical: at most two concurrent and five total children.
 - Allow at most two fix rounds. When the budget is exhausted, stop delegation and let
   the primary choose `ship`, `fix-first`, or `rethink` from existing evidence.
-- Parallel batches must be read-only and have distinct attack angles.
+- Parallel batches must contain only non-editing roles and have distinct attack angles.
 - Spawn every member of a parallel batch before collecting results so validators never
   read each other's conclusions.
 - Keep shared files, dependency chains, mechanical writes, and adjudication serial.
@@ -165,9 +173,9 @@ surface cannot prove the needed tool boundary, do not spawn and do not call the 
 After primary implementation and primary verification:
 
 1. Finish low-risk work when no material uncertainty remains.
-2. For substantive uncertainty, run one bounded DeepSeek adversarial check.
-3. For critical risk, run independent DeepSeek and Luna validators in parallel. Add
-   Terra only for a distinct cross-module attack angle.
+2. For substantive uncertainty, run one bounded Luna/Max local code check.
+3. For critical risk, run Luna/Max and Terra/Max validators in parallel with distinct
+   local-code and cross-module attack angles.
 4. Merge duplicate findings. Reproduce only findings that change implementation,
    block delivery, or require adjudication.
 5. Fix clear defects in the primary session and rerun the minimum relevant checks.
@@ -175,10 +183,8 @@ After primary implementation and primary verification:
    must name the completed evidence batches in `evidence_batch_ids` and summarize the
    unresolved conflict in `conflict_summary`; never use adjudication as a first batch.
 
-If DeepSeek is unavailable, warn explicitly. For critical verification, run Luna/Max
-and Terra/Max in parallel, validate both result nuclei into the same run state, disclose
-lost cross-provider independence, and only then permit serial Sol/Max adjudication.
-DeepSeek availability is sticky within a run. Never describe the fallback as equivalent
+If either critical verifier is unavailable, report the missing assurance and keep the
+work in the primary session. Do not substitute another route or claim equivalent
 independence.
 
 ## Accept child evidence

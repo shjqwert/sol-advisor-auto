@@ -13,8 +13,11 @@ import tempfile
 from urllib.parse import urlparse
 
 
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 8
 VALID_STATUSES = {"finding", "no_finding", "completed", "unresolved"}
+RESULT_JSON_START = "<!-- SOL_ADVISOR_RESULT_JSON_START\n"
+RESULT_JSON_END = "\nSOL_ADVISOR_RESULT_JSON_END -->"
+VISIBLE_OUTPUT_LIMIT_CHARS = 2000
 
 
 def fail(message: str) -> None:
@@ -37,6 +40,8 @@ def verify_state(state: dict) -> None:
         fail("state file has an unsupported schema")
     if state.get("receipt") != with_receipt(state)["receipt"]:
         fail("state file receipt mismatch")
+    if not isinstance(state.get("completed_batches"), list):
+        fail("state completed_batches must be an array")
 
 
 def required_text(obj: dict, key: str, limit: int = 2000) -> str:
@@ -58,6 +63,31 @@ def required_object_list(obj: dict, key: str) -> list[dict]:
     if not isinstance(value, list) or not value or any(not isinstance(item, dict) for item in value):
         fail(f"{key} must be a non-empty array of objects")
     return value
+
+
+def extract_result(raw_text: str) -> tuple[str, str, dict]:
+    if not isinstance(raw_text, str) or not raw_text.strip():
+        fail("child result must be non-empty text")
+    normalized = raw_text.replace("\r\n", "\n").strip()
+    if normalized.count(RESULT_JSON_START) != 1 or normalized.count(RESULT_JSON_END) != 1:
+        fail("child result must contain exactly one hidden machine-result envelope")
+    start = normalized.index(RESULT_JSON_START)
+    payload_start = start + len(RESULT_JSON_START)
+    end = normalized.index(RESULT_JSON_END, payload_start)
+    if normalized[end + len(RESULT_JSON_END):].strip():
+        fail("child result must not contain text after the hidden machine-result envelope")
+    visible = normalized[:start].strip()
+    payload_text = normalized[payload_start:end].strip()
+    if not visible.startswith("## 结论 / Result"):
+        fail("visible child result must start with the readable result heading")
+    if len(visible) > VISIBLE_OUTPUT_LIMIT_CHARS:
+        fail("visible child result exceeds its 2000-character limit")
+    if not payload_text:
+        fail("hidden machine-result payload must not be empty")
+    result = json.loads(payload_text)
+    if not isinstance(result, dict):
+        fail("hidden machine-result payload must be one JSON object")
+    return visible, payload_text, result
 
 
 def validate_locators(result: dict) -> None:
@@ -90,6 +120,10 @@ def validate_findings(result: dict) -> None:
 
 
 def validate_nucleus(kind: str, status: str, result: dict) -> None:
+    if kind in {"repo_search", "precision_search"} and "sources" in result:
+        fail("local investigation results must not include external sources")
+    if kind == "external_research" and "locators" in result:
+        fail("external research results must not include repository locators")
     if status == "unresolved":
         required_text_list(result, "unknowns")
         return
@@ -99,7 +133,7 @@ def validate_nucleus(kind: str, status: str, result: dict) -> None:
         validate_locators(result)
     elif kind == "external_research":
         validate_sources(result)
-    elif kind in {"adversarial_verification", "local_verification"}:
+    elif kind == "local_verification":
         if status != "finding":
             fail("verification results must be finding, no_finding, or unresolved")
         validate_findings(result)
@@ -116,6 +150,35 @@ def validate_nucleus(kind: str, status: str, result: dict) -> None:
         fail("state contains an unknown task kind")
 
 
+def validate_runtime_metadata(metadata: dict, route: dict) -> str:
+    if not isinstance(metadata, dict):
+        fail("runtime metadata must be one JSON object")
+    for key in (
+        "thread_id",
+        "agent_role",
+        "model_provider",
+        "model",
+        "effort",
+        "cwd",
+    ):
+        required_text(metadata, key, 2000)
+    observed = (
+        metadata["agent_role"],
+        metadata["model_provider"],
+        metadata["model"],
+        metadata["effort"],
+    )
+    expected = (
+        route["role"],
+        route["provider"],
+        route["model"],
+        route["effort"],
+    )
+    if observed != expected:
+        fail("runtime role, model, or effort does not match the pending route")
+    return metadata["thread_id"]
+
+
 def load_state(path: Path) -> dict:
     if not path.is_file() or path.is_symlink():
         fail("state path must be a regular non-symlink file")
@@ -125,8 +188,11 @@ def load_state(path: Path) -> dict:
 
 
 def write_state(path: Path, state: dict) -> None:
-    parent = path.parent.resolve(strict=True)
-    if not parent.is_dir() or parent.is_symlink() or path.is_symlink():
+    declared_parent = path.parent
+    if declared_parent.is_symlink():
+        fail("state path is not safe to replace")
+    parent = declared_parent.resolve(strict=True)
+    if not parent.is_dir() or path.is_symlink():
         fail("state path is not safe to replace")
     payload = canonical_json(with_receipt(state)) + b"\n"
     descriptor, temporary = tempfile.mkstemp(prefix=".sol-advisor-state-", dir=parent)
@@ -144,28 +210,49 @@ def write_state(path: Path, state: dict) -> None:
         raise
 
 
-def validate_result(raw_text: str, state: dict) -> tuple[dict, dict]:
+def validate_result(raw_text: str, state: dict, runtime_metadata: dict) -> tuple[dict, dict]:
     verify_state(state)
     pending = state.get("pending_batch")
     if not isinstance(pending, dict):
         fail("there is no pending batch for this result")
-    result = json.loads(raw_text)
-    if not isinstance(result, dict):
-        fail("child result must be one JSON object")
+    visible, payload_text, result = extract_result(raw_text)
     token = required_text(result, "response_token", 100)
-    routes = {route["response_token"]: route for route in pending.get("routes", [])}
+    pending_routes = pending.get("routes")
+    validated_results = pending.get("validated_results")
+    if not isinstance(pending_routes, list) or not pending_routes or not isinstance(validated_results, dict):
+        fail("pending batch routes or validated results are malformed")
+    routes = {}
+    for index, pending_route in enumerate(pending_routes):
+        if not isinstance(pending_route, dict):
+            fail(f"pending route {index} must be an object")
+        for key in ("task_kind", "role", "provider", "model", "effort", "response_token"):
+            required_text(pending_route, key, 2000)
+        output_limit = pending_route.get("output_limit_chars")
+        if not isinstance(output_limit, int) or isinstance(output_limit, bool) or not 256 <= output_limit <= 8000:
+            fail(f"pending route {index} has an invalid output limit")
+        route_token = pending_route["response_token"]
+        if route_token in routes:
+            fail("pending route response tokens must be unique")
+        routes[route_token] = pending_route
     route = routes.get(token)
     if route is None:
         fail("response token does not belong to the pending batch")
     if token in pending.get("validated_results", {}):
         fail("response token was already validated")
-    if len(raw_text) > route["output_limit_chars"]:
-        fail("actual child output exceeds its validated character limit")
+    runtime_thread_id = validate_runtime_metadata(runtime_metadata, route)
+    if len(payload_text) > route["output_limit_chars"]:
+        fail("hidden machine-result payload exceeds its validated character limit")
     status = result.get("status")
     if status not in VALID_STATUSES:
         fail("status must be finding, no_finding, completed, or unresolved")
-    required_text(result, "summary", 1500)
+    summary = required_text(result, "summary", 1500)
     required_text_list(result, "scope")
+    if summary not in visible:
+        fail("visible child result must include the exact machine summary")
+    if f"- 状态 / Status: `{status}`" not in visible:
+        fail("visible child result must include the exact machine status")
+    if "- 范围 / Scope:" not in visible or "- 详情 / Details:" not in visible:
+        fail("visible child result must include readable scope and details")
     validate_nucleus(route["task_kind"], status, result)
 
     next_state = deepcopy(state)
@@ -179,11 +266,8 @@ def validate_result(raw_text: str, state: dict) -> tuple[dict, dict]:
         next_state["completed_batches"].append({
             "batch_id": next_pending["batch_id"],
             "phase": next_pending["phase"],
-            "deepseek": next_pending["deepseek"],
             "statuses": statuses,
         })
-        if next_pending.get("fallback_verification") and all(value != "unresolved" for value in statuses.values()):
-            next_state["fallback_verification_completed"] = True
         next_state["pending_batch"] = None
     next_state = with_receipt(next_state)
     return {
@@ -193,6 +277,9 @@ def validate_result(raw_text: str, state: dict) -> tuple[dict, dict]:
         "task_kind": route["task_kind"],
         "status": status,
         "batch_completed": batch_completed,
+        "runtime_thread_id": runtime_thread_id,
+        "visible_chars": len(visible),
+        "machine_payload_chars": len(payload_text),
         "state_receipt": next_state["receipt"],
     }, next_state
 
@@ -201,11 +288,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("result")
     parser.add_argument("--state-file", required=True)
+    parser.add_argument("--runtime-metadata", required=True)
     args = parser.parse_args()
     state_path = Path(args.state_file)
     try:
         raw_text = __import__("sys").stdin.read() if args.result == "-" else Path(args.result).read_text(encoding="utf-8")
-        result, next_state = validate_result(raw_text, load_state(state_path))
+        runtime_metadata = json.loads(Path(args.runtime_metadata).read_text(encoding="utf-8"))
+        result, next_state = validate_result(raw_text, load_state(state_path), runtime_metadata)
         write_state(state_path, next_state)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"INVALID AGENT RESULT: {exc}", file=__import__("sys").stderr)

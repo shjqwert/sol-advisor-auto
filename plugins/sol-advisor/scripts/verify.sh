@@ -6,7 +6,7 @@ set -eu
 pass() { printf '%s\n' "PASS: $*"; }
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-agent_files='sol-advisor-repo-scout.toml sol-advisor-precision-scout.toml sol-advisor-external-researcher.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-deepseek-adversarial-verifier.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
+agent_files='sol-advisor-investigator.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 hash_agents() {
   for agent_file in $agent_files; do
@@ -56,8 +56,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.4.1+"):
-    raise SystemExit("manifest version was not advanced to 0.4.1")
+if not manifest.get("version", "").startswith("0.5.0+"):
+    raise SystemExit("manifest version was not advanced to 0.5.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -79,19 +79,17 @@ import tomllib
 
 templates = Path(sys.argv[1])
 dynamic = {
-    "sol-advisor-repo-scout.toml": ("sol_advisor_repo_scout", "read-only"),
-    "sol-advisor-precision-scout.toml": ("sol_advisor_precision_scout", "read-only"),
-    "sol-advisor-external-researcher.toml": ("sol_advisor_external_researcher", "read-only"),
-    "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", "workspace-write"),
-    "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", "read-only"),
-    "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", "read-only"),
-    "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "read-only"),
+    "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
+    "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", "gpt-5.6-luna"),
+    "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", "gpt-5.6-terra"),
+    "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", "gpt-5.6-luna"),
+    "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "gpt-5.6-sol"),
 }
-expected_files = set(dynamic) | {"sol-advisor-deepseek-adversarial-verifier.toml"}
+expected_files = set(dynamic)
 actual_files = {path.name for path in templates.glob("*.toml")}
 if actual_files != expected_files:
     raise SystemExit(f"unexpected custom-agent templates: {sorted(actual_files ^ expected_files)}")
-for filename, (name, sandbox) in dynamic.items():
+for filename, (name, model) in dynamic.items():
     path = templates / filename
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     for field in ("name", "description", "developer_instructions"):
@@ -99,13 +97,15 @@ for filename, (name, sandbox) in dynamic.items():
             raise SystemExit(f"{path}: missing {field}")
     if data["name"] != name:
         raise SystemExit(f"{path}: unexpected name {data['name']!r}")
-    if "model" in data or "model_reasoning_effort" in data or "model_provider" in data:
-        raise SystemExit(f"{path}: dynamic role unexpectedly pins provider/model/effort")
-    if data.get("sandbox_mode") != sandbox:
-        raise SystemExit(f"{path}: expected {sandbox} sandbox")
+    if data.get("model_provider") != "openai" or data.get("model") != model:
+        raise SystemExit(f"{path}: base provider/model pin does not match the role contract")
+    if "model_reasoning_effort" in data:
+        raise SystemExit(f"{path}: reasoning effort must remain dynamic")
+    if "sandbox_mode" in data:
+        raise SystemExit(f"{path}: sandbox_mode must be inherited from the parent task")
     if data.get("mcp_servers") != {} or data.get("skills", {}).get("config") != []:
         raise SystemExit(f"{path}: inherited MCP or Skill surface was not cleared")
-    expected_web = "live" if name == "sol_advisor_external_researcher" else "disabled"
+    expected_web = "live" if name == "sol_advisor_investigator" else "disabled"
     if data.get("web_search") != expected_web:
         raise SystemExit(f"{path}: unexpected web_search policy")
     shell_policy = data.get("shell_environment_policy", {})
@@ -116,80 +116,48 @@ for filename, (name, sandbox) in dynamic.items():
     instructions = " ".join(data["developer_instructions"].lower().split())
     if "do not spawn" not in instructions or "plugin" not in instructions or "mcp" not in instructions:
         raise SystemExit(f"{path}: missing child/plugin/MCP boundary")
-
-deepseek_path = templates / "sol-advisor-deepseek-adversarial-verifier.toml"
-deepseek = tomllib.loads(deepseek_path.read_text(encoding="utf-8"))
-expected = {
-    "name": "sol_advisor_deepseek_adversarial_verifier",
-    "model_provider": "deepseek",
-    "model": "deepseek-v4-flash",
-    "model_reasoning_effort": "xhigh",
-    "sandbox_mode": "read-only",
-    "mcp_servers": {},
-    "web_search": "disabled",
-}
-for field, value in expected.items():
-    if deepseek.get(field) != value:
-        raise SystemExit(f"{deepseek_path}: {field}={deepseek.get(field)!r}, expected {value!r}")
-if deepseek.get("skills", {}).get("config") != []:
-    raise SystemExit(f"{deepseek_path}: Skill inheritance was not disabled")
-if deepseek.get("features", {}).get("multi_agent") is not False:
-    raise SystemExit(f"{deepseek_path}: descendant agents are not disabled")
-shell_policy = deepseek.get("shell_environment_policy", {})
-if shell_policy.get("inherit") != "core" or shell_policy.get("ignore_default_excludes") is not False:
-    raise SystemExit(f"{deepseek_path}: shell environment is not narrowed")
-provider = deepseek.get("model_providers", {}).get("deepseek", {})
-for field, value in {
-    "base_url": "https://api.deepseek.com",
-    "wire_api": "responses",
-    "env_key": "DEEPSEEK_API_KEY",
-}.items():
-    if provider.get(field) != value:
-        raise SystemExit(f"{deepseek_path}: invalid provider {field}")
+    if "readable markdown first" not in instructions or "sol_advisor_result_json_start" not in instructions:
+        raise SystemExit(f"{path}: missing readable result-envelope boundary")
+    if "field types exactly" not in instructions:
+        raise SystemExit(f"{path}: missing exact machine result-contract boundary")
 
 print("functional role TOML contracts are valid")
 PY
-pass "dynamic role TOML, narrow tool/access boundaries, fixed DeepSeek route, and no descendants"
+pass "five base-model-pinned role TOML contracts, inherited permissions, dynamic effort, narrow boundaries, and no descendants"
 
-valid_routes='sol_advisor_repo_scout openai gpt-5.6-luna xhigh read-only disabled
-sol_advisor_precision_scout openai gpt-5.6-luna max read-only disabled
-sol_advisor_external_researcher openai gpt-5.6-luna xhigh read-only disabled
-sol_advisor_external_researcher openai gpt-5.6-luna max read-only disabled
-sol_advisor_mechanical_editor openai gpt-5.6-luna max workspace-write workspace
-sol_advisor_context_analyst openai gpt-5.6-terra xhigh read-only disabled
-sol_advisor_context_analyst openai gpt-5.6-terra max read-only disabled
-sol_advisor_deepseek_adversarial_verifier deepseek deepseek-v4-flash xhigh read-only disabled
-sol_advisor_local_code_verifier openai gpt-5.6-luna max read-only disabled
-sol_advisor_final_adjudicator openai gpt-5.6-sol medium read-only disabled
-sol_advisor_final_adjudicator openai gpt-5.6-sol high read-only disabled
-sol_advisor_final_adjudicator openai gpt-5.6-sol xhigh read-only disabled
-sol_advisor_final_adjudicator openai gpt-5.6-sol max read-only disabled'
-printf '%s\n' "$valid_routes" | while read -r role provider model effort sandbox permission; do
+valid_routes='sol_advisor_investigator openai gpt-5.6-luna xhigh
+sol_advisor_investigator openai gpt-5.6-luna max
+sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh
+sol_advisor_mechanical_editor openai gpt-5.6-luna max
+sol_advisor_mechanical_editor openai gpt-5.6-terra xhigh
+sol_advisor_mechanical_editor openai gpt-5.6-terra max
+sol_advisor_context_analyst openai gpt-5.6-terra xhigh
+sol_advisor_context_analyst openai gpt-5.6-terra max
+sol_advisor_local_code_verifier openai gpt-5.6-luna max
+sol_advisor_final_adjudicator openai gpt-5.6-sol medium
+sol_advisor_final_adjudicator openai gpt-5.6-sol xhigh
+sol_advisor_final_adjudicator openai gpt-5.6-sol max'
+printf '%s\n' "$valid_routes" | while read -r role provider model effort; do
   [ -n "$role" ] || continue
-  sh "$route_validator" "$role" "$provider" "$model" "$effort" "$sandbox" "$permission" >/dev/null || fail "valid route rejected: $role $provider $model $effort $sandbox $permission"
+  sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null || fail "valid route rejected: $role $provider $model $effort"
 done
 pass "all allowed dynamic routes"
 
-invalid_routes='sol_advisor_repo_scout openai gpt-5.6-luna high read-only disabled
-sol_advisor_precision_scout openai gpt-5.6-luna xhigh read-only disabled
-sol_advisor_external_researcher openai gpt-5.6-luna high read-only disabled
-sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh workspace-write workspace
-sol_advisor_context_analyst openai gpt-5.6-terra ultra read-only disabled
-sol_advisor_context_analyst openai gpt-5.6-luna max read-only disabled
-sol_advisor_deepseek_adversarial_verifier deepseek deepseek-v4-flash max read-only disabled
-sol_advisor_deepseek_adversarial_verifier openai deepseek-v4-flash xhigh read-only disabled
-sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh read-only disabled
-sol_advisor_final_adjudicator openai gpt-5.6-sol ultra read-only disabled
-sol_advisor_repo_scout openai gpt-5.6-luna xhigh workspace-write disabled
-sol_advisor_mechanical_editor openai gpt-5.6-luna max danger-full-access disabled
-sol_advisor_repo_scout openai gpt-5.6-luna xhigh read-only unobservable'
-printf '%s\n' "$invalid_routes" | while read -r role provider model effort sandbox permission; do
+invalid_routes='sol_advisor_investigator openai gpt-5.6-luna high
+sol_advisor_repo_scout openai gpt-5.6-luna xhigh
+sol_advisor_mechanical_editor openai gpt-5.6-terra high
+sol_advisor_context_analyst openai gpt-5.6-terra ultra
+sol_advisor_context_analyst openai gpt-5.6-luna max
+sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
+sol_advisor_final_adjudicator openai gpt-5.6-sol ultra
+sol_advisor_final_adjudicator openai gpt-5.6-sol high'
+printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
   [ -n "$role" ] || continue
-  if sh "$route_validator" "$role" "$provider" "$model" "$effort" "$sandbox" "$permission" >/dev/null 2>&1; then
-    fail "invalid route accepted: $role $provider $model $effort $sandbox $permission"
+  if sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null 2>&1; then
+    fail "invalid route accepted: $role $provider $model $effort"
   fi
 done
-pass "illegal Luna, Terra, Sol, and DeepSeek combinations rejected"
+pass "illegal Luna, Terra, and Sol combinations rejected"
 
 python3 - "$dispatch_validator" "$result_validator" <<'PY'
 from copy import deepcopy
@@ -211,30 +179,46 @@ dispatch = load_module("dispatch_validator", Path(sys.argv[1]))
 results = load_module("result_validator", Path(sys.argv[2]))
 counter = 0
 
-def route(kind, angle=None, native=False):
+def route(kind, angle=None, difficulty=None, model=None, effort=None, selection_reason=None):
     global counter
     counter += 1
-    role, provider, model, efforts, access = dispatch.ROUTES[kind]
+    policy = dispatch.ROUTES[kind]
+    defaults = {
+        "repo_search": ("standard", "gpt-5.6-luna", "xhigh"),
+        "precision_search": ("deep", "gpt-5.6-luna", "max"),
+        "external_research": ("standard", "gpt-5.6-luna", "xhigh"),
+        "mechanical_edit": ("standard", "gpt-5.6-luna", "xhigh"),
+        "long_context": (None, "gpt-5.6-terra", "xhigh"),
+        "cross_module": (None, "gpt-5.6-terra", "max"),
+        "local_verification": (None, "gpt-5.6-luna", "max"),
+        "adjudicate_low": (None, "gpt-5.6-sol", "medium"),
+        "adjudicate_critical": (None, "gpt-5.6-sol", "xhigh"),
+        "adjudicate_max": (None, "gpt-5.6-sol", "max"),
+    }
+    default_difficulty, default_model, default_effort = defaults[kind]
+    difficulty = default_difficulty if difficulty is None else difficulty
+    model = default_model if model is None else model
+    effort = default_effort if effort is None else effort
     value = {
         "task_kind": kind,
-        "role": role,
-        "provider": provider,
+        "role": policy["role"],
+        "provider": policy["provider"],
         "model": model,
-        "effort": sorted(efforts)[-1],
-        "access": access,
+        "effort": effort,
         "question": f"bounded question {counter}",
         "expected_evidence": "concrete locator and observation",
         "response_token": f"SOL_ADVISOR_TEST_ROUTE_{counter:02d}",
         "output_limit_chars": 2000,
         "attack_angle": angle,
     }
-    if native:
-        value["task_name"] = f"route-{counter:02d}"
+    if kind in dispatch.DIFFICULTY_KINDS:
+        value["difficulty"] = difficulty
+    if selection_reason is not None:
+        value["selection_reason"] = selection_reason
+    value["task_name"] = f"route_{counter:02d}"
     return value
 
-def plan(run_id, batch_index, tier, phase, mode, routes, deepseek="not-required", native=False, **extra):
-    access = {item["access"] for item in routes}
-    assert len(access) == 1
+def plan(run_id, batch_index, tier, phase, mode, routes, **extra):
     value = {
         "run_id": run_id,
         "batch_id": f"batch-{batch_index:02d}",
@@ -244,24 +228,33 @@ def plan(run_id, batch_index, tier, phase, mode, routes, deepseek="not-required"
         "tier": tier,
         "phase": phase,
         "mode": mode,
-        "deepseek": deepseek,
         "fix_round": 0,
-        "spawn_interface": "native_cli" if native else "multi_agent_v1",
-        "parent_sandbox": next(iter(access)),
-        "parent_permission_profile_type": "disabled",
-        "available_agent_types": sorted({value[0] for value in dispatch.ROUTES.values()}),
+        "spawn_interface": "desktop_collaboration_v2",
+        "fork_turns": "none",
+        "available_agent_types": sorted({value["role"] for value in dispatch.ROUTES.values()}),
         "available_models": ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"],
-        "available_providers": ["openai", "deepseek"],
+        "available_model_overrides": ["gpt-5.6-terra", "gpt-5.6-sol"],
+        "available_providers": ["openai"],
+        "agent_base_models": {value["role"]: value["base_model"] for value in dispatch.ROUTES.values()},
         "routes": routes,
     }
-    if native:
-        value["fork_turns"] = "none"
-    else:
-        value["fork_context"] = False
     value.update(extra)
     return value
 
-def child_result(item, status="completed"):
+def readable_result(value, *, visible_summary=None, visible_status=None, details="Machine evidence is recorded for validation."):
+    summary = value["summary"] if visible_summary is None else visible_summary
+    status = value["status"] if visible_status is None else visible_status
+    scope = ", ".join(value["scope"])
+    visible = (
+        f"## 结论 / Result\n\n{summary}\n\n"
+        f"- 状态 / Status: `{status}`\n"
+        f"- 范围 / Scope: {scope}\n"
+        f"- 详情 / Details: {details}"
+    )
+    payload = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    return f"{visible}\n\n{results.RESULT_JSON_START}{payload}{results.RESULT_JSON_END}"
+
+def child_payload(item, status="completed"):
     value = {
         "response_token": item["response_token"],
         "status": status,
@@ -284,7 +277,7 @@ def child_result(item, status="completed"):
             "claim": "documented behavior",
             "fact_or_inference": "fact",
         }]
-    elif kind in {"adversarial_verification", "local_verification"}:
+    elif kind == "local_verification":
         value["status"] = "finding"
         value["findings"] = [{"trigger": "condition", "impact": "impact", "locator": "README.md:1"}]
     elif kind == "mechanical_edit":
@@ -293,7 +286,24 @@ def child_result(item, status="completed"):
     elif kind.startswith("adjudicate_"):
         value["decision"] = "fix-first"
         value["rationale"] = "material evidence conflict"
-    return json.dumps(value, separators=(",", ":"))
+    return value
+
+def child_result(item, status="completed"):
+    return readable_result(child_payload(item, status))
+
+def runtime_metadata(item, sandbox="danger-full-access", permission="unobservable"):
+    return {
+        "thread_id": f"runtime-{item['response_token'].lower()}",
+        "parent_thread_id": "runtime-parent",
+        "agent_role": item["role"],
+        "agent_path": f"/root/{item['task_name']}",
+        "model_provider": item["provider"],
+        "model": item["model"],
+        "effort": item["effort"],
+        "sandbox_policy_type": sandbox,
+        "permission_profile_type": permission,
+        "cwd": "/fixture/cwd",
+    }
 
 ordinary_route = route("repo_search")
 ordinary = plan("ordinary-run", 0, "ordinary", "investigation", "serial", [ordinary_route])
@@ -305,7 +315,30 @@ except ValueError:
     pass
 else:
     raise SystemExit("pending batch did not block another dispatch")
-_, ordinary_done = results.validate_result(child_result(ordinary_route), ordinary_state)
+bad_runtime = runtime_metadata(ordinary_route)
+bad_runtime["model"] = "gpt-5.6-terra"
+try:
+    results.validate_result(child_result(ordinary_route), ordinary_state, bad_runtime)
+except ValueError:
+    pass
+else:
+    raise SystemExit("mismatched runtime model completed a pending result")
+assert ordinary_state["pending_batch"] is not None
+malformed_state = deepcopy(ordinary_state)
+malformed_state["pending_batch"]["routes"] = [None]
+malformed_state = results.with_receipt(malformed_state)
+try:
+    results.validate_result(child_result(ordinary_route), malformed_state, runtime_metadata(ordinary_route))
+except ValueError:
+    pass
+else:
+    raise SystemExit("malformed pending routes did not fail closed")
+accepted_runtime = runtime_metadata(ordinary_route)
+accepted_runtime.pop("parent_thread_id")
+accepted_runtime.pop("agent_path")
+_, ordinary_done = results.validate_result(
+    child_result(ordinary_route), ordinary_state, accepted_runtime
+)
 assert ordinary_done["pending_batch"] is None
 try:
     second = plan("ordinary-run", 1, "ordinary", "investigation", "serial", [route("repo_search")])
@@ -315,65 +348,135 @@ except ValueError:
 else:
     raise SystemExit("persisted ordinary total budget was reset")
 
-native_route = route("repo_search", native=True)
-native = plan("native-run", 0, "ordinary", "investigation", "serial", [native_route], native=True)
-assert dispatch.validate(native)[0]["spawn_interface"] == "native_cli"
+desktop_route = route("repo_search")
+desktop = plan("desktop-run", 0, "ordinary", "investigation", "serial", [desktop_route])
+desktop_result = dispatch.validate(desktop)[0]
+assert desktop_result["spawn_interface"] == "desktop_collaboration_v2"
+assert desktop_result["routes"][0]["model_override"] is None
 
-fallback_routes = [
+deep_investigation = route("repo_search", difficulty="deep", effort="max")
+_, deep_state = dispatch.validate(plan(
+    "deep-investigation", 0, "complex", "investigation", "serial", [deep_investigation],
+    task_summary="multiple modules", risk_flags=["multiple_modules"],
+))
+assert deep_state["pending_batch"] is not None
+deep_unresolved, _ = results.validate_result(
+    child_result(deep_investigation, "unresolved"), deep_state, runtime_metadata(deep_investigation)
+)
+assert deep_unresolved["status"] == "unresolved"
+
+for run_id, item, risks in [
+    ("luna-standard-edit", route("mechanical_edit"), []),
+    ("luna-deep-edit", route("mechanical_edit", difficulty="deep", effort="max"), ["multiple_modules"]),
+    ("terra-context-edit", route(
+        "mechanical_edit", difficulty="deep", model="gpt-5.6-terra", effort="xhigh",
+        selection_reason="long_context",
+    ), ["long_context"]),
+    ("terra-multi-edit", route(
+        "mechanical_edit", difficulty="deep", model="gpt-5.6-terra", effort="max",
+        selection_reason="long_context",
+    ), ["long_context", "multiple_modules"]),
+]:
+    assert dispatch.validate(plan(
+        run_id, 0, "complex" if risks else "ordinary", "editing", "serial", [item],
+        task_summary="deterministic mechanical edit", risk_flags=risks,
+    ))[0]["valid"]
+
+critical_routes = [
     route("local_verification", "local code and tests"),
     route("cross_module", "integration boundaries"),
 ]
-fallback = plan(
-    "fallback-run", 0, "critical", "verification", "parallel", fallback_routes,
-    deepseek="unavailable", degraded_independence=True,
+critical = plan(
+    "critical-run", 0, "critical", "verification", "parallel", critical_routes,
     task_summary="permission boundary verification", risk_flags=["permission_boundary"],
 )
-_, fallback_state = dispatch.validate(fallback)
-for item in fallback_routes:
+_, critical_state = dispatch.validate(critical)
+for item in critical_routes:
     status = "no_finding" if item["task_kind"] == "local_verification" else "completed"
-    _, fallback_state = results.validate_result(child_result(item, status), fallback_state)
-assert fallback_state["fallback_verification_completed"] is True
-adjudicator = route("adjudicate_max")
+    _, critical_state = results.validate_result(child_result(item, status), critical_state, runtime_metadata(item))
+assert critical_state["pending_batch"] is None
+adjudicator = route("adjudicate_critical")
 adjudication = plan(
-    "fallback-run", 1, "critical", "adjudication", "serial", [adjudicator],
-    deepseek="unavailable", degraded_independence=True,
+    "critical-run", 1, "critical", "adjudication", "serial", [adjudicator],
     task_summary="permission boundary adjudication", risk_flags=["permission_boundary"],
-    evidence_batch_ids=["batch-00"], conflict_summary="fallback evidence requires final risk disposition",
+    evidence_batch_ids=["batch-00"], conflict_summary="independent evidence requires final risk disposition",
 )
-assert dispatch.validate(adjudication, fallback_state)[0]["valid"]
+assert dispatch.validate(adjudication, critical_state)[0]["valid"]
 
 invalid = []
+precision_standard = plan(
+    "precision-standard", 0, "ordinary", "investigation", "serial",
+    [route("precision_search", difficulty="standard", effort="xhigh")],
+)
+invalid.append((precision_standard, None))
+shallow_risky = plan(
+    "shallow-risky", 0, "complex", "investigation", "serial", [route("repo_search")],
+    task_summary="multiple modules", risk_flags=["multiple_modules"],
+)
+invalid.append((shallow_risky, None))
+terra_without_context = plan(
+    "terra-without-context", 0, "complex", "editing", "serial",
+    [route(
+        "mechanical_edit", difficulty="deep", model="gpt-5.6-terra", effort="xhigh",
+        selection_reason="long_context",
+    )],
+    task_summary="deterministic edit", risk_flags=["behavior_change"],
+)
+invalid.append((terra_without_context, None))
 underreported = deepcopy(ordinary)
 underreported["task_summary"] = "irreversible production data migration"
 invalid.append((underreported, None))
 phase_spoof = deepcopy(ordinary)
 phase_spoof["phase"] = "adjudication"
 invalid.append((phase_spoof, None))
-wide_parent = deepcopy(ordinary)
-wide_parent["parent_sandbox"] = "danger-full-access"
-invalid.append((wide_parent, None))
+legacy_permission_plan = deepcopy(ordinary)
+legacy_permission_plan["parent_sandbox"] = "danger-full-access"
+invalid.append((legacy_permission_plan, None))
+legacy_access_route = deepcopy(ordinary)
+legacy_access_route["routes"][0]["access"] = "read-only"
+invalid.append((legacy_access_route, None))
+invalid_task_name = deepcopy(ordinary)
+invalid_task_name["routes"][0]["task_name"] = "invalid-task-name"
+invalid.append((invalid_task_name, None))
 missing_luna = deepcopy(ordinary)
 missing_luna["available_models"] = ["gpt-5.6-sol"]
 invalid.append((missing_luna, None))
 mixed_interface = deepcopy(ordinary)
-mixed_interface["fork_turns"] = "none"
+mixed_interface["spawn_interface"] = "native_cli"
 invalid.append((mixed_interface, None))
+missing_override = plan(
+    "missing-override", 0, "complex", "editing", "serial",
+    [route(
+        "mechanical_edit", difficulty="deep", model="gpt-5.6-terra", effort="xhigh",
+        selection_reason="long_context",
+    )],
+    task_summary="long context edit", risk_flags=["long_context"],
+)
+missing_override["available_model_overrides"] = ["gpt-5.6-sol"]
+invalid.append((missing_override, None))
+bad_base_pin = deepcopy(ordinary)
+bad_base_pin["agent_base_models"]["sol_advisor_investigator"] = "gpt-5.6-terra"
+invalid.append((bad_base_pin, None))
+retired_field = deepcopy(ordinary)
+retired_field["retired_provider_state"] = "available"
+invalid.append((retired_field, None))
 initial_adjudication = plan(
     "initial-adjudication", 0, "ordinary", "adjudication", "serial", [route("adjudicate_low")],
     evidence_batch_ids=["missing-batch"], conflict_summary="unsupported first-batch dispute",
 )
 invalid.append((initial_adjudication, None))
-duplicate_deepseek = plan(
-    "critical-duplicate", 0, "critical", "verification", "parallel",
-    [route("adversarial_verification", "angle one"),
-     route("adversarial_verification", "angle two"),
-     route("local_verification", "angle three")],
-    deepseek="available", task_summary="security verification", risk_flags=["security"],
+missing_terra = plan(
+    "critical-incomplete", 0, "critical", "verification", "serial",
+    [route("local_verification", "local-only angle")],
+    task_summary="security verification", risk_flags=["security"],
 )
-invalid.append((duplicate_deepseek, None))
-recovered = deepcopy(adjudication)
-recovered["deepseek"] = "available"
-invalid.append((recovered, fallback_state))
+invalid.append((missing_terra, None))
+duplicate_local = plan(
+    "critical-duplicate", 0, "critical", "verification", "parallel",
+    [route("local_verification", "angle one"), route("local_verification", "angle two")],
+    task_summary="security verification", risk_flags=["security"],
+)
+invalid.append((duplicate_local, None))
 duplicate_batch = plan(
     "ordinary-run", 1, "complex", "investigation", "serial", [route("repo_search")],
     task_summary="multiple modules", risk_flags=["multiple_modules"],
@@ -387,16 +490,52 @@ for rejected, state in invalid:
         continue
     raise SystemExit(f"invalid dispatch plan accepted: {rejected}")
 
+old_state = deepcopy(ordinary_done)
+old_state["schema_version"] = 7
+old_state = dispatch.with_receipt(old_state)
+try:
+    dispatch.validate(plan("old-state-run", 1, "ordinary", "investigation", "serial", [route("repo_search")]), old_state)
+except ValueError:
+    pass
+else:
+    raise SystemExit("retired state schema was accepted")
+
 bad_results = [
-    json.dumps({"response_token": "SOL_ADVISOR_WRONG_TOKEN", "status": "no_finding", "summary": "x", "scope": ["x"]}),
-    json.dumps({"response_token": ordinary_route["response_token"], "status": "completed", "summary": "x", "scope": ["x"]}),
+    readable_result({"response_token": "SOL_ADVISOR_WRONG_TOKEN", "status": "no_finding", "summary": "x", "scope": ["x"]}),
+    readable_result({"response_token": ordinary_route["response_token"], "status": "completed", "summary": "x", "scope": ["x"]}),
+    json.dumps(child_payload(ordinary_route), separators=(",", ":")),
+    readable_result(child_payload(ordinary_route), visible_summary="different visible summary"),
+    readable_result(child_payload(ordinary_route), visible_status="unresolved"),
+    readable_result(child_payload(ordinary_route), details="x" * 2100),
+    child_result(ordinary_route) + "\n" + results.RESULT_JSON_START + "{}" + results.RESULT_JSON_END,
 ]
 for bad in bad_results:
     try:
-        results.validate_result(bad, ordinary_state)
+        results.validate_result(bad, ordinary_state, runtime_metadata(ordinary_route))
     except ValueError:
         continue
     raise SystemExit("invalid child result was accepted")
+
+wrong_local_evidence = child_payload(ordinary_route)
+wrong_local_evidence["sources"] = [{"url": "https://example.com"}]
+try:
+    results.validate_result(readable_result(wrong_local_evidence), ordinary_state, runtime_metadata(ordinary_route))
+except ValueError:
+    pass
+else:
+    raise SystemExit("local investigation accepted external sources")
+
+external_route = route("external_research")
+external_plan = plan("external-result", 0, "ordinary", "investigation", "serial", [external_route])
+_, external_state = dispatch.validate(external_plan)
+wrong_external_evidence = child_payload(external_route)
+wrong_external_evidence["locators"] = [{"path": "README.md", "relevance": "wrong nucleus"}]
+try:
+    results.validate_result(readable_result(wrong_external_evidence), external_state, runtime_metadata(external_route))
+except ValueError:
+    pass
+else:
+    raise SystemExit("external research accepted repository locators")
 
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
@@ -404,6 +543,7 @@ with tempfile.TemporaryDirectory() as directory:
     executable_plan = plan("executable-run", 0, "ordinary", "investigation", "serial", [executable_route])
     plan_path = root / "plan.json"
     result_path = root / "result.json"
+    runtime_path = root / "runtime.json"
     state_path = root / "state.json"
     plan_path.write_text(json.dumps(executable_plan), encoding="utf-8")
     first = subprocess.run(
@@ -412,15 +552,34 @@ with tempfile.TemporaryDirectory() as directory:
     )
     assert json.loads(first.stdout)["valid"] is True
     result_path.write_text(child_result(executable_route), encoding="utf-8")
+    runtime_path.write_text(json.dumps(runtime_metadata(executable_route)), encoding="utf-8")
     second = subprocess.run(
-        [sys.executable, sys.argv[2], str(result_path), "--state-file", str(state_path)],
+        [
+            sys.executable, sys.argv[2], str(result_path), "--state-file", str(state_path),
+            "--runtime-metadata", str(runtime_path),
+        ],
         capture_output=True, text=True, check=True,
     )
-    assert json.loads(second.stdout)["batch_completed"] is True
+    executable_result = json.loads(second.stdout)
+    assert executable_result["batch_completed"] is True
+    assert executable_result["visible_chars"] > 0 and executable_result["machine_payload_chars"] > 0
+
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    real_parent = root / "real"
+    real_parent.mkdir()
+    linked_parent = root / "linked"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    for module in (dispatch, results):
+        try:
+            module.write_state(linked_parent / "state.json", ordinary_done)
+        except ValueError:
+            continue
+        raise SystemExit("state writer accepted a symlinked parent directory")
 
 print("stateful dispatch and adaptive result policy is valid")
 PY
-pass "risk, phase, interface, permission, availability, stateful budget, fallback, and result policy"
+pass "risk, phase, interface, inherited permissions, availability, stateful budget, critical verification, and result policy"
 
 clean_target=$tmp_dir/clean-install
 sh "$installer" --target-dir "$clean_target" >/dev/null
@@ -428,8 +587,8 @@ for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "install differs: $agent_file"
 done
 installed_count=$(find "$clean_target" -maxdepth 1 -type f -name 'sol-advisor-*.toml' | awk 'END { print NR + 0 }')
-[ "$installed_count" -eq 8 ] || fail "installer did not produce exactly eight functional roles"
-pass "installer registers exactly eight functional roles"
+[ "$installed_count" -eq 5 ] || fail "installer did not produce exactly five functional roles"
+pass "installer registers exactly five functional roles"
 
 missing_check_target=$tmp_dir/missing-check
 if sh "$installer" --target-dir "$missing_check_target" --check >/dev/null 2>&1; then fail "--check accepted missing target"; fi
@@ -445,9 +604,9 @@ pass "installer repeat and check are idempotent"
 
 conflict_target=$tmp_dir/conflict
 mkdir "$conflict_target"
-printf '%s\n' conflict > "$conflict_target/sol-advisor-repo-scout.toml"
+printf '%s\n' conflict > "$conflict_target/sol-advisor-investigator.toml"
 if sh "$installer" --target-dir "$conflict_target" >/dev/null 2>&1; then fail "installer overwrote conflict"; fi
-test ! -e "$conflict_target/sol-advisor-precision-scout.toml" || fail "conflict caused partial install"
+test ! -e "$conflict_target/sol-advisor-mechanical-editor.toml" || fail "conflict caused partial install"
 pass "installer conflict refusal without partial mutation"
 
 if sh "$installer" --target-dir /tmp/.. --check >/dev/null 2>&1; then fail "installer accepted a path alias resolving to filesystem root"; fi
@@ -490,43 +649,60 @@ print(
     data["model_provider"],
     data["model"],
     data["effort"],
-    data["sandbox_policy_type"],
-    data["permission_profile_type"],
 )
 PY
 )
 set -- $route_fields
-sh "$route_validator" "$1" "$2" "$3" "$4" "$5" "$6" >/dev/null
-pass "runtime metadata extraction and observed-route validation"
+sh "$route_validator" "$1" "$2" "$3" "$4" >/dev/null
+
+inherited_id=33333333-3333-7333-8333-333333333333
+inherited_rollout=$runtime_day/rollout-2026-08-05T00-00-01-$inherited_id.jsonl
+printf '%s\n' \
+  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$inherited_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_investigator\",\"agent_path\":\"/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture/cwd\"}}" \
+  '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max","cwd":"/fixture/cwd"}}' \
+  '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
+  > "$inherited_rollout"
+inherited_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$inherited_id")
+python3 - "$inherited_output" <<'PY'
+import json
+import sys
+data = json.loads(sys.argv[1])
+if data.get("sandbox_policy_type") != "mixed-or-partial" or data.get("permission_profile_type") != "mixed-or-partial":
+    raise SystemExit("partial inherited permission metadata did not remain diagnostic")
+PY
+pass "runtime metadata extraction, optional permission diagnostics, and observed-route validation"
 
 if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" not-a-thread-id >/dev/null 2>&1; then fail "invalid runtime id accepted"; fi
 if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" 22222222-2222-7222-8222-222222222222 >/dev/null 2>&1; then fail "missing rollout accepted"; fi
 pass "runtime inspector invalid and missing-id refusal"
 
 for document in "$skill" "$contracts"; do
-  for role in sol_advisor_repo_scout sol_advisor_precision_scout sol_advisor_external_researcher sol_advisor_mechanical_editor sol_advisor_context_analyst sol_advisor_deepseek_adversarial_verifier sol_advisor_local_code_verifier sol_advisor_final_adjudicator; do
+  for role in sol_advisor_investigator sol_advisor_mechanical_editor sol_advisor_context_analyst sol_advisor_local_code_verifier sol_advisor_final_adjudicator; do
     grep -Fq "$role" "$document" || fail "missing role $role in $document"
   done
-  grep -Fq 'fork_context: false' "$document" || fail "missing Desktop isolated-context spawn rule: $document"
-  grep -Fq 'fork_turns: "none"' "$document" || fail "missing native CLI isolated-context spawn rule: $document"
+  grep -Fq 'desktop_collaboration_v2' "$document" || fail "missing Desktop collaboration interface: $document"
+  grep -Fq 'fork_turns: "none"' "$document" || fail "missing Desktop isolated-context spawn rule: $document"
+  grep -Fq 'model_override' "$document" || fail "missing pinned-base-model spawn rule: $document"
   grep -Fq 'RESPONSE TOKEN' "$document" || fail "missing task-delivery response token: $document"
   grep -Fq 'validate-agent-result.py' "$document" || fail "missing adaptive result validation rule: $document"
+  grep -Fq 'SOL_ADVISOR_RESULT_JSON_START' "$document" || fail "missing hidden machine-result marker: $document"
 done
 grep -Fq '../../scripts/validate-dispatch-plan.py' "$skill" || fail "dispatch validator reference missing"
 grep -Fq '../../scripts/validate-agent-result.py' "$skill" || fail "result validator reference missing"
 grep -Fq -- '--state-file' "$skill" || fail "persistent run-state requirement missing"
-grep -Fq "parent turn's effective sandbox and permission" "$skill" || fail "pre-spawn parent permission capability check missing"
+grep -Fq 'does not reject or compare inherited' "$skill" || fail "inherited permission policy missing"
+grep -Fq -- '--runtime-metadata' "$skill" || fail "runtime-attested result validation missing"
+grep -Fq 'Raw JSON-only results are' "$skill" || fail "raw JSON-only result rejection missing"
 grep -Fq 'Ordinary: at most one concurrent and one total child' "$skill" || fail "ordinary concurrency limit missing"
 grep -Fq 'Complex: at most two concurrent and three total children' "$skill" || fail "complex concurrency limit missing"
-grep -Fq 'Critical: at most three concurrent and five total children' "$skill" || fail "critical concurrency limit missing"
+grep -Fq 'Critical: at most two concurrent and five total children' "$skill" || fail "critical concurrency limit missing"
 grep -Fq "read each other's conclusions" "$skill" || fail "validator independence missing"
-grep -Fq 'serial Sol/Max adjudication' "$skill" || fail "DeepSeek degraded adjudication missing"
-grep -Fq 'lost cross-provider independence' "$skill" || fail "DeepSeek degraded disclosure missing"
+grep -Fq 'Luna/Max and Terra/Max validators in parallel' "$skill" || fail "critical independent verification policy missing"
 grep -Fq 'Allow at most two fix rounds' "$skill" || fail "fix-round budget missing"
 grep -Fq 'completed evidence batches' "$skill" || fail "adjudication evidence binding missing"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
 grep -Fq 'Do not activate for bounded single-module implementation' "$skill" || fail "automatic invocation scope is too broad"
-pass "automatic invocation, current spawn interface, budgets, independence, and degradation policies"
+pass "automatic invocation, current spawn interface, budgets, and independent verification policies"
 
 python3 - "$dispatch_validator" "$result_validator" <<'PY'
 import ast
