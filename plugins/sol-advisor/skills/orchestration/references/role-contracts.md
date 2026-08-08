@@ -8,8 +8,8 @@ contract is adaptive, but every child message must state:
 - behavioral boundaries and excluded actions;
 - expected evidence and output character limit;
 - unique response token and stop condition;
-- one concise visible Markdown result plus one hidden JSON machine payload using the
-  common envelope and task-specific nucleus below.
+- one concise Markdown-only final response plus one JSON machine sidecar at the exact
+  workspace-local result path using the common envelope and task-specific nucleus below.
 
 Send the complete contract through Desktop `desktop_collaboration_v2` `message`. Every
 route uses a unique `task_name` and `fork_turns: "none"` so the child is visible in
@@ -18,8 +18,12 @@ Reject a result that fails `validate-agent-result.py`.
 
 ## Dispatch-plan schema
 
-Before each batch, create a temporary JSON file outside the repository and use one
-persistent state file for the whole run:
+Resolve the exact workspace first. Git worktrees use
+`<git-dir>/sol-advisor/runs/<run-id>/`; SVN and plain directories use
+`<workspace-root>/.sol-advisor/runs/<run-id>/` without writing inside `.svn`. For each
+batch, write the plan to `plans/<batch-id>.json` below that run directory and use its
+`state.json` for the whole run. Do not change ignore files or SVN properties
+automatically:
 
 ~~~json
 {
@@ -97,12 +101,16 @@ persistent state file for the whole run:
 ~~~
 
 ~~~sh
-sh ../../scripts/run-python.sh ../../scripts/validate-dispatch-plan.py plan.json --state-file state.json
+sh ../../scripts/run-python.sh ../../scripts/validate-dispatch-plan.py \
+  <run-directory>/plans/<batch-id>.json --repository <repository-root> \
+  --state-file <run-directory>/state.json
 ~~~
 
-The normalized route includes `model_override`. Omit the spawn `model` field when it
-is null, because the role's TOML base-model pin is authoritative. Supply the override
-only when it is non-null and exposed by the live Desktop schema.
+The normalized route includes `model_override`, `result_path`, `visible_path`, and
+`runtime_path`. Omit the spawn `model` field when `model_override` is null, because the
+role's TOML base-model pin is authoritative. Supply the override only when it is
+non-null and exposed by the live Desktop schema. Send the exact `result_path` to the
+child; the primary owns `visible_path` and `runtime_path`.
 
 An adjudication batch additionally requires unique `evidence_batch_ids` naming prior
 completed batches in the same state file and a concise `conflict_summary`. Adjudication
@@ -127,8 +135,8 @@ Do not force one universal report. Require only the nucleus relevant to the clai
 - mechanical edit: actual changed paths, verification command, and result;
 - unresolved fact: state what remains unknown and why it matters.
 
-Every child returns this exact two-layer structure. The first section is rendered in
-the sidebar; the HTML comment keeps the machine record out of the visible result:
+Every child writes the machine object to its assigned `RESULT PATH`, then returns this
+exact Markdown-only structure in the sidebar:
 
 ~~~text
 ## 结论 / Result
@@ -138,18 +146,14 @@ the sidebar; the HTML comment keeps the machine record out of the visible result
 - 状态 / Status: `<exact JSON status>`
 - 范围 / Scope: <compact human-readable scope>
 - 详情 / Details: <concise evidence, changed files, unknowns, or decision>
-
-<!-- SOL_ADVISOR_RESULT_JSON_START
-{"response_token":"...","status":"...","summary":"...","scope":["..."]}
-SOL_ADVISOR_RESULT_JSON_END -->
 ~~~
 
-Do not expose the JSON in a code fence or anywhere else. Do not put any text after the
-closing marker. The visible Markdown is capped at 2000 characters; the validated
-`output_limit_chars` applies to the hidden JSON payload. The visible section must use
-the exact machine summary and status. Raw JSON-only output is invalid.
+Do not expose or append the JSON anywhere in the final response. The visible Markdown
+is capped at 2000 characters; the validated `output_limit_chars` applies to the JSON
+sidecar. The visible section must use the exact machine summary and status. Machine
+JSON in the final response and raw JSON-only final output are invalid.
 
-The hidden common envelope is intentionally small:
+The machine sidecar common envelope is intentionally small:
 
 ~~~json
 {
@@ -175,18 +179,22 @@ Repository and precision results must not include `sources`; external-research r
 must not include repository `locators`. If assigned investigation difficulty is too
 low, return `unresolved` and name the required upgrade in `unknowns`.
 
-Save the exact returned Markdown and hidden payload without reformatting, then run:
+The child must finish writing the sidecar before it returns. The primary saves the
+exact returned Markdown to `visible_path`, saves runtime inspection JSON to
+`runtime_path`, then runs:
 
 ~~~sh
-sh ../../scripts/run-python.sh ../../scripts/validate-agent-result.py result.json \
-  --state-file state.json --runtime-metadata runtime.json
+sh ../../scripts/run-python.sh ../../scripts/validate-agent-result.py <visible-path> \
+  --machine-result <result-path> --repository <repository-root> --run-id <run-id> \
+  --state-file <run-directory>/state.json --runtime-metadata <runtime-path>
 ~~~
 
-Result validation first extracts exactly one hidden JSON payload, checks the visible
-heading plus exact summary/status and bounded size, then binds the child runtime role,
-provider, model, and effort to the pending route and proves delivery and evidence shape.
-Sandbox and permission metadata are diagnostic only and do not gate acceptance.
-Validation does not prove the claim true; the primary still verifies decisive evidence.
+Result validation checks that every artifact uses the exact pending-route path, checks
+the visible heading plus exact machine summary/status and bounded size, then binds the
+child runtime role, provider, model, and effort to the pending route. Sandbox and
+permission metadata are diagnostic only and do not gate acceptance. Validation proves
+delivery and evidence shape, not truth; the primary confirms or rejects decisive
+evidence before use.
 
 The primary verifies only evidence that changes implementation or delivery, but it
 must verify at least one concrete locator for every accepted material conclusion.
@@ -209,6 +217,8 @@ DECISION: <what this can change>
 EXPECTED EVIDENCE: <path/symbol/test nucleus>
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 STOP: remain read-only; no general review or implementation.
 ~~~
 
@@ -228,6 +238,8 @@ SEARCH ROUTE: Context7 for versioned library docs; built-in web then Exa for cur
 facts; use only the narrow capability that matches the question.
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 STOP: read-only search/fetch only; no forms, messages, downloads, or external writes.
 ~~~
 
@@ -244,6 +256,8 @@ DECISION: <what this can change>
 EXPECTED EVIDENCE: <source locations and observation/inference labels>
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 STOP: remain read-only and omit unrelated summary.
 ~~~
 
@@ -262,6 +276,8 @@ PRESERVE: <interfaces and unrelated edits>
 VERIFY: <exact command and expected result>
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 STOP: if judgment, ambiguity, architecture, dependency expansion, or an out-of-scope
 path is required, stop without further changes.
 ~~~
@@ -283,6 +299,8 @@ SCOPE: <files, interfaces, evidence, and exclusions>
 EXPECTED EVIDENCE: <trigger, impact, location/test, or checked no-finding scope>
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 STOP: remain read-only; do not implement or inspect another verifier result.
 ~~~
 
@@ -305,6 +323,8 @@ EVIDENCE: <compact conflicting claims with locators>
 CONSTRAINTS: <safety, compatibility, reversibility, and exclusions>
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
+RESULT PATH: <validated absolute machine-sidecar path>
+FINAL OUTPUT: Markdown only; write JSON to RESULT PATH before returning.
 RETURN: exact token, one verdict, minimum decisive rationale, and required action.
 STOP: remain read-only; do not implement.
 ~~~

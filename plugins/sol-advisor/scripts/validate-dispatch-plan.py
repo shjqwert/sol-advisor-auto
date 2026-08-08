@@ -12,6 +12,8 @@ from pathlib import Path
 import re
 import tempfile
 
+from sol_advisor_paths import ensure_run_layout, require_exact_path, resolve_workspace, route_paths
+
 
 ROUTES = {
     "repo_search": {
@@ -110,7 +112,7 @@ CRITICAL_TERMS = (
 TOKEN_RE = re.compile(r"^SOL_ADVISOR_[A-Z0-9_]{8,64}$")
 ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,63}$")
 TASK_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,48}$")
-STATE_SCHEMA_VERSION = 8
+STATE_SCHEMA_VERSION = 10
 DIFFICULTY_KINDS = {"repo_search", "precision_search", "external_research", "mechanical_edit"}
 INVESTIGATION_KINDS = {"repo_search", "precision_search", "external_research"}
 LOCAL_SEARCH_INTENTS = {"symbol", "call_path", "architecture", "text", "document"}
@@ -557,12 +559,31 @@ def load_plan(path_arg: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("plan")
+    parser.add_argument("--repository", required=True)
     parser.add_argument("--state-file", required=True)
     args = parser.parse_args()
-    state_path = Path(args.state_file)
     try:
+        plan = load_plan(args.plan)
+        run_id = required_text(plan, "run_id", 64)
+        batch_id = required_text(plan, "batch_id", 64)
+        if not ID_RE.fullmatch(run_id) or not ID_RE.fullmatch(batch_id):
+            fail("run_id and batch_id must use stable alphanumeric identifiers")
+        workspace_root, storage_root, workspace_kind = resolve_workspace(args.repository)
+        layout = ensure_run_layout(storage_root, run_id, batch_id)
+        require_exact_path(args.plan, layout["plan"], "dispatch plan", must_exist=True)
+        state_path = require_exact_path(args.state_file, layout["state"], "state file", must_exist=False)
         state = load_state(state_path)
-        result, next_state = validate(load_plan(args.plan), state)
+        result, next_state = validate(plan, state)
+        result["run_directory"] = str(layout["run_dir"])
+        result["workspace_root"] = str(workspace_root)
+        result["workspace_kind"] = workspace_kind
+        result["plan_path"] = str(layout["plan"])
+        result["state_path"] = str(layout["state"])
+        for route in result["routes"]:
+            paths = route_paths(layout, route["response_token"])
+            route["result_path"] = str(paths["result"])
+            route["visible_path"] = str(paths["visible"])
+            route["runtime_path"] = str(paths["runtime"])
         write_state(state_path, next_state)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"INVALID DISPATCH PLAN: {exc}", file=__import__("sys").stderr)

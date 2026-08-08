@@ -129,7 +129,7 @@ specific repository:
 - local PDF/Office files: MarkItDown, then the inherited document/PDF Skills.
 
 Missing indexes do not disable CodeGraph or Serena. The primary session may prepare
-them for the exact Git repository root before a broad local route:
+them for the exact Git, SVN, or plain workspace root before a broad local route:
 
 ~~~sh
 sh "$plugin_dir/scripts/run-python.sh" \
@@ -137,10 +137,10 @@ sh "$plugin_dir/scripts/run-python.sh" \
   --indexing create-if-missing --apply
 ~~~
 
-The preflight reports its plan as JSON, never stages generated metadata, and fails if
-index preparation introduces a new tracked-file change. Exact text search excludes
-index/cache directories by default, while `.agents`, `.agent`, `.codex`, generated
-sources, and build output remain task-dependent instead of being globally excluded.
+The preflight reports its plan as JSON, never stages or adds generated metadata, and
+fails if index preparation introduces a working-file change. Exact text search excludes
+`.sol-advisor` plus index/cache directories by default, while `.agents`, `.agent`,
+`.codex`, generated sources, and build output remain task-dependent instead of being globally excluded.
 During the pilot there are no per-child command, elapsed-time, or token ceilings.
 
 ## Route and runtime evidence
@@ -154,12 +154,17 @@ must first pass the executable dispatch-plan validator:
 
 ~~~sh
 sh "$plugin_dir/scripts/run-python.sh" "$plugin_dir/scripts/validate-dispatch-plan.py" \
-  /path/to/temporary-plan.json --state-file /path/to/temporary-state.json
+  <run-directory>/plans/<batch-id>.json \
+  --repository /exact/repository/root \
+  --state-file <run-directory>/state.json
 sh "$plugin_dir/scripts/validate-agent-route.sh" \
   sol_advisor_context_analyst openai gpt-5.6-terra max
 ~~~
 
-The state file is mandatory for a run. It prevents accidental batch-counter resets,
+For Git, the run lives under the exact administrative directory resolved by
+`git rev-parse --absolute-git-dir`, normally `.git/sol-advisor/runs/<run-id>/`. SVN and
+plain directories use `<workspace-root>/.sol-advisor/runs/<run-id>/` and never write
+inside `.svn`. The state file prevents accidental batch-counter resets,
 records consumed child budget, and blocks a new
 batch until every pending result has passed the result validator. It is a local runtime
 guard, not a cryptographic defense against a process that can rewrite its own state.
@@ -184,10 +189,10 @@ routes instead of substituting another model.
 
 ## Child results
 
-Each sidebar result now shows concise Markdown first: conclusion, status, scope, and
-task-specific details. A small JSON envelope (`response_token`, `status`, `summary`,
-`scope`) plus the task-specific evidence nucleus is retained inside a fixed HTML comment
-for machine validation, so raw JSON no longer dominates the visible result:
+Each sidebar result shows only concise Markdown: conclusion, status, scope, and
+task-specific details. Before returning, the child writes a small JSON sidecar
+(`response_token`, `status`, `summary`, `scope`) plus the task-specific evidence nucleus
+to its validated path under the run directory:
 
 ~~~text
 ## 结论 / Result
@@ -197,13 +202,9 @@ Readable conclusion.
 - 状态 / Status: `completed`
 - 范围 / Scope: checked files or sources
 - 详情 / Details: decisive evidence or action
-
-<!-- SOL_ADVISOR_RESULT_JSON_START
-{"response_token":"...","status":"completed","summary":"Readable conclusion.","scope":["..."]}
-SOL_ADVISOR_RESULT_JSON_END -->
 ~~~
 
-The hidden payload contains only the required evidence nucleus:
+The machine sidecar contains only the required evidence nucleus:
 
 - discovery returns paths, symbols, and short relevance;
 - external research returns direct links, source class, dates, applicability, and
@@ -212,12 +213,12 @@ The hidden payload contains only the required evidence nucleus:
 - mechanical editing returns changed files and actual verification;
 - no finding returns checked scope and “no blocking issue found”.
 
-The exact returned text and exact-child runtime metadata must pass
-`validate-agent-result.py --runtime-metadata` with the same run state.
-That rejects raw JSON-only or malformed envelopes, checks readable Markdown against the
-hidden summary and status, binds role/provider/model/effort, and validates delivery,
-payload size, and evidence shape. It does not establish truth. The primary still
-verifies every decisive locator.
+The exact returned Markdown, machine sidecar, and exact-child runtime metadata must pass
+`validate-agent-result.py --machine-result ... --runtime-metadata ...` with the same run
+state. That rejects JSON or legacy envelopes in the visible response, checks readable
+Markdown against the sidecar summary and status, binds role/provider/model/effort, and
+validates artifact paths, delivery, payload size, and evidence shape. It does not
+establish truth. The primary still confirms or rejects every decisive locator.
 
 The primary session selectively reopens evidence that can change the implementation or
 delivery decision, always inspects mechanical diffs, and reruns minimum relevant tests.

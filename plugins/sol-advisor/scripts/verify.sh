@@ -23,6 +23,7 @@ result_validator=$script_dir/validate-agent-result.py
 runtime_inspector=$script_dir/inspect-agent-runtime.sh
 python_runner=$script_dir/run-python.sh
 search_preflight=$script_dir/prepare-repo-search.py
+run_paths=$script_dir/sol_advisor_paths.py
 templates=$plugin_dir/agents
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
@@ -49,7 +50,7 @@ trap cleanup 0 HUP INT TERM
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
 case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-for required in "$installer" "$route_validator" "$dispatch_validator" "$result_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$contracts" "$metadata" "$gitattributes"; do
+for required in "$installer" "$route_validator" "$dispatch_validator" "$result_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$run_paths" "$manifest" "$mcp_config" "$skill" "$contracts" "$metadata" "$gitattributes"; do
   test -f "$required" || fail "required file missing: $required"
 done
 
@@ -143,8 +144,10 @@ for filename, (name, model) in dynamic.items():
     instructions = " ".join(data["developer_instructions"].lower().split())
     if "do not spawn" not in instructions or "plugin" not in instructions or "mcp" not in instructions:
         raise SystemExit(f"{path}: missing child/plugin/MCP boundary")
-    if "readable markdown first" not in instructions or "sol_advisor_result_json_start" not in instructions:
-        raise SystemExit(f"{path}: missing readable result-envelope boundary")
+    if "result path" not in instructions or "readable markdown only" not in instructions:
+        raise SystemExit(f"{path}: missing sidecar and readable-only result boundary")
+    if "machine-result marker" not in instructions:
+        raise SystemExit(f"{path}: missing visible machine-envelope prohibition")
     if "field types exactly" not in instructions:
         raise SystemExit(f"{path}: missing exact machine result-contract boundary")
     if "usage inventories" not in instructions:
@@ -193,9 +196,12 @@ from copy import deepcopy
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
+
+sys.path.insert(0, str(Path(sys.argv[1]).parent))
 
 def load_module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -303,8 +309,10 @@ def readable_result(value, *, visible_summary=None, visible_status=None, details
         f"- 范围 / Scope: {scope}\n"
         f"- 详情 / Details: {details}"
     )
-    payload = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
-    return f"{visible}\n\n{results.RESULT_JSON_START}{payload}{results.RESULT_JSON_END}"
+    return visible
+
+def machine_result(value):
+    return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
 
 def child_payload(item, status="completed"):
     value = {
@@ -341,7 +349,8 @@ def child_payload(item, status="completed"):
     return value
 
 def child_result(item, status="completed"):
-    return readable_result(child_payload(item, status))
+    payload = child_payload(item, status)
+    return readable_result(payload), machine_result(payload)
 
 def runtime_metadata(item, sandbox="danger-full-access", permission="unobservable"):
     return {
@@ -371,7 +380,7 @@ else:
 bad_runtime = runtime_metadata(ordinary_route)
 bad_runtime["model"] = "gpt-5.6-terra"
 try:
-    results.validate_result(child_result(ordinary_route), ordinary_state, bad_runtime)
+    results.validate_result(*child_result(ordinary_route), ordinary_state, bad_runtime)
 except ValueError:
     pass
 else:
@@ -381,7 +390,7 @@ malformed_state = deepcopy(ordinary_state)
 malformed_state["pending_batch"]["routes"] = [None]
 malformed_state = results.with_receipt(malformed_state)
 try:
-    results.validate_result(child_result(ordinary_route), malformed_state, runtime_metadata(ordinary_route))
+    results.validate_result(*child_result(ordinary_route), malformed_state, runtime_metadata(ordinary_route))
 except ValueError:
     pass
 else:
@@ -390,7 +399,7 @@ accepted_runtime = runtime_metadata(ordinary_route)
 accepted_runtime.pop("parent_thread_id")
 accepted_runtime.pop("agent_path")
 _, ordinary_done = results.validate_result(
-    child_result(ordinary_route), ordinary_state, accepted_runtime
+    *child_result(ordinary_route), ordinary_state, accepted_runtime
 )
 assert ordinary_done["pending_batch"] is None
 try:
@@ -414,7 +423,7 @@ _, deep_state = dispatch.validate(plan(
 ))
 assert deep_state["pending_batch"] is not None
 deep_unresolved, _ = results.validate_result(
-    child_result(deep_investigation, "unresolved"), deep_state, runtime_metadata(deep_investigation)
+    *child_result(deep_investigation, "unresolved"), deep_state, runtime_metadata(deep_investigation)
 )
 assert deep_unresolved["status"] == "unresolved"
 
@@ -446,7 +455,7 @@ critical = plan(
 _, critical_state = dispatch.validate(critical)
 for item in critical_routes:
     status = "no_finding" if item["task_kind"] == "local_verification" else "completed"
-    _, critical_state = results.validate_result(child_result(item, status), critical_state, runtime_metadata(item))
+    _, critical_state = results.validate_result(*child_result(item, status), critical_state, runtime_metadata(item))
 assert critical_state["pending_batch"] is None
 adjudicator = route("adjudicate_critical")
 adjudication = plan(
@@ -552,7 +561,7 @@ for rejected, state in invalid:
     raise SystemExit(f"invalid dispatch plan accepted: {rejected}")
 
 old_state = deepcopy(ordinary_done)
-old_state["schema_version"] = 7
+old_state["schema_version"] = dispatch.STATE_SCHEMA_VERSION - 1
 old_state = dispatch.with_receipt(old_state)
 try:
     dispatch.validate(plan("old-state-run", 1, "ordinary", "investigation", "serial", [route("repo_search")]), old_state)
@@ -561,21 +570,24 @@ except ValueError:
 else:
     raise SystemExit("retired state schema was accepted")
 
+wrong_token = {"response_token": "SOL_ADVISOR_WRONG_TOKEN", "status": "no_finding", "summary": "x", "scope": ["x"]}
+missing_nucleus = {"response_token": ordinary_route["response_token"], "status": "completed", "summary": "x", "scope": ["x"]}
+ordinary_payload = child_payload(ordinary_route)
 bad_results = [
-    readable_result({"response_token": "SOL_ADVISOR_WRONG_TOKEN", "status": "no_finding", "summary": "x", "scope": ["x"]}),
-    readable_result({"response_token": ordinary_route["response_token"], "status": "completed", "summary": "x", "scope": ["x"]}),
-    json.dumps(child_payload(ordinary_route), separators=(",", ":")),
-    readable_result(child_payload(ordinary_route), visible_summary="different visible summary"),
-    readable_result(child_payload(ordinary_route), visible_status="unresolved"),
-    readable_result(child_payload(ordinary_route), details="x" * 2100),
-    child_result(ordinary_route) + "\n" + results.RESULT_JSON_START + "{}" + results.RESULT_JSON_END,
+    (readable_result(wrong_token), machine_result(wrong_token)),
+    (readable_result(missing_nucleus), machine_result(missing_nucleus)),
+    (machine_result(ordinary_payload), machine_result(ordinary_payload)),
+    (readable_result(ordinary_payload, visible_summary="different visible summary"), machine_result(ordinary_payload)),
+    (readable_result(ordinary_payload, visible_status="unresolved"), machine_result(ordinary_payload)),
+    (readable_result(ordinary_payload, details="x" * 2100), machine_result(ordinary_payload)),
+    (readable_result(ordinary_payload) + "\n<!-- SOL_ADVISOR_RESULT_JSON_START", machine_result(ordinary_payload)),
 ]
 capability_inventory = child_payload(ordinary_route)
 capability_inventory["tools_used"] = ["codegraph"]
-bad_results.append(readable_result(capability_inventory))
-for bad in bad_results:
+bad_results.append((readable_result(capability_inventory), machine_result(capability_inventory)))
+for visible, machine in bad_results:
     try:
-        results.validate_result(bad, ordinary_state, runtime_metadata(ordinary_route))
+        results.validate_result(visible, machine, ordinary_state, runtime_metadata(ordinary_route))
     except ValueError:
         continue
     raise SystemExit("invalid child result was accepted")
@@ -583,7 +595,7 @@ for bad in bad_results:
 wrong_local_evidence = child_payload(ordinary_route)
 wrong_local_evidence["sources"] = [{"url": "https://example.com"}]
 try:
-    results.validate_result(readable_result(wrong_local_evidence), ordinary_state, runtime_metadata(ordinary_route))
+    results.validate_result(readable_result(wrong_local_evidence), machine_result(wrong_local_evidence), ordinary_state, runtime_metadata(ordinary_route))
 except ValueError:
     pass
 else:
@@ -595,7 +607,7 @@ _, external_state = dispatch.validate(external_plan)
 wrong_external_evidence = child_payload(external_route)
 wrong_external_evidence["locators"] = [{"path": "README.md", "relevance": "wrong nucleus"}]
 try:
-    results.validate_result(readable_result(wrong_external_evidence), external_state, runtime_metadata(external_route))
+    results.validate_result(readable_result(wrong_external_evidence), machine_result(wrong_external_evidence), external_state, runtime_metadata(external_route))
 except ValueError:
     pass
 else:
@@ -603,23 +615,60 @@ else:
 
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
+    subprocess.run(["git", "init", str(root)], capture_output=True, text=True, check=True)
+    git_dir = Path(subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--absolute-git-dir"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip())
     executable_route = route("repo_search")
     executable_plan = plan("executable-run", 0, "ordinary", "investigation", "serial", [executable_route])
-    plan_path = root / "plan.json"
-    result_path = root / "result.json"
-    runtime_path = root / "runtime.json"
-    state_path = root / "state.json"
+    run_dir = git_dir / "sol-advisor" / "runs" / "executable-run"
+    plan_path = run_dir / "plans" / "batch-00.json"
+    plan_path.parent.mkdir(parents=True)
+    state_path = run_dir / "state.json"
     plan_path.write_text(json.dumps(executable_plan), encoding="utf-8")
+    outside_plan_path = root / "outside-plan.json"
+    outside_plan_path.write_text(json.dumps(executable_plan), encoding="utf-8")
+    rejected_plan = subprocess.run(
+        [
+            sys.executable, sys.argv[1], str(outside_plan_path), "--repository", str(root),
+            "--state-file", str(state_path),
+        ],
+        capture_output=True, text=True,
+    )
+    assert rejected_plan.returncode != 0 and not state_path.exists()
     first = subprocess.run(
-        [sys.executable, sys.argv[1], str(plan_path), "--state-file", str(state_path)],
+        [
+            sys.executable, sys.argv[1], str(plan_path), "--repository", str(root),
+            "--state-file", str(state_path),
+        ],
         capture_output=True, text=True, check=True,
     )
-    assert json.loads(first.stdout)["valid"] is True
-    result_path.write_text(child_result(executable_route), encoding="utf-8")
+    dispatch_output = json.loads(first.stdout)
+    assert dispatch_output["valid"] is True and dispatch_output["workspace_kind"] == "git"
+    executable_paths = dispatch_output["routes"][0]
+    result_path = Path(executable_paths["result_path"])
+    visible_path = Path(executable_paths["visible_path"])
+    runtime_path = Path(executable_paths["runtime_path"])
+    visible, machine = child_result(executable_route)
+    result_path.write_text(machine, encoding="utf-8")
+    visible_path.write_text(visible, encoding="utf-8")
     runtime_path.write_text(json.dumps(runtime_metadata(executable_route)), encoding="utf-8")
+    outside_visible_path = root / "outside-visible.md"
+    outside_visible_path.write_text(visible, encoding="utf-8")
+    rejected_result = subprocess.run(
+        [
+            sys.executable, sys.argv[2], str(outside_visible_path), "--machine-result", str(result_path),
+            "--repository", str(root), "--run-id", "executable-run", "--state-file", str(state_path),
+            "--runtime-metadata", str(runtime_path),
+        ],
+        capture_output=True, text=True,
+    )
+    assert rejected_result.returncode != 0
     second = subprocess.run(
         [
-            sys.executable, sys.argv[2], str(result_path), "--state-file", str(state_path),
+            sys.executable, sys.argv[2], str(visible_path), "--machine-result", str(result_path),
+            "--repository", str(root), "--run-id", "executable-run", "--state-file", str(state_path),
             "--runtime-metadata", str(runtime_path),
         ],
         capture_output=True, text=True, check=True,
@@ -627,6 +676,67 @@ with tempfile.TemporaryDirectory() as directory:
     executable_result = json.loads(second.stdout)
     assert executable_result["batch_completed"] is True
     assert executable_result["visible_chars"] > 0 and executable_result["machine_payload_chars"] > 0
+
+def exercise_non_git_workspace(root, expected_kind, run_id):
+    item = route("repo_search")
+    fixture_plan = plan(run_id, 0, "ordinary", "investigation", "serial", [item])
+    run_dir = root / ".sol-advisor" / "runs" / run_id
+    plan_path = run_dir / "plans" / "batch-00.json"
+    plan_path.parent.mkdir(parents=True)
+    state_path = run_dir / "state.json"
+    plan_path.write_text(json.dumps(fixture_plan), encoding="utf-8")
+    dispatched = subprocess.run(
+        [
+            sys.executable, sys.argv[1], str(plan_path), "--repository", str(root),
+            "--state-file", str(state_path),
+        ],
+        capture_output=True, text=True, check=True,
+    )
+    dispatch_output = json.loads(dispatched.stdout)
+    assert dispatch_output["workspace_kind"] == expected_kind
+    assert Path(dispatch_output["run_directory"]) == run_dir
+    paths = dispatch_output["routes"][0]
+    payload = child_payload(item)
+    Path(paths["result_path"]).write_text(machine_result(payload), encoding="utf-8")
+    Path(paths["visible_path"]).write_text(readable_result(payload), encoding="utf-8")
+    Path(paths["runtime_path"]).write_text(json.dumps(runtime_metadata(item)), encoding="utf-8")
+    validated = subprocess.run(
+        [
+            sys.executable, sys.argv[2], paths["visible_path"], "--machine-result", paths["result_path"],
+            "--repository", str(root), "--run-id", run_id, "--state-file", str(state_path),
+            "--runtime-metadata", paths["runtime_path"],
+        ],
+        capture_output=True, text=True, check=True,
+    )
+    assert json.loads(validated.stdout)["batch_completed"] is True
+
+with tempfile.TemporaryDirectory() as directory:
+    plain_root = Path(directory) / "plain-workspace"
+    plain_root.mkdir()
+    (plain_root / "example.c").write_text("int example(void) { return 1; }", encoding="utf-8")
+    exercise_non_git_workspace(plain_root, "directory", "plain-run")
+
+if shutil.which("svn") and shutil.which("svnadmin"):
+    with tempfile.TemporaryDirectory() as directory:
+        fixture = Path(directory)
+        svn_repository = fixture / "svn-repository"
+        seed = fixture / "seed"
+        selected_root = seed / "selected-project"
+        selected_root.mkdir(parents=True)
+        (selected_root / "example.c").write_text("int example(void) { return 1; }", encoding="utf-8")
+        subprocess.run(["svnadmin", "create", str(svn_repository)], capture_output=True, text=True, check=True)
+        subprocess.run(
+            ["svn", "import", str(seed), svn_repository.as_uri(), "-m", "fixture"],
+            capture_output=True, text=True, check=True,
+        )
+        checkout = fixture / "checkout"
+        subprocess.run(
+            ["svn", "checkout", svn_repository.as_uri(), str(checkout)],
+            capture_output=True, text=True, check=True,
+        )
+        selected_checkout = checkout / "selected-project"
+        exercise_non_git_workspace(selected_checkout, "svn", "svn-run")
+        assert not (checkout / ".svn" / "sol-advisor").exists()
 
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
@@ -699,9 +809,25 @@ if serena.get("command") and serena["command"][-2:] != ["--language", "python"]:
     raise SystemExit("Serena index command did not receive an explicit language")
 if (root / ".codegraph").exists() or (root / ".serena").exists():
     raise SystemExit("plan-only index preflight created metadata")
-required = {".codegraph/**", ".serena/cache/**", ".serena/indices/**"}
+required = {".sol-advisor/**", ".codegraph/**", ".serena/cache/**", ".serena/indices/**"}
 if not required.issubset(set(data.get("raw_search_exclusions", []))):
     raise SystemExit("generic generated-search exclusions are incomplete")
+PY
+plain_index_target=$tmp_dir/plain-index-plan
+mkdir "$plain_index_target"
+printf '%s\n' 'int example(void) { return 1; }' > "$plain_index_target/example.c"
+plain_index_plan=$(sh "$python_runner" "$search_preflight" "$plain_index_target" --indexing reuse)
+sh "$python_runner" - "$plain_index_plan" <<'PY'
+import json
+import sys
+data = json.loads(sys.argv[1])
+if not data.get("valid") or data.get("workspace_kind") != "directory":
+    raise SystemExit("plain workspace preflight was not valid")
+serena = next(item for item in data["operations"] if item.get("tool") == "serena")
+if serena.get("detected_languages") != ["cpp"]:
+    raise SystemExit("plain workspace language inference failed")
+if ".sol-advisor/**" not in data.get("raw_search_exclusions", []):
+    raise SystemExit("Sol Advisor run metadata is not excluded from raw search")
 PY
 index_never=$(sh "$python_runner" "$search_preflight" "$index_target" --indexing never --apply)
 sh "$python_runner" - "$index_never" <<'PY'
@@ -788,14 +914,20 @@ for document in "$skill" "$contracts"; do
   grep -Fq 'model_override' "$document" || fail "missing pinned-base-model spawn rule: $document"
   grep -Fq 'RESPONSE TOKEN' "$document" || fail "missing task-delivery response token: $document"
   grep -Fq 'validate-agent-result.py' "$document" || fail "missing adaptive result validation rule: $document"
-  grep -Fq 'SOL_ADVISOR_RESULT_JSON_START' "$document" || fail "missing hidden machine-result marker: $document"
+  grep -Fq 'RESULT PATH:' "$document" || fail "missing machine-sidecar delivery path: $document"
+  if grep -Fq 'SOL_ADVISOR_RESULT_JSON_END' "$document"; then fail "legacy visible JSON envelope remains: $document"; fi
 done
 grep -Fq '../../scripts/validate-dispatch-plan.py' "$skill" || fail "dispatch validator reference missing"
 grep -Fq '../../scripts/validate-agent-result.py' "$skill" || fail "result validator reference missing"
 grep -Fq -- '--state-file' "$skill" || fail "persistent run-state requirement missing"
 grep -Fq 'does not reject or compare inherited' "$skill" || fail "inherited permission policy missing"
 grep -Fq -- '--runtime-metadata' "$skill" || fail "runtime-attested result validation missing"
-grep -Fq 'Raw JSON-only results are' "$skill" || fail "raw JSON-only result rejection missing"
+grep -Fq -- '--machine-result' "$skill" || fail "machine-sidecar validation missing"
+  grep -Fq '<git-dir>/sol-advisor/runs' "$skill" || fail "Git run directory missing"
+  grep -Fq '.sol-advisor/runs' "$skill" || fail "SVN/plain run directory missing"
+  grep -Fq 'never write inside' "$skill" || fail "SVN administrative-directory boundary missing"
+  grep -Fq '`.svn`' "$skill" || fail "SVN administrative-directory name missing"
+grep -Fq 'raw JSON-only final responses' "$skill" || fail "raw JSON-only result rejection missing"
 grep -Fq 'Ordinary: at most one concurrent and one total child' "$skill" || fail "ordinary concurrency limit missing"
 grep -Fq 'Complex: at most two concurrent and three total children' "$skill" || fail "complex concurrency limit missing"
 grep -Fq 'Critical: at most two concurrent and five total children' "$skill" || fail "critical concurrency limit missing"
@@ -813,7 +945,7 @@ grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invoca
 grep -Fq 'Do not activate for bounded single-module implementation' "$skill" || fail "automatic invocation scope is too broad"
 pass "automatic invocation, current spawn interface, budgets, and independent verification policies"
 
-sh "$python_runner" - "$dispatch_validator" "$result_validator" "$search_preflight" <<'PY'
+sh "$python_runner" - "$dispatch_validator" "$result_validator" "$search_preflight" "$run_paths" <<'PY'
 import ast
 from pathlib import Path
 import sys

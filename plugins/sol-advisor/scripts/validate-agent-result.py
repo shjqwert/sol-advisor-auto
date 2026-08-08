@@ -9,14 +9,25 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from urllib.parse import urlparse
 
+from sol_advisor_paths import (
+    ensure_run_layout,
+    require_exact_path,
+    resolve_workspace,
+    route_paths,
+    run_base_paths,
+    same_path,
+)
 
-STATE_SCHEMA_VERSION = 8
+
+STATE_SCHEMA_VERSION = 10
 VALID_STATUSES = {"finding", "no_finding", "completed", "unresolved"}
-RESULT_JSON_START = "<!-- SOL_ADVISOR_RESULT_JSON_START\n"
-RESULT_JSON_END = "\nSOL_ADVISOR_RESULT_JSON_END -->"
+LEGACY_RESULT_MARKER = "SOL_ADVISOR_RESULT_JSON_"
+ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{2,63}$")
+TOKEN_RE = re.compile(r"^SOL_ADVISOR_[A-Z0-9_]{8,64}$")
 FORBIDDEN_CAPABILITY_FIELDS = {
     "tools_used",
     "skills_used",
@@ -72,29 +83,26 @@ def required_object_list(obj: dict, key: str) -> list[dict]:
     return value
 
 
-def extract_result(raw_text: str) -> tuple[str, str, dict]:
+def validate_visible_result(raw_text: str) -> str:
     if not isinstance(raw_text, str) or not raw_text.strip():
-        fail("child result must be non-empty text")
-    normalized = raw_text.replace("\r\n", "\n").strip()
-    if normalized.count(RESULT_JSON_START) != 1 or normalized.count(RESULT_JSON_END) != 1:
-        fail("child result must contain exactly one hidden machine-result envelope")
-    start = normalized.index(RESULT_JSON_START)
-    payload_start = start + len(RESULT_JSON_START)
-    end = normalized.index(RESULT_JSON_END, payload_start)
-    if normalized[end + len(RESULT_JSON_END):].strip():
-        fail("child result must not contain text after the hidden machine-result envelope")
-    visible = normalized[:start].strip()
-    payload_text = normalized[payload_start:end].strip()
+        fail("visible child result must be non-empty text")
+    visible = raw_text.replace("\r\n", "\n").strip()
+    if LEGACY_RESULT_MARKER in visible:
+        fail("visible child result must not contain a machine-result envelope")
     if not visible.startswith("## 结论 / Result"):
         fail("visible child result must start with the readable result heading")
     if len(visible) > VISIBLE_OUTPUT_LIMIT_CHARS:
         fail("visible child result exceeds its 2000-character limit")
-    if not payload_text:
-        fail("hidden machine-result payload must not be empty")
+    return visible
+
+
+def parse_machine_result(payload_text: str) -> dict:
+    if not isinstance(payload_text, str) or not payload_text.strip():
+        fail("machine-result sidecar must not be empty")
     result = json.loads(payload_text)
     if not isinstance(result, dict):
-        fail("hidden machine-result payload must be one JSON object")
-    return visible, payload_text, result
+        fail("machine-result sidecar must contain one JSON object")
+    return result
 
 
 def validate_locators(result: dict) -> None:
@@ -217,12 +225,13 @@ def write_state(path: Path, state: dict) -> None:
         raise
 
 
-def validate_result(raw_text: str, state: dict, runtime_metadata: dict) -> tuple[dict, dict]:
+def validate_result(visible_text: str, machine_payload_text: str, state: dict, runtime_metadata: dict) -> tuple[dict, dict]:
     verify_state(state)
     pending = state.get("pending_batch")
     if not isinstance(pending, dict):
         fail("there is no pending batch for this result")
-    visible, payload_text, result = extract_result(raw_text)
+    visible = validate_visible_result(visible_text)
+    result = parse_machine_result(machine_payload_text)
     forbidden = sorted(FORBIDDEN_CAPABILITY_FIELDS.intersection(result))
     if forbidden:
         fail(f"child result must not include capability usage inventories: {forbidden}")
@@ -250,8 +259,8 @@ def validate_result(raw_text: str, state: dict, runtime_metadata: dict) -> tuple
     if token in pending.get("validated_results", {}):
         fail("response token was already validated")
     runtime_thread_id = validate_runtime_metadata(runtime_metadata, route)
-    if len(payload_text) > route["output_limit_chars"]:
-        fail("hidden machine-result payload exceeds its validated character limit")
+    if len(machine_payload_text) > route["output_limit_chars"]:
+        fail("machine-result sidecar exceeds its validated character limit")
     status = result.get("status")
     if status not in VALID_STATUSES:
         fail("status must be finding, no_finding, completed, or unresolved")
@@ -289,22 +298,58 @@ def validate_result(raw_text: str, state: dict, runtime_metadata: dict) -> tuple
         "batch_completed": batch_completed,
         "runtime_thread_id": runtime_thread_id,
         "visible_chars": len(visible),
-        "machine_payload_chars": len(payload_text),
+        "machine_payload_chars": len(machine_payload_text),
         "state_receipt": next_state["receipt"],
     }, next_state
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("result")
+    parser.add_argument("visible_result")
+    parser.add_argument("--machine-result", required=True)
+    parser.add_argument("--repository", required=True)
+    parser.add_argument("--run-id", required=True)
     parser.add_argument("--state-file", required=True)
     parser.add_argument("--runtime-metadata", required=True)
     args = parser.parse_args()
-    state_path = Path(args.state_file)
     try:
-        raw_text = __import__("sys").stdin.read() if args.result == "-" else Path(args.result).read_text(encoding="utf-8")
-        runtime_metadata = json.loads(Path(args.runtime_metadata).read_text(encoding="utf-8"))
-        result, next_state = validate_result(raw_text, load_state(state_path), runtime_metadata)
+        if not ID_RE.fullmatch(args.run_id):
+            fail("run_id must use a stable alphanumeric identifier")
+        _, storage_root, _ = resolve_workspace(args.repository)
+        run_base = run_base_paths(storage_root, args.run_id)
+        state_path = require_exact_path(args.state_file, run_base["state"], "state file", must_exist=True)
+        state = load_state(state_path)
+        if state.get("run_id") != args.run_id:
+            fail("run_id does not match the state file")
+        pending = state.get("pending_batch")
+        if not isinstance(pending, dict):
+            fail("there is no pending batch for this result")
+        batch_id = required_text(pending, "batch_id", 64)
+        if not ID_RE.fullmatch(batch_id):
+            fail("pending batch_id is not safe for a run artifact path")
+        layout = ensure_run_layout(storage_root, args.run_id, batch_id)
+        matching = []
+        for route in pending.get("routes", []):
+            if isinstance(route, dict) and isinstance(route.get("response_token"), str):
+                if not TOKEN_RE.fullmatch(route["response_token"]):
+                    fail("pending response token is not safe for a run artifact path")
+                candidate = route_paths(layout, route["response_token"])
+                if same_path(Path(args.machine_result), candidate["result"]):
+                    matching.append((route["response_token"], candidate))
+        if len(matching) != 1:
+            fail("machine result path does not belong to one pending route")
+        response_token, paths = matching[0]
+        machine_path = require_exact_path(args.machine_result, paths["result"], "machine result", must_exist=True)
+        visible_path = require_exact_path(args.visible_result, paths["visible"], "visible result", must_exist=True)
+        runtime_path = require_exact_path(args.runtime_metadata, paths["runtime"], "runtime metadata", must_exist=True)
+        machine_payload_text = machine_path.read_text(encoding="utf-8")
+        machine_payload = parse_machine_result(machine_payload_text)
+        if machine_payload.get("response_token") != response_token:
+            fail("machine result token does not match its repository-local path")
+        runtime_metadata = json.loads(runtime_path.read_text(encoding="utf-8"))
+        result, next_state = validate_result(
+            visible_path.read_text(encoding="utf-8"), machine_payload_text, state, runtime_metadata
+        )
         write_state(state_path, next_state)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"INVALID AGENT RESULT: {exc}", file=__import__("sys").stderr)

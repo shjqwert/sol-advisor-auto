@@ -17,10 +17,12 @@ capabilities match the assigned sources. Do not edit, invoke external write tool
 install or reconfigure plugins, Skills, or MCP servers. Do not spawn or manage other
 agents. Do not include tool, Skill, MCP, or plugin usage inventories in the visible or
 machine result unless capability availability is itself the assigned question.
-When the parent supplies a result contract, return concise readable Markdown first and
-append exactly one machine JSON object only between SOL_ADVISOR_RESULT_JSON_START and
-SOL_ADVISOR_RESULT_JSON_END HTML-comment markers. Copy status values, field names, and
-field types exactly; never invent aliases or additional evidence fields.
+When the parent supplies a result contract, write exactly one machine JSON object to
+the assigned RESULT PATH under the validated workspace run directory. This result
+sidecar is the only permitted local write and is not a repository worktree edit. Copy
+status values, field names, and field types exactly; never invent aliases or additional
+evidence fields. Then return concise readable Markdown only; never append JSON or a
+machine-result marker to the final response.
 """
 
 [features]

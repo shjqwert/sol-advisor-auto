@@ -11,9 +11,11 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 
 GENERATED_EXCLUSIONS = [
+    ".sol-advisor/**",
     ".codegraph/**",
     ".serena/cache/**",
     ".serena/indices/**",
@@ -64,15 +66,18 @@ SERENA_LANGUAGE_BY_SUFFIX = {
 
 
 def run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except OSError as exc:
+        return subprocess.CompletedProcess(command, 127, "", str(exc))
 
 
 def git_changed_paths(root: Path) -> set[str]:
@@ -97,6 +102,116 @@ def git_diff_fingerprint(root: Path) -> str:
     return hashlib.sha256(result.stdout).hexdigest()
 
 
+def same_path(left: Path, right: Path) -> bool:
+    return os.path.normcase(os.path.abspath(left)) == os.path.normcase(os.path.abspath(right))
+
+
+def detect_workspace_kind(root: Path) -> str:
+    git_root = run(["git", "-C", str(root), "rev-parse", "--show-toplevel"], cwd=root)
+    if git_root.returncode == 0 and git_root.stdout.strip():
+        if not same_path(root, Path(git_root.stdout.strip()).resolve(strict=True)):
+            raise ValueError("a Git workspace must be the exact worktree root")
+        return "git"
+    svn_info = run(["svn", "info", "--show-item", "wc-root", str(root)], cwd=root)
+    return "svn" if svn_info.returncode == 0 else "directory"
+
+
+def is_generated_path(relative: str) -> bool:
+    normalized = relative.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.lstrip("/")
+    return normalized == ".sol-advisor" or normalized.startswith((
+        ".sol-advisor/",
+        ".codegraph/",
+        ".serena/",
+        "__pycache__/",
+    )) or any(part in {"__pycache__", ".pytest_cache", ".mypy_cache"} for part in normalized.split("/"))
+
+
+def filesystem_files(root: Path) -> list[str]:
+    excluded_directories = {
+        ".git", ".svn", ".sol-advisor", ".codegraph", ".serena",
+        "__pycache__", ".pytest_cache", ".mypy_cache",
+    }
+    files: list[str] = []
+    for current, directories, filenames in os.walk(root):
+        directories[:] = [name for name in directories if name not in excluded_directories]
+        current_path = Path(current)
+        for filename in filenames:
+            relative = (current_path / filename).relative_to(root).as_posix()
+            if not is_generated_path(relative):
+                files.append(relative)
+    return files
+
+
+def workspace_files(root: Path, kind: str) -> list[str]:
+    if kind == "git":
+        listed = run(["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"], cwd=root)
+    elif kind == "svn":
+        listed = run(["svn", "list", "--recursive", str(root)], cwd=root)
+    else:
+        return filesystem_files(root)
+    if listed.returncode != 0:
+        return filesystem_files(root)
+    return [
+        line.strip().replace("\\", "/")
+        for line in listed.stdout.splitlines()
+        if line.strip() and not line.rstrip().endswith("/") and not is_generated_path(line.strip())
+    ]
+
+
+def svn_change_snapshot(root: Path) -> tuple[set[str], str]:
+    result = run(["svn", "status", "--xml", "--ignore-externals", str(root)], cwd=root)
+    if result.returncode != 0:
+        return set(), ""
+    changes: list[str] = []
+    try:
+        document = ET.fromstring(result.stdout)
+    except ET.ParseError:
+        return set(), ""
+    for entry in document.findall(".//entry"):
+        status = entry.find("wc-status")
+        if status is None:
+            continue
+        item = status.get("item", "")
+        properties = status.get("props", "")
+        if item in {"", "normal", "none", "unversioned", "ignored", "external"} and properties in {"", "normal", "none"}:
+            continue
+        path = entry.get("path", "").replace("\\", "/")
+        try:
+            candidate = Path(path)
+            resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+            relative = resolved.relative_to(root).as_posix()
+        except (OSError, ValueError):
+            relative = path
+        if not is_generated_path(relative):
+            changes.append(f"{relative}|{item}|{properties}")
+    normalized = sorted(changes)
+    return {line.split("|", 1)[0] for line in normalized}, hashlib.sha256("\n".join(normalized).encode()).hexdigest()
+
+
+def directory_change_snapshot(root: Path) -> tuple[set[str], str]:
+    records: list[str] = []
+    for relative in filesystem_files(root):
+        path = root / relative
+        try:
+            metadata = path.stat()
+        except OSError:
+            continue
+        records.append(f"{relative}|{metadata.st_size}|{metadata.st_mtime_ns}")
+    normalized = sorted(records)
+    return {line.split("|", 1)[0] for line in normalized}, hashlib.sha256("\n".join(normalized).encode()).hexdigest()
+
+
+def workspace_change_snapshot(root: Path, kind: str) -> tuple[set[str], str]:
+    if kind == "git":
+        return git_changed_paths(root), git_diff_fingerprint(root)
+    if kind == "svn":
+        return svn_change_snapshot(root)
+    return directory_change_snapshot(root)
+
+
 def tail(text: str, limit: int = 2000) -> str:
     value = text.strip()
     return value[-limit:] if len(value) > limit else value
@@ -111,23 +226,17 @@ def command_prefix(name: str) -> list[str] | None:
     return [resolved]
 
 
-def infer_serena_languages(root: Path) -> list[str]:
-    listed = run(
-        ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
-        cwd=root,
-    )
-    if listed.returncode != 0:
-        return []
+def infer_serena_languages(root: Path, workspace_kind: str) -> list[str]:
     counts: dict[str, int] = {}
-    for relative in listed.stdout.splitlines():
+    for relative in workspace_files(root, workspace_kind):
         language = SERENA_LANGUAGE_BY_SUFFIX.get(Path(relative.strip()).suffix.lower())
         if language:
             counts[language] = counts.get(language, 0) + 1
     return sorted(counts, key=lambda language: (-counts[language], language))
 
 
-def plan_operations(root: Path, policy: str) -> list[dict[str, object]]:
-    serena_languages = infer_serena_languages(root)
+def plan_operations(root: Path, policy: str, workspace_kind: str) -> list[dict[str, object]]:
+    serena_languages = infer_serena_languages(root, workspace_kind)
     tools: dict[str, dict[str, object]] = {
         "codegraph": {
             "prefix": command_prefix("codegraph"),
@@ -179,7 +288,7 @@ def plan_operations(root: Path, policy: str) -> list[dict[str, object]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("repository", help="Exact repository root; must contain .git")
+    parser.add_argument("repository", help="Exact Git, SVN, or plain workspace root")
     parser.add_argument(
         "--indexing",
         choices=("reuse", "create-if-missing", "refresh", "never"),
@@ -189,12 +298,15 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.repository).expanduser().resolve(strict=True)
-    if not root.is_dir() or not (root / ".git").exists():
-        parser.error("repository must resolve to an exact Git repository root containing .git")
+    if not root.is_dir():
+        parser.error("workspace must resolve to an existing directory")
+    try:
+        workspace_kind = detect_workspace_kind(root)
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    operations = plan_operations(root, args.indexing)
-    tracked_before = git_changed_paths(root)
-    tracked_fingerprint_before = git_diff_fingerprint(root)
+    operations = plan_operations(root, args.indexing, workspace_kind)
+    changed_before, fingerprint_before = workspace_change_snapshot(root, workspace_kind)
     failed = False
     if args.apply:
         for operation in operations:
@@ -212,21 +324,21 @@ def main() -> int:
         for operation in operations:
             operation["status"] = "planned" if operation["command"] else "skipped"
 
-    tracked_after = git_changed_paths(root)
-    tracked_fingerprint_after = git_diff_fingerprint(root)
-    new_tracked_changes = sorted(tracked_after - tracked_before)
-    tracked_diff_changed = tracked_fingerprint_after != tracked_fingerprint_before
-    if new_tracked_changes or tracked_diff_changed:
+    changed_after, fingerprint_after = workspace_change_snapshot(root, workspace_kind)
+    new_working_changes = sorted(changed_after - changed_before)
+    working_changes_modified = fingerprint_after != fingerprint_before
+    if new_working_changes or working_changes_modified:
         failed = True
 
     output = {
         "valid": not failed,
         "repository": str(root),
+        "workspace_kind": workspace_kind,
         "indexing": args.indexing,
         "applied": args.apply,
         "operations": operations,
-        "new_tracked_changes": new_tracked_changes,
-        "tracked_diff_changed": tracked_diff_changed,
+        "new_working_changes": new_working_changes,
+        "working_changes_modified": working_changes_modified,
         "raw_search_exclusions": GENERATED_EXCLUSIONS,
         "fallback": "exact text search and targeted reads remain available when an index tool is unavailable",
     }

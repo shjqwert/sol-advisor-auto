@@ -59,23 +59,30 @@ Require these native agent types:
 - `sol_advisor_local_code_verifier`
 - `sol_advisor_final_adjudicator`
 
-Before the first batch, create one private temporary run directory outside the
-repository and retain its state file until the run finishes. Before every spawn batch,
-write a dispatch-plan JSON there using the schema in the role contracts. Every
+Before the first batch, resolve the exact workspace directory and its storage backend.
+For an exact Git worktree root, resolve `git rev-parse --absolute-git-dir` and use
+`<git-dir>/sol-advisor/runs/<run-id>/`. For an SVN working-copy subdirectory or a plain
+directory, use `<workspace-root>/.sol-advisor/runs/<run-id>/`; never write inside
+`.svn`. Store `state.json` at the run root, each plan at `plans/<batch-id>.json`, and
+per-route machine, visible, and runtime records under `results/`, `visible/`, and
+`runtime/`. Do not modify Git ignore files, SVN properties, or `svn:ignore`
+automatically. Before every spawn batch, write its dispatch plan to the declared plan
+path. Every
 repository or external investigation route includes the generic `search` object:
 intent, roots, include/exclude, generated-content policy, indexing policy, automatic
 tool policy, and fallback order. Then run:
 
 ~~~sh
-sh "$python_runner" "$dispatch_validator" <temporary-plan.json> \
-  --state-file <temporary-run-directory>/state.json
+sh "$python_runner" "$dispatch_validator" <run-directory>/plans/<batch-id>.json \
+  --repository <repository-root> --state-file <run-directory>/state.json
 ~~~
 
 Spawn only when it returns `"valid":true`. The state file records pending results,
 monotonic batch/fix counters, consumed child budget, and completed evidence batches.
-Do not delete, replace, or switch state files to reset
-a run. Delete the temporary run directory only after completion. Do not manually bypass
-a rejected plan.
+Do not delete, replace, or switch state files to reset a run. Retain the run artifacts
+for current-run audit and reuse; do not inject records from earlier runs into a child
+prompt automatically. Cleanup or cross-run memory promotion requires a separate,
+explicit policy. Do not manually bypass a rejected plan.
 
 ## Search capabilities and index preparation
 
@@ -84,7 +91,7 @@ the parent task's live MCP and Skill configuration. Probe inherited capabilities
 silently before assigning a search route. Do not ask a child to enumerate tools and do
 not place tool, Skill, MCP, or plugin usage inventories in its visible or machine
 result. Runtime diagnostics may retain capability availability, fallback reason, and
-elapsed indexing time outside the repository, but these diagnostics are not result
+elapsed indexing time in the run's `runtime/` directory, but these diagnostics are not result
 evidence and must not distract the child from its assigned question.
 
 For a local repository route, classify the search intent and use this preference order:
@@ -99,23 +106,24 @@ For a local repository route, classify the search intent and use this preference
 | current external fact or known page | built-in web, then Exa | primary-source browser retrieval |
 
 Do not deny repository investigation merely because CodeGraph or Serena has no current
-index. Before a broad, precision, or cross-module local route, resolve the exact Git
-repository root and run the primary-session preflight:
+index. Before a broad, precision, or cross-module local route, resolve the exact Git,
+SVN, or plain workspace root and run the primary-session preflight:
 
 ~~~sh
 sh "$python_runner" "$search_preflight" <repository-root> \
   --indexing create-if-missing --apply
 ~~~
 
-Index preparation is a primary-session metadata write. Inspect `git status` before and
-after, never stage generated metadata automatically, and stop if the preflight reports
-a new tracked-file change. Use `--indexing reuse` when writes are not authorized,
+Index preparation is a primary-session metadata write. Inspect Git or SVN tracked
+changes before and after; for a plain directory, compare non-generated file metadata.
+Never stage or add generated metadata automatically, and stop if the preflight reports
+a new working-file change. Use `--indexing reuse` when writes are not authorized,
 `--indexing refresh` when a stale index is established, and `--indexing never` only
 when indexing is explicitly prohibited. If an index tool is unavailable or fails,
 continue with exact text search and targeted reads rather than blocking the route.
 
-Raw text search should normally exclude `.codegraph/**`, Serena caches and indices,
-`__pycache__`, and common tool caches. Treat generated content as `auto`: do not
+Raw text search should normally exclude `.sol-advisor/**`, `.codegraph/**`, Serena
+caches and indices, `__pycache__`, and common tool caches. Treat generated content as `auto`: do not
 globally exclude `.agents`, `.agent`, `.codex`, generated sources, or build output when
 the assigned question makes them relevant. Honor task-specific roots, includes, and
 excludes over generic defaults. During the pilot, do not add per-child command, elapsed
@@ -167,18 +175,20 @@ Terra mechanical editing selected by the long-context gate. Treat the catalog mo
 list, the live schema's model-override list, and the installed role base models as
 separate capabilities; reject unavailable combinations without substitution.
 
-Every message must require the readable result envelope in the role contracts and
-include `RESPONSE TOKEN:` followed by the unique token from the validated dispatch
-plan. The visible section starts with `## 结论 / Result` and shows the exact summary,
-status, scope, and concise details. One machine JSON object follows only inside the
-`SOL_ADVISOR_RESULT_JSON_START` / `SOL_ADVISOR_RESULT_JSON_END` HTML comment, so the
-sidebar renders readable Markdown while validation retains structured evidence. Save
-the exact returned text outside the repository, inspect the exact child rollout, and
-save the runtime inspector JSON beside it. Run
-`validate-agent-result.py` with both the state file and `--runtime-metadata`; it refuses
-to mutate state until runtime role, provider, model, and effort match the pending route,
-then validates the visible Markdown and hidden JSON contract. Raw JSON-only results are
-invalid.
+Every message must include `RESPONSE TOKEN:` and the exact `RESULT PATH:` returned by
+dispatch validation. The child writes one machine JSON object to that path before
+returning. This workspace-local sidecar is the only metadata write allowed for a
+read-only role. The child final response contains readable Markdown only: it starts
+with `## 结论 / Result` and shows the exact summary, status, scope, and concise details.
+It must not append JSON, an HTML comment, or a machine-result marker.
+
+Save the exact final Markdown to the route's `visible_path`, inspect the exact child
+rollout, and save the runtime inspector JSON to `runtime_path`. Run
+`validate-agent-result.py` with the visible path, `--machine-result`, `--repository`,
+`--run-id`, the state file, and `--runtime-metadata`. It refuses to mutate state until
+all three artifact paths belong to the pending route and runtime role, provider, model,
+and effort match. Machine JSON in the final response and raw JSON-only final responses
+are invalid.
 
 Subagents inherit the parent turn's live sandbox and permission profile. Role files do
 not declare a sandbox override, and Sol Advisor does not reject or compare inherited
@@ -237,11 +247,12 @@ independence.
 
 ## Accept child evidence
 
-Child output is a claim, not proof. Require result-validator acceptance first, then open
-only evidence that can change the plan or delivery decision. Result validation proves
-shape and delivery, not truth. Verify at least one decisive locator for every accepted
-material conclusion. Always inspect the actual diff after a mechanical edit and rerun
-the minimum relevant checks.
+Child output is a claim, not proof. Require result-validator acceptance first, then let
+the primary session decide evidence validity. Result validation proves shape, path,
+identity, and delivery, not truth. The primary verifies at least one decisive locator
+for every accepted material conclusion, rejects stale or irrelevant claims, and injects
+only evidence needed by a later child. Always inspect the actual diff after a
+mechanical edit and rerun the minimum relevant checks.
 
 Track main-thread context, total model tokens, elapsed time, child count, rework, and
 escaped defects separately. Subagents can reduce main-thread context pollution while
