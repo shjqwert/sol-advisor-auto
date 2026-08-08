@@ -692,6 +692,11 @@ if not data.get("valid") or data.get("applied"):
     raise SystemExit("index preflight plan was not read-only and valid")
 if {item.get("tool") for item in data.get("operations", [])} != {"codegraph", "serena"}:
     raise SystemExit("index preflight did not probe CodeGraph and Serena")
+serena = next(item for item in data["operations"] if item.get("tool") == "serena")
+if serena.get("detected_languages") != ["python"]:
+    raise SystemExit("index preflight did not infer the fixture language")
+if serena.get("command") and serena["command"][-2:] != ["--language", "python"]:
+    raise SystemExit("Serena index command did not receive an explicit language")
 if (root / ".codegraph").exists() or (root / ".serena").exists():
     raise SystemExit("plan-only index preflight created metadata")
 required = {".codegraph/**", ".serena/cache/**", ".serena/indices/**"}

@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.5.0+codex.20260808034614",
+  "version": "0.5.0+codex.20260808041437",
   "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and independent verification.",
   "author": {
     "name": "shjqwert",

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,6 +21,46 @@ GENERATED_EXCLUSIONS = [
     "**/.pytest_cache/**",
     "**/.mypy_cache/**",
 ]
+
+SERENA_LANGUAGE_BY_SUFFIX = {
+    ".py": "python",
+    ".pyi": "python",
+    ".c": "cpp",
+    ".h": "cpp",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".js": "typescript",
+    ".jsx": "typescript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".rs": "rust",
+    ".java": "java",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".go": "go",
+    ".rb": "ruby",
+    ".dart": "dart",
+    ".php": "php",
+    ".r": "r",
+    ".pl": "perl",
+    ".clj": "clojure",
+    ".ex": "elixir",
+    ".exs": "elixir",
+    ".swift": "swift",
+    ".sh": "bash",
+    ".bash": "bash",
+    ".ps1": "powershell",
+    ".lua": "lua",
+    ".zig": "zig",
+    ".scala": "scala",
+    ".fs": "fsharp",
+    ".fsx": "fsharp",
+    ".hs": "haskell",
+    ".vue": "vue",
+    ".svelte": "svelte",
+}
 
 
 def run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -61,14 +102,39 @@ def tail(text: str, limit: int = 2000) -> str:
     return value[-limit:] if len(value) > limit else value
 
 
+def command_prefix(name: str) -> list[str] | None:
+    resolved = shutil.which(name)
+    if resolved is None:
+        return None
+    if os.name == "nt" and Path(resolved).suffix.lower() in {".cmd", ".bat"}:
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", resolved]
+    return [resolved]
+
+
+def infer_serena_languages(root: Path) -> list[str]:
+    listed = run(
+        ["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=root,
+    )
+    if listed.returncode != 0:
+        return []
+    counts: dict[str, int] = {}
+    for relative in listed.stdout.splitlines():
+        language = SERENA_LANGUAGE_BY_SUFFIX.get(Path(relative.strip()).suffix.lower())
+        if language:
+            counts[language] = counts.get(language, 0) + 1
+    return sorted(counts, key=lambda language: (-counts[language], language))
+
+
 def plan_operations(root: Path, policy: str) -> list[dict[str, object]]:
-    tools = {
+    serena_languages = infer_serena_languages(root)
+    tools: dict[str, dict[str, object]] = {
         "codegraph": {
-            "available": shutil.which("codegraph") is not None,
+            "prefix": command_prefix("codegraph"),
             "indexed": (root / ".codegraph").is_dir(),
         },
         "serena": {
-            "available": shutil.which("serena") is not None,
+            "prefix": command_prefix("serena"),
             "indexed": (root / ".serena" / "project.yml").is_file(),
         },
     }
@@ -81,19 +147,29 @@ def plan_operations(root: Path, policy: str) -> list[dict[str, object]]:
         elif policy == "reuse":
             reason = "reuse existing index" if state["indexed"] else "index missing; use fallback search"
         elif not state["indexed"]:
-            command = ["codegraph", "init", str(root)] if name == "codegraph" else ["serena", "project", "index", str(root)]
-            reason = "create missing index"
+            if name == "codegraph":
+                arguments = ["init", str(root)]
+            else:
+                if not serena_languages:
+                    arguments = []
+                else:
+                    arguments = ["project", "index", str(root), "--name", root.name]
+                    for language in serena_languages:
+                        arguments.extend(["--language", language])
+            command = [*state["prefix"], *arguments] if state["prefix"] and arguments else None
+            reason = "create missing index" if arguments else "no supported source language detected; use fallback search"
         elif policy == "refresh":
-            command = ["codegraph", "sync", str(root)] if name == "codegraph" else ["serena", "project", "index", str(root)]
+            arguments = ["sync", str(root)] if name == "codegraph" else ["project", "index", str(root)]
+            command = [*state["prefix"], *arguments] if state["prefix"] else None
             reason = "refresh existing index"
-        if command is not None and not state["available"]:
-            command = None
+        if state["prefix"] is None and policy not in {"never", "reuse"}:
             reason = "tool unavailable; use fallback search"
         operations.append(
             {
                 "tool": name,
-                "available": state["available"],
+                "available": state["prefix"] is not None,
                 "indexed_before": state["indexed"],
+                "detected_languages": serena_languages if name == "serena" else [],
                 "reason": reason,
                 "command": command,
             }
