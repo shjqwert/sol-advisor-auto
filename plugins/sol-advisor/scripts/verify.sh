@@ -21,8 +21,11 @@ route_validator=$script_dir/validate-agent-route.sh
 dispatch_validator=$script_dir/validate-dispatch-plan.py
 result_validator=$script_dir/validate-agent-result.py
 runtime_inspector=$script_dir/inspect-agent-runtime.sh
+python_runner=$script_dir/run-python.sh
+search_preflight=$script_dir/prepare-repo-search.py
 templates=$plugin_dir/agents
 manifest=$plugin_dir/.codex-plugin/plugin.json
+mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
 metadata=$plugin_dir/skills/orchestration/agents/openai.yaml
@@ -46,11 +49,11 @@ trap cleanup 0 HUP INT TERM
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
 case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-for required in "$installer" "$route_validator" "$dispatch_validator" "$result_validator" "$runtime_inspector" "$manifest" "$skill" "$contracts" "$metadata" "$gitattributes"; do
+for required in "$installer" "$route_validator" "$dispatch_validator" "$result_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$contracts" "$metadata" "$gitattributes"; do
   test -f "$required" || fail "required file missing: $required"
 done
 
-python3 - "$manifest" <<'PY'
+sh "$python_runner" - "$manifest" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -66,13 +69,37 @@ expected = {
 for field, value in expected.items():
     if manifest.get(field) != value:
         raise SystemExit(f"manifest {field} does not identify the standalone repository")
+if manifest.get("mcpServers") != "./.mcp.json":
+    raise SystemExit("manifest does not declare the balanced MCP companion")
 interface = manifest.get("interface", {})
 if interface.get("developerName") != "shjqwert" or interface.get("websiteURL") != expected["repository"]:
     raise SystemExit("manifest interface ownership metadata is stale")
 PY
 pass "plugin manifest JSON, version, and standalone ownership metadata"
 
-python3 - "$templates" <<'PY'
+sh "$python_runner" - "$mcp_config" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+servers = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("mcpServers", {})
+expected = {
+    "context7": ("http", "https://mcp.context7.com/mcp"),
+    "exa": ("http", "https://mcp.exa.ai/mcp"),
+}
+for name, (kind, url) in expected.items():
+    value = servers.get(name, {})
+    if value.get("type") != kind or value.get("url") != url:
+        raise SystemExit(f"unexpected {name} MCP endpoint")
+markitdown = servers.get("markitdown", {})
+if markitdown.get("command") != "uvx" or markitdown.get("args") != ["markitdown-mcp"]:
+    raise SystemExit("unexpected MarkItDown MCP command")
+if set(servers) != {"context7", "exa", "markitdown"}:
+    raise SystemExit("unexpected balanced-search MCP set")
+PY
+pass "balanced Context7, Exa, and MarkItDown MCP configuration"
+
+sh "$python_runner" - "$templates" <<'PY'
 from pathlib import Path
 import sys
 import tomllib
@@ -103,8 +130,8 @@ for filename, (name, model) in dynamic.items():
         raise SystemExit(f"{path}: reasoning effort must remain dynamic")
     if "sandbox_mode" in data:
         raise SystemExit(f"{path}: sandbox_mode must be inherited from the parent task")
-    if data.get("mcp_servers") != {} or data.get("skills", {}).get("config") != []:
-        raise SystemExit(f"{path}: inherited MCP or Skill surface was not cleared")
+    if "mcp_servers" in data or "skills" in data:
+        raise SystemExit(f"{path}: MCP or Skill inheritance was overridden")
     expected_web = "live" if name == "sol_advisor_investigator" else "disabled"
     if data.get("web_search") != expected_web:
         raise SystemExit(f"{path}: unexpected web_search policy")
@@ -120,10 +147,12 @@ for filename, (name, model) in dynamic.items():
         raise SystemExit(f"{path}: missing readable result-envelope boundary")
     if "field types exactly" not in instructions:
         raise SystemExit(f"{path}: missing exact machine result-contract boundary")
+    if "usage inventories" not in instructions:
+        raise SystemExit(f"{path}: missing silent capability-reporting boundary")
 
 print("functional role TOML contracts are valid")
 PY
-pass "five base-model-pinned role TOML contracts, inherited permissions, dynamic effort, narrow boundaries, and no descendants"
+pass "five base-model-pinned role TOML contracts, inherited MCP/Skills and permissions, dynamic effort, and no descendants"
 
 valid_routes='sol_advisor_investigator openai gpt-5.6-luna xhigh
 sol_advisor_investigator openai gpt-5.6-luna max
@@ -159,7 +188,7 @@ printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
 done
 pass "illegal Luna, Terra, and Sol combinations rejected"
 
-python3 - "$dispatch_validator" "$result_validator" <<'PY'
+sh "$python_runner" - "$dispatch_validator" "$result_validator" <<'PY'
 from copy import deepcopy
 import importlib.util
 import json
@@ -213,6 +242,29 @@ def route(kind, angle=None, difficulty=None, model=None, effort=None, selection_
     }
     if kind in dispatch.DIFFICULTY_KINDS:
         value["difficulty"] = difficulty
+    if kind in dispatch.INVESTIGATION_KINDS:
+        if kind == "external_research":
+            value["search"] = {
+                "intent": "library_docs",
+                "roots": [],
+                "include": [],
+                "exclude": [],
+                "generated_content": "auto",
+                "indexing": "never",
+                "tool_policy": "auto",
+                "fallback_order": ["context7", "web", "exa"],
+            }
+        else:
+            value["search"] = {
+                "intent": "call_path",
+                "roots": ["/fixture/repository"],
+                "include": [],
+                "exclude": [],
+                "generated_content": "auto",
+                "indexing": "create-if-missing",
+                "tool_policy": "auto",
+                "fallback_order": ["codegraph", "serena", "text"],
+            }
     if selection_reason is not None:
         value["selection_reason"] = selection_reason
     value["task_name"] = f"route_{counter:02d}"
@@ -309,6 +361,7 @@ ordinary_route = route("repo_search")
 ordinary = plan("ordinary-run", 0, "ordinary", "investigation", "serial", [ordinary_route])
 ordinary_result, ordinary_state = dispatch.validate(ordinary)
 assert ordinary_result["valid"] and ordinary_state["pending_batch"]
+assert ordinary_result["routes"][0]["search"]["intent"] == "call_path"
 try:
     dispatch.validate(deepcopy(ordinary), ordinary_state)
 except ValueError:
@@ -457,6 +510,14 @@ invalid.append((missing_override, None))
 bad_base_pin = deepcopy(ordinary)
 bad_base_pin["agent_base_models"]["sol_advisor_investigator"] = "gpt-5.6-terra"
 invalid.append((bad_base_pin, None))
+missing_search = deepcopy(ordinary)
+missing_search["routes"][0].pop("search")
+invalid.append((missing_search, None))
+bad_external_search = plan(
+    "bad-external-search", 0, "ordinary", "investigation", "serial", [route("external_research")]
+)
+bad_external_search["routes"][0]["search"]["indexing"] = "create-if-missing"
+invalid.append((bad_external_search, None))
 retired_field = deepcopy(ordinary)
 retired_field["retired_provider_state"] = "available"
 invalid.append((retired_field, None))
@@ -509,6 +570,9 @@ bad_results = [
     readable_result(child_payload(ordinary_route), details="x" * 2100),
     child_result(ordinary_route) + "\n" + results.RESULT_JSON_START + "{}" + results.RESULT_JSON_END,
 ]
+capability_inventory = child_payload(ordinary_route)
+capability_inventory["tools_used"] = ["codegraph"]
+bad_results.append(readable_result(capability_inventory))
 for bad in bad_results:
     try:
         results.validate_result(bad, ordinary_state, runtime_metadata(ordinary_route))
@@ -612,6 +676,40 @@ pass "installer conflict refusal without partial mutation"
 if sh "$installer" --target-dir /tmp/.. --check >/dev/null 2>&1; then fail "installer accepted a path alias resolving to filesystem root"; fi
 pass "installer canonical filesystem-root refusal"
 
+index_target=$tmp_dir/index-plan
+mkdir "$index_target"
+git -C "$index_target" init -q
+printf '%s\n' 'def example(): return 1' > "$index_target/example.py"
+index_plan=$(sh "$python_runner" "$search_preflight" "$index_target" --indexing create-if-missing)
+sh "$python_runner" - "$index_plan" "$index_target" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+data = json.loads(sys.argv[1])
+root = Path(sys.argv[2])
+if not data.get("valid") or data.get("applied"):
+    raise SystemExit("index preflight plan was not read-only and valid")
+if {item.get("tool") for item in data.get("operations", [])} != {"codegraph", "serena"}:
+    raise SystemExit("index preflight did not probe CodeGraph and Serena")
+if (root / ".codegraph").exists() or (root / ".serena").exists():
+    raise SystemExit("plan-only index preflight created metadata")
+required = {".codegraph/**", ".serena/cache/**", ".serena/indices/**"}
+if not required.issubset(set(data.get("raw_search_exclusions", []))):
+    raise SystemExit("generic generated-search exclusions are incomplete")
+PY
+index_never=$(sh "$python_runner" "$search_preflight" "$index_target" --indexing never --apply)
+sh "$python_runner" - "$index_never" <<'PY'
+import json
+import sys
+data = json.loads(sys.argv[1])
+if not data.get("valid") or not data.get("applied"):
+    raise SystemExit("never-index apply mode was not a safe no-op")
+if any(item.get("status") != "skipped" for item in data.get("operations", [])):
+    raise SystemExit("never-index policy planned an operation")
+PY
+pass "portable Python runner and generic CodeGraph/Serena index preflight"
+
 runtime_sessions=$tmp_dir/runtime-sessions
 runtime_day=$runtime_sessions/2026/08/05
 mkdir -p "$runtime_day"
@@ -623,7 +721,7 @@ printf '%s\n' \
   '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"max","sandbox_policy":{"type":"read-only"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
   > "$runtime_rollout"
 runtime_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$runtime_id")
-python3 - "$runtime_output" <<'PY'
+sh "$python_runner" - "$runtime_output" <<'PY'
 import json
 import sys
 
@@ -640,7 +738,7 @@ if any(data.get(key) != value for key, value in expected.items()):
     raise SystemExit("runtime inspector returned unexpected route")
 PY
 printf '%s\n' "$runtime_output" | grep -Fq DO_NOT_LEAK && fail "runtime inspector leaked prompt"
-route_fields=$(python3 - "$runtime_output" <<'PY'
+route_fields=$(sh "$python_runner" - "$runtime_output" <<'PY'
 import json
 import sys
 data = json.loads(sys.argv[1])
@@ -663,7 +761,7 @@ printf '%s\n' \
   '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"max","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
   > "$inherited_rollout"
 inherited_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$inherited_id")
-python3 - "$inherited_output" <<'PY'
+sh "$python_runner" - "$inherited_output" <<'PY'
 import json
 import sys
 data = json.loads(sys.argv[1])
@@ -700,11 +798,17 @@ grep -Fq "read each other's conclusions" "$skill" || fail "validator independenc
 grep -Fq 'Luna/Max and Terra/Max validators in parallel' "$skill" || fail "critical independent verification policy missing"
 grep -Fq 'Allow at most two fix rounds' "$skill" || fail "fix-round budget missing"
 grep -Fq 'completed evidence batches' "$skill" || fail "adjudication evidence binding missing"
+grep -Fq 'Role profiles deliberately omit `mcp_servers` and `skills.config`' "$skill" || fail "parent capability inheritance policy missing"
+grep -Fq 'Serena, then CodeGraph' "$skill" || fail "symbol search routing policy missing"
+grep -Fq 'CodeGraph, then Serena' "$skill" || fail "call-path search routing policy missing"
+grep -Fq 'do not add per-child command, elapsed' "$skill" || fail "pilot exploration policy missing"
+grep -Fq 'Do not ask a child to enumerate tools' "$skill" || fail "silent capability-probe policy missing"
+grep -Fq 'repository or external investigation route includes the generic `search`' "$skill" || fail "generic search dispatch schema missing"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
 grep -Fq 'Do not activate for bounded single-module implementation' "$skill" || fail "automatic invocation scope is too broad"
 pass "automatic invocation, current spawn interface, budgets, and independent verification policies"
 
-python3 - "$dispatch_validator" "$result_validator" <<'PY'
+sh "$python_runner" - "$dispatch_validator" "$result_validator" "$search_preflight" <<'PY'
 import ast
 from pathlib import Path
 import sys
@@ -716,8 +820,9 @@ pass "Python dispatch and result validator syntax"
 sh -n "$installer"
 sh -n "$route_validator"
 sh -n "$runtime_inspector"
+sh -n "$python_runner"
 sh -n "$script_dir/verify.sh"
-for shell_file in "$installer" "$route_validator" "$runtime_inspector" "$script_dir/verify.sh"; do
+for shell_file in "$installer" "$route_validator" "$runtime_inspector" "$python_runner" "$script_dir/verify.sh"; do
   if grep -q "$(printf '\r')" "$shell_file"; then fail "CRLF remains in shell script: $shell_file"; fi
 done
 grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforce LF for shell scripts"

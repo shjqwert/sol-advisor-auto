@@ -113,6 +113,10 @@ TASK_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,48}$")
 STATE_SCHEMA_VERSION = 8
 DIFFICULTY_KINDS = {"repo_search", "precision_search", "external_research", "mechanical_edit"}
 INVESTIGATION_KINDS = {"repo_search", "precision_search", "external_research"}
+LOCAL_SEARCH_INTENTS = {"symbol", "call_path", "architecture", "text", "document"}
+EXTERNAL_SEARCH_INTENTS = {"library_docs", "web_fact", "known_page"}
+INDEX_POLICIES = {"reuse", "create-if-missing", "refresh", "never"}
+GENERATED_CONTENT_POLICIES = {"auto", "include", "exclude"}
 DEEP_INVESTIGATION_RISKS = {"multiple_modules", "difficult_debugging", "evidence_incomplete"} | CRITICAL_RISKS
 PLAN_FIELDS = {
     "run_id",
@@ -224,6 +228,57 @@ def derived_tier(task_summary: str, risk_flags: list[str]) -> str:
 
 def count_exact(kinds: list[str], expected: dict[str, int]) -> bool:
     return all(kinds.count(kind) == count for kind, count in expected.items()) and len(kinds) == sum(expected.values())
+
+
+def validate_search_config(route: dict, kind: str, index: int) -> dict | None:
+    search = route.get("search")
+    if kind not in INVESTIGATION_KINDS:
+        if search is not None:
+            fail(f"route {index} does not accept search configuration")
+        return None
+    if not isinstance(search, dict):
+        fail(f"route {index} requires a search configuration object")
+
+    intent = search.get("intent")
+    allowed_intents = EXTERNAL_SEARCH_INTENTS if kind == "external_research" else LOCAL_SEARCH_INTENTS
+    if intent not in allowed_intents:
+        fail(f"route {index} has an invalid search intent for {kind}")
+    roots = search.get("roots")
+    include = search.get("include")
+    exclude = search.get("exclude")
+    fallback_order = search.get("fallback_order")
+    for name, value in (("roots", roots), ("include", include), ("exclude", exclude), ("fallback_order", fallback_order)):
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            fail(f"route {index} search {name} must be a list of non-empty strings")
+    if kind != "external_research" and not roots:
+        fail(f"route {index} local search requires at least one exact root")
+    if kind == "external_research" and roots:
+        fail(f"route {index} external search must not declare repository roots")
+    if len(set(fallback_order)) != len(fallback_order):
+        fail(f"route {index} search fallback_order must not contain duplicates")
+
+    generated_content = search.get("generated_content")
+    indexing = search.get("indexing")
+    tool_policy = search.get("tool_policy")
+    if generated_content not in GENERATED_CONTENT_POLICIES:
+        fail(f"route {index} has an invalid generated_content policy")
+    if indexing not in INDEX_POLICIES:
+        fail(f"route {index} has an invalid indexing policy")
+    if kind == "external_research" and indexing != "never":
+        fail(f"route {index} external search requires indexing=never")
+    if tool_policy != "auto":
+        fail(f"route {index} search tool_policy must be auto")
+
+    return {
+        "intent": intent,
+        "roots": roots,
+        "include": include,
+        "exclude": exclude,
+        "generated_content": generated_content,
+        "indexing": indexing,
+        "tool_policy": tool_policy,
+        "fallback_order": fallback_order,
+    }
 
 
 def validate(plan: dict, state: dict | None = None) -> tuple[dict, dict]:
@@ -401,6 +456,7 @@ def validate(plan: dict, state: dict | None = None) -> tuple[dict, dict]:
 
         question = required_text(route, "question")
         expected_evidence = required_text(route, "expected_evidence")
+        search = validate_search_config(route, kind, index)
         response_token = route.get("response_token")
         if not isinstance(response_token, str) or not TOKEN_RE.fullmatch(response_token):
             fail(f"route {index} has invalid response_token")
@@ -435,6 +491,7 @@ def validate(plan: dict, state: dict | None = None) -> tuple[dict, dict]:
             "response_token": response_token,
             "output_limit_chars": output_limit,
             "attack_angle": attack_angle.strip() if isinstance(attack_angle, str) else None,
+            "search": search,
         })
 
     if phase == "editing" and (mode != "serial" or kinds != ["mechanical_edit"]):

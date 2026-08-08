@@ -25,7 +25,11 @@ Requirements:
 - A current Codex Desktop app with plugins, sidebar-visible subagents, and custom agents.
 - Access to the selected GPT-5.6 routes.
 - Python 3.11+, a POSIX shell, `jq`, and common Unix tools (`cmp`, `mktemp`,
-  `sha256sum`). On Windows, use WSL for the shell scripts.
+  `sha256sum`). The shipped Python runner prefers `python`/`py -3` on Windows and
+  `python3` on POSIX; set `SOL_ADVISOR_PYTHON` only when an explicit interpreter is
+  required. On Windows, use WSL or an MSYS-compatible shell for shell scripts.
+- `uvx` for the bundled MarkItDown MCP. CodeGraph and Serena remain optional but are
+  strongly recommended for repository work.
 
 ~~~sh
 codex plugin marketplace add shjqwert/sol-advisor-auto --ref main
@@ -57,6 +61,19 @@ wsl sh "$pluginDirWsl/scripts/install-agents.sh" --target-dir $agentDirWsl --che
 
 The installer adds only missing routed templates, never edits `config.toml`, and
 refuses to overwrite a differing file.
+
+The plugin exposes the balanced search set selected for the pilot:
+
+- inherited CodeGraph and Serena for repository relationships and symbols;
+- Context7 for version-aware library documentation;
+- Exa for read-only current web search and clean page retrieval;
+- MarkItDown for local PDF and Office-document conversion.
+
+Context7 and Exa use their official hosted MCP endpoints and work at anonymous rate
+limits; their API keys remain optional for higher quotas. MarkItDown runs locally
+through `uvx markitdown-mcp`, so the first use may download its isolated dependencies.
+Child results do not list which MCP, Skill, or plugin was used; capability and fallback
+diagnostics stay outside the result envelope.
 
 Start a new Codex task after installation so native roles and the bundled Skill are
 rediscovered. If the Skill still does not appear, restart Codex before testing; an
@@ -98,6 +115,34 @@ Low-risk work does not require a child review. Material uncertainty triggers one
 Luna/Max local verification. Critical risk uses independent parallel validation and Sol
 adjudication only when findings conflict or require a final risk decision.
 
+## Repository search policy
+
+Custom-agent files omit `mcp_servers` and `skills.config`, which lets Codex inherit the
+parent task's live capabilities. Search routing is intent-driven rather than tied to a
+specific repository:
+
+- symbols and references: Serena, then CodeGraph, then exact text search;
+- call paths, impact, and architecture: CodeGraph, then Serena, then exact text search;
+- configuration and logs: exact text search and targeted reads;
+- library/API documentation: Context7, then official documentation;
+- current web facts: built-in web, then Exa;
+- local PDF/Office files: MarkItDown, then the inherited document/PDF Skills.
+
+Missing indexes do not disable CodeGraph or Serena. The primary session may prepare
+them for the exact Git repository root before a broad local route:
+
+~~~sh
+sh "$plugin_dir/scripts/run-python.sh" \
+  "$plugin_dir/scripts/prepare-repo-search.py" /exact/repository/root \
+  --indexing create-if-missing --apply
+~~~
+
+The preflight reports its plan as JSON, never stages generated metadata, and fails if
+index preparation introduces a new tracked-file change. Exact text search excludes
+index/cache directories by default, while `.agents`, `.agent`, `.codex`, generated
+sources, and build output remain task-dependent instead of being globally excluded.
+During the pilot there are no per-child command, elapsed-time, or token ceilings.
+
 ## Route and runtime evidence
 
 Each role file pins its base model while reasoning effort remains route-selected.
@@ -108,7 +153,7 @@ exception. Every batch
 must first pass the executable dispatch-plan validator:
 
 ~~~sh
-python3 "$plugin_dir/scripts/validate-dispatch-plan.py" \
+sh "$plugin_dir/scripts/run-python.sh" "$plugin_dir/scripts/validate-dispatch-plan.py" \
   /path/to/temporary-plan.json --state-file /path/to/temporary-state.json
 sh "$plugin_dir/scripts/validate-agent-route.sh" \
   sol_advisor_context_analyst openai gpt-5.6-terra max

@@ -17,6 +17,13 @@ STATE_SCHEMA_VERSION = 8
 VALID_STATUSES = {"finding", "no_finding", "completed", "unresolved"}
 RESULT_JSON_START = "<!-- SOL_ADVISOR_RESULT_JSON_START\n"
 RESULT_JSON_END = "\nSOL_ADVISOR_RESULT_JSON_END -->"
+FORBIDDEN_CAPABILITY_FIELDS = {
+    "tools_used",
+    "skills_used",
+    "mcp_servers_used",
+    "plugins_used",
+    "capability_inventory",
+}
 VISIBLE_OUTPUT_LIMIT_CHARS = 2000
 
 
@@ -216,6 +223,9 @@ def validate_result(raw_text: str, state: dict, runtime_metadata: dict) -> tuple
     if not isinstance(pending, dict):
         fail("there is no pending batch for this result")
     visible, payload_text, result = extract_result(raw_text)
+    forbidden = sorted(FORBIDDEN_CAPABILITY_FIELDS.intersection(result))
+    if forbidden:
+        fail(f"child result must not include capability usage inventories: {forbidden}")
     token = required_text(result, "response_token", 100)
     pending_routes = pending.get("routes")
     validated_results = pending.get("validated_results")

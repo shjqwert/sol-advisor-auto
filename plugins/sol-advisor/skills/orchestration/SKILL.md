@@ -46,6 +46,8 @@ route_validator="$skill_dir/../../scripts/validate-agent-route.sh"
 dispatch_validator="$skill_dir/../../scripts/validate-dispatch-plan.py"
 result_validator="$skill_dir/../../scripts/validate-agent-result.py"
 runtime_inspector="$skill_dir/../../scripts/inspect-agent-runtime.sh"
+python_runner="$skill_dir/../../scripts/run-python.sh"
+search_preflight="$skill_dir/../../scripts/prepare-repo-search.py"
 sh "$installer" --check
 ~~~
 
@@ -59,10 +61,13 @@ Require these native agent types:
 
 Before the first batch, create one private temporary run directory outside the
 repository and retain its state file until the run finishes. Before every spawn batch,
-write a dispatch-plan JSON there using the schema in the role contracts and run:
+write a dispatch-plan JSON there using the schema in the role contracts. Every
+repository or external investigation route includes the generic `search` object:
+intent, roots, include/exclude, generated-content policy, indexing policy, automatic
+tool policy, and fallback order. Then run:
 
 ~~~sh
-python3 "$dispatch_validator" <temporary-plan.json> \
+sh "$python_runner" "$dispatch_validator" <temporary-plan.json> \
   --state-file <temporary-run-directory>/state.json
 ~~~
 
@@ -71,6 +76,51 @@ monotonic batch/fix counters, consumed child budget, and completed evidence batc
 Do not delete, replace, or switch state files to reset
 a run. Delete the temporary run directory only after completion. Do not manually bypass
 a rejected plan.
+
+## Search capabilities and index preparation
+
+Role profiles deliberately omit `mcp_servers` and `skills.config`, so Codex inherits
+the parent task's live MCP and Skill configuration. Probe inherited capabilities
+silently before assigning a search route. Do not ask a child to enumerate tools and do
+not place tool, Skill, MCP, or plugin usage inventories in its visible or machine
+result. Runtime diagnostics may retain capability availability, fallback reason, and
+elapsed indexing time outside the repository, but these diagnostics are not result
+evidence and must not distract the child from its assigned question.
+
+For a local repository route, classify the search intent and use this preference order:
+
+| Intent | Preferred route | Fallback |
+|---|---|---|
+| symbol, definition, reference | Serena, then CodeGraph | exact text search and targeted reads |
+| call path, impact, architecture | CodeGraph, then Serena | exact text search and targeted reads |
+| exact text, configuration, logs | exact text search | targeted reads |
+| local PDF or Office document | MarkItDown | inherited document/PDF Skill |
+| versioned library/API documentation | Context7 | official documentation, then web search |
+| current external fact or known page | built-in web, then Exa | primary-source browser retrieval |
+
+Do not deny repository investigation merely because CodeGraph or Serena has no current
+index. Before a broad, precision, or cross-module local route, resolve the exact Git
+repository root and run the primary-session preflight:
+
+~~~sh
+sh "$python_runner" "$search_preflight" <repository-root> \
+  --indexing create-if-missing --apply
+~~~
+
+Index preparation is a primary-session metadata write. Inspect `git status` before and
+after, never stage generated metadata automatically, and stop if the preflight reports
+a new tracked-file change. Use `--indexing reuse` when writes are not authorized,
+`--indexing refresh` when a stale index is established, and `--indexing never` only
+when indexing is explicitly prohibited. If an index tool is unavailable or fails,
+continue with exact text search and targeted reads rather than blocking the route.
+
+Raw text search should normally exclude `.codegraph/**`, Serena caches and indices,
+`__pycache__`, and common tool caches. Treat generated content as `auto`: do not
+globally exclude `.agents`, `.agent`, `.codex`, generated sources, or build output when
+the assigned question makes them relevant. Honor task-specific roots, includes, and
+excludes over generic defaults. During the pilot, do not add per-child command, elapsed
+time, or token ceilings; use bounded questions and explicit stop conditions while
+measuring behavior.
 
 ## Allowed routes
 
@@ -161,12 +211,10 @@ lost assurance and do not describe a reduced route as equivalent validation.
 - Never reset the run state to regain budget. A dispatched child consumes budget even
   when delivery or validation fails.
 
-The role profiles clear inherited Skill and MCP configuration, but current custom-agent
-configuration does not prove a complete denylist for every built-in web, connector,
-shell-environment, or plugin capability. Keep a task requiring credentials, specialized
-Skills, connectors, or sensitive environment access in the primary session. If the live
-surface cannot prove the needed tool boundary, do not spawn and do not call the boundary
-"strict".
+The role profiles inherit the parent task's Skill and MCP configuration. This improves
+repository and research capability but is not a strict allowlist. Keep credentialed
+writes, sensitive connectors, and external side effects in the primary session; role
+instructions permit only the read-only or bounded behavior assigned to that route.
 
 ## Verification and adjudication
 

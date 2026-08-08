@@ -3,6 +3,9 @@
 
 set -eu
 
+script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
+python_runner=$script_dir/run-python.sh
+
 usage() {
   cat <<'EOF'
 Usage: inspect-agent-runtime.sh [--sessions-dir DIR] THREAD_ID
@@ -96,7 +99,7 @@ IFS= read -r rollout_file < "$matches_file" || fail "could not read the matched 
 
 # Read only the matched JSONL and construct a new allowlisted object. Reject absent
 # or conflicting required routing values instead of inferring them.
-if ! python3 - "$rollout_file" "$thread_id" 2>/dev/null <<'PY'
+if ! sh "$python_runner" - "$rollout_file" "$thread_id" 2>/dev/null <<'PY'
 import json
 from pathlib import Path
 import sys

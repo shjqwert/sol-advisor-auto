@@ -53,6 +53,16 @@ persistent state file for the whole run:
       "difficulty": "standard",
       "question": "Locate the routing entry points.",
       "expected_evidence": "Repository paths, symbols, and relevance.",
+      "search": {
+        "intent": "call_path",
+        "roots": ["/exact/repository/root"],
+        "include": [],
+        "exclude": [],
+        "generated_content": "auto",
+        "indexing": "create-if-missing",
+        "tool_policy": "auto",
+        "fallback_order": ["codegraph", "serena", "text"]
+      },
       "response_token": "SOL_ADVISOR_ROUTE_A1B2C3D4",
       "output_limit_chars": 2000,
       "attack_angle": "repository ownership and entry points"
@@ -67,6 +77,16 @@ persistent state file for the whole run:
       "difficulty": "standard",
       "question": "Confirm the current upstream API contract.",
       "expected_evidence": "Primary links, dates, applicability, and fact versus inference.",
+      "search": {
+        "intent": "library_docs",
+        "roots": [],
+        "include": [],
+        "exclude": [],
+        "generated_content": "auto",
+        "indexing": "never",
+        "tool_policy": "auto",
+        "fallback_order": ["context7", "web", "exa"]
+      },
       "response_token": "SOL_ADVISOR_ROUTE_E5F6G7H8",
       "output_limit_chars": 2500,
       "attack_angle": "current upstream contract"
@@ -77,7 +97,7 @@ persistent state file for the whole run:
 ~~~
 
 ~~~sh
-python3 ../../scripts/validate-dispatch-plan.py plan.json --state-file state.json
+sh ../../scripts/run-python.sh ../../scripts/validate-dispatch-plan.py plan.json --state-file state.json
 ~~~
 
 The normalized route includes `model_override`. Omit the spawn `model` field when it
@@ -158,7 +178,7 @@ low, return `unresolved` and name the required upgrade in `unknowns`.
 Save the exact returned Markdown and hidden payload without reformatting, then run:
 
 ~~~sh
-python3 ../../scripts/validate-agent-result.py result.json \
+sh ../../scripts/run-python.sh ../../scripts/validate-agent-result.py result.json \
   --state-file state.json --runtime-metadata runtime.json
 ~~~
 
@@ -182,6 +202,9 @@ live read-only search available for external research.
 ~~~text
 QUESTION: <one repository question>
 SCOPE: <paths, symbols, and exclusions>
+SEARCH INTENT: <symbol|call_path|architecture|text|document>
+INDEX POLICY: <reuse|create-if-missing|refresh|never; prepared by the primary>
+GENERATED CONTENT: <auto|include|exclude, with task-specific exceptions>
 DECISION: <what this can change>
 EXPECTED EVIDENCE: <path/symbol/test nucleus>
 OUTPUT LIMIT: <validated characters>
@@ -201,6 +224,8 @@ SCOPE: <domains, versions, date boundary, and exclusions>
 DECISION: <what this can change>
 SOURCE STANDARD: prefer primary sources; direct URL, source class, date, retrieval
 date, applicability, and fact/inference label are required.
+SEARCH ROUTE: Context7 for versioned library docs; built-in web then Exa for current
+facts; use only the narrow capability that matches the question.
 OUTPUT LIMIT: <validated characters>
 RESPONSE TOKEN: <validated unique token>
 STOP: read-only search/fetch only; no forms, messages, downloads, or external writes.

@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "context7": {
+      "title": "Context7",
+      "description": "Version-aware library and API documentation retrieval.",
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "exa": {
+      "title": "Exa",
+      "description": "Read-only current web search and clean page retrieval.",
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "markitdown": {
+      "title": "MarkItDown",
+      "description": "Local conversion of supported documents into token-efficient Markdown.",
+      "command": "uvx",
+      "args": [
+        "markitdown-mcp"
+      ]
+    }
+  }
+}

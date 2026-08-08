@@ -26,6 +26,7 @@ fail() {
 
 script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
 template_dir=$script_dir/../agents
+python_runner=$script_dir/run-python.sh
 
 if [ -n "${CODEX_HOME-}" ]; then
   target_dir=$CODEX_HOME/agents
@@ -63,7 +64,7 @@ done
 
 # Canonicalize existing and non-existing paths before any destination operation.
 # This rejects aliases such as /tmp/.. that otherwise resolve to the filesystem root.
-target_dir=$(python3 - "$target_dir" <<'PY'
+target_dir=$(sh "$python_runner" - "$target_dir" <<'PY'
 from pathlib import Path
 import sys
 print(Path(sys.argv[1]).expanduser().resolve(strict=False))

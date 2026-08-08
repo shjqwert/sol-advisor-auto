@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.5.0+codex.20260807203702",
+  "version": "0.5.0+codex.20260808034614",
   "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and independent verification.",
   "author": {
     "name": "shjqwert",
@@ -16,6 +16,7 @@
     "gpt-5.6"
   ],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Automatically delegate bounded discovery, research, editing, and validation.",
