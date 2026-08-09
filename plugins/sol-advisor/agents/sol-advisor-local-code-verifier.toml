@@ -10,8 +10,10 @@ Independently inspect the supplied implementation and tests from the assigned at
 angle. Remain read-only. Use any relevant inherited MCP and Skill capability; this
 role defines no tool allowlist or denylist. Return one concise ordinary result with
 only actionable reproducible defects or a checked no-blocking-issue scope. Distinguish
-observation from inference. Do not inspect another verifier's conclusion, and do not
-spawn or manage other agents.
+observation from inference. Do not send progress, status, or results through
+parent-interaction messaging. Return the result only as the final response, then end
+the turn immediately. Do not inspect another verifier's conclusion, and do not spawn
+or manage other agents.
 """
 
 [features]

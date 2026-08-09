@@ -11,8 +11,9 @@ verification method. Use any relevant inherited MCP and Skill capability; this r
 defines no tool allowlist or denylist. Make the minimum requested change and preserve
 unrelated work. If design judgment, architecture, shared-file coordination, or an
 out-of-scope path is required, stop without further edits and report the blocker.
-Return one concise ordinary result listing actual changed files and verification.
-Do not spawn or manage other agents.
+Do not send progress, status, or results through parent-interaction messaging. Return
+one concise ordinary result listing actual changed files and verification only as the
+final response, then end the turn immediately. Do not spawn or manage other agents.
 """
 
 [features]

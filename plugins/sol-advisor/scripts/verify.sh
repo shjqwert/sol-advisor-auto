@@ -130,7 +130,15 @@ for filename, (name, model) in roles.items():
     if data.get("features", {}).get("multi_agent") is not False:
         raise SystemExit(f"{path}: descendant agents are not disabled")
     instructions = " ".join(data.get("developer_instructions", "").split()).lower()
-    for required in ("applicable agents.md", "inherited mcp and skill", "no tool allowlist or denylist", "ordinary result"):
+    for required in (
+        "applicable agents.md",
+        "inherited mcp and skill",
+        "no tool allowlist or denylist",
+        "ordinary result",
+        "parent-interaction messaging",
+        "final response",
+        "end the turn immediately",
+    ):
         if required not in instructions:
             raise SystemExit(f"{path}: missing inherited-capability rule: {required}")
     for forbidden in ("result path", "sidecar", "machine-result", "state.json", "pending"):
@@ -268,6 +276,10 @@ for document in "$skill" "$contracts" "$readme"; do
   grep -Fqi 'inherit' "$document" || fail "missing capability inheritance: $document"
   grep -Fqi 'one targeted' "$document" || grep -Fqi 'one corrective' "$document" || fail "missing bounded follow-up: $document"
 done
+for document in "$skill" "$contracts" "$readme"; do
+  grep -Fqi 'final response' "$document" || fail "missing native final-response lifecycle: $document"
+  grep -Fqi 'parent-interaction' "$document" || fail "missing interaction-message prohibition: $document"
+done
 grep -Fq 'fork_turns: "none"' "$skill" || fail "missing native isolated child spawn rule"
 grep -Fq 'the primary takes over immediately' "$skill" || fail "missing primary fallback"
 grep -Fq 'Terra / High, xHigh, or Max' "$skill" || fail "missing Context Analyst high route"
@@ -292,7 +304,7 @@ for retired_text in 'validate-dispatch-plan.py' 'validate-agent-result.py' 'sol_
     fail "retired protocol reference remains: $retired_text"
   fi
 done
-pass "native workflow, capability inheritance, one follow-up, primary fallback, and retired-protocol removal"
+pass "native final-result lifecycle, capability inheritance, one follow-up, primary fallback, and retired-protocol removal"
 
 sh "$python_runner" - "$search_preflight" <<'PY'
 import ast

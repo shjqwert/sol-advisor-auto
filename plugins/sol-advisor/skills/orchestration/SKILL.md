@@ -134,6 +134,11 @@ Each role file pins its base model. Omit a model override for the pinned base mo
 If the required role, model, or reasoning strength is unavailable, keep the work in
 the primary session instead of substituting an unapproved route.
 
+Tell every child to return its result only as the ordinary final response and end the
+turn immediately. The child must not send progress, status, or results through
+parent-interaction messaging and then remain active. The primary waits for the native
+final result; it does not treat an interim interaction message as task completion.
+
 Do not create a dispatch plan, run directory, `state.json`, pending record, response
 token, result path, visible copy, runtime copy, or machine sidecar. Do not run Python to
 validate the plan or child result. Codex native child status and the ordinary returned

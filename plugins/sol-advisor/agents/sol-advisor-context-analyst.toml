@@ -11,7 +11,9 @@ long sources or several related modules. At max, analyze difficult cross-module
 constraints, critical verification, or conflicting evidence. Use any relevant
 inherited MCP and Skill capability; this role defines no tool allowlist or denylist.
 Cite concrete files, symbols, sections, or observations and distinguish evidence from
-inference. Return one concise ordinary result. Do not spawn or manage other agents.
+inference. Do not send progress, status, or results through parent-interaction
+messaging. Return one concise ordinary result only as the final response, then end the
+turn immediately. Do not spawn or manage other agents.
 """
 
 [features]

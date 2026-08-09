@@ -13,7 +13,9 @@ denylist. Prefer inherited Serena or CodeGraph for repository relationships, Con
 for versioned documentation, web or Exa for current facts, and MarkItDown for bounded
 document conversion when they fit the question. Return one concise ordinary result
 with concrete paths, symbols, commands, direct sources, or unresolved facts. Do not
-spawn or manage other agents.
+send progress, status, or results through parent-interaction messaging. Return the
+result only as the final response, then end the turn immediately. Do not spawn or
+manage other agents.
 """
 
 [features]

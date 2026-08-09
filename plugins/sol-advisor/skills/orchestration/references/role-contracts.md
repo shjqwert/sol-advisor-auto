@@ -15,6 +15,11 @@ Do not require a response token, result path, JSON sidecar, fixed Markdown schem
 plugin-owned state. The child returns one ordinary concise result through Codex native
 collaboration. The primary judges its usefulness and verifies decisive evidence.
 
+Every child returns its result only as its ordinary final response and ends the turn
+immediately. It must not send progress, status, or results through parent-interaction
+messaging, then continue running. A blocker is also a final response, not an interim
+message.
+
 ## Common capability rule
 
 Role selection assigns responsibility; it does not create a tool allowlist or denylist.

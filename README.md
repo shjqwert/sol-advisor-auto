@@ -47,6 +47,10 @@ not create a plan file, run directory, state file, pending record, response toke
 machine sidecar, visible-result copy, or runtime-result copy. No Python script validates
 the dispatch plan or child-result format.
 
+Each child returns its result once as the ordinary final response and ends its turn.
+It does not send progress or results through parent-interaction messaging and remain
+active after the useful result is available.
+
 ## Capability inheritance
 
 Every child follows the `AGENTS.md` files applicable to its working directory and the
@@ -162,7 +166,10 @@ wsl sh "$pluginDirWsl/scripts/install-agents.sh" --target-dir $agentDirWsl --che
 
 The installer adds only missing templates, never edits `config.toml`, and refuses to
 overwrite a differing file. Start a new Codex task after installation so the native
-roles and bundled Skill are rediscovered.
+roles and bundled Skill are rediscovered. If `codex plugin list --json` shows the new
+version but a new Desktop task still advertises an older cache path, reload Codex
+Desktop before creating the task; task/plugin catalogs are runtime snapshots. Do not
+copy a new version into a stale versioned cache directory.
 
 ## Optional diagnostics
 
