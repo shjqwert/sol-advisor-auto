@@ -23,9 +23,11 @@ child is responsible for; it does not reduce the child's inherited capabilities.
 ```mermaid
 flowchart TD
     A[User task] --> B[Primary reads applicable AGENTS.md and task rules]
-    B --> C{Would bounded delegation help?}
-    C -->|No| P[Primary executes]
-    C -->|Yes| R[Choose role, model, and reasoning effort]
+    B --> F{Fast-path conditions all satisfied?}
+    F -->|Yes| P[Primary executes with zero children]
+    F -->|No| C{Would one bounded child materially help?}
+    C -->|No| P
+    C -->|Yes| R[Choose one role lane, model, and reasoning effort]
     R --> I[Child inherits applicable AGENTS.md, MCP, and Skills]
     I --> S[Codex natively spawns and returns the child result]
     S --> Q{Primary classifies result}
@@ -81,9 +83,17 @@ format-driven retry loop.
 
 ## Delegation bounds
 
+- Use the zero-child fast path when scope, requirements, context, and verification are
+  already bounded and no material uncertainty remains.
 - Use one child by default.
 - Use at most two concurrent children, only for independent read-only questions with
   distinct attack angles.
+- Investigator and Context Analyst are alternative discovery lanes; never call both
+  for the same question.
+- Mechanical Editor does not automatically trigger Local Code Verifier. Add verification
+  only when substantive uncertainty remains after primary diff inspection and tests.
+- Final Adjudicator is not a routine closing step; reserve it for a genuine unresolved
+  evidence conflict or critical-risk decision.
 - Keep shared files, dependency chains, mechanical edits, follow-ups, and adjudication
   serial.
 - Children cannot spawn descendants.

@@ -38,6 +38,39 @@ Use no child when the primary already has sufficient evidence or the implementat
 requires continuous design judgment. Otherwise choose the role from the task's main
 nature:
 
+### Fast path: keep bounded work in the primary
+
+Use zero children when all of these are true:
+
+- the relevant files, module, interface, or exact local scope are already known;
+- requirements and success criteria are explicit and do not conflict;
+- the primary can inspect the necessary context without broad search, long-source
+  synthesis, or noisy-log reduction;
+- the change is not a large deterministic batch that a mechanical editor can complete
+  independently; and
+- ordinary primary verification is sufficient because no material implementation,
+  compatibility, safety, or release uncertainty remains.
+
+Do not delegate merely because the Skill activated, the task has several steps, or a
+child role could perform part of the work. If the primary can complete the bounded task
+directly, proceed in the primary session.
+
+### Select one lane before adding another
+
+Investigator and Context Analyst are alternative discovery lanes for one question:
+use Investigator when evidence locations are unknown or external facts must be found;
+use Context Analyst when the sources are already identified but long, cross-module, or
+constraint-heavy. Never call both to answer the same question.
+
+Mechanical Editor is an execution lane only after the primary has fixed the exact file
+list, transformation, preservation rules, and mechanical check. Do not add a verifier
+merely because another child participated or edited files. Add Local Code Verifier only
+when substantive implementation or boundary uncertainty remains after primary checks.
+
+Use Final Adjudicator only for a genuine unresolved evidence conflict or critical-risk
+decision. Do not use it as a routine closing step. Any later child must answer a distinct
+new decision that the earlier child did not answer; never build a fixed role chain.
+
 | Scenario | Agent | Model / effort | Responsibility |
 |---|---|---|---|
 | Repository search, precision lookup, or current external research | `sol_advisor_investigator` | Luna / xHigh; Max for deep work | bounded investigation, no edits |
@@ -124,9 +157,12 @@ a retry state file, or loop until a format passes.
 
 ## Bound delegation
 
+- Fast-path work uses zero children.
 - Use one child by default.
 - Use at most two concurrent children, only for independent read-only questions with
   distinct attack angles.
+- Prefer one discovery lane. Add another child later only for a distinct unresolved
+  decision whose expected quality or context benefit exceeds its startup and wait cost.
 - Keep shared files, dependency chains, mechanical edits, follow-ups, and adjudication
   serial.
 - No child may spawn descendants.

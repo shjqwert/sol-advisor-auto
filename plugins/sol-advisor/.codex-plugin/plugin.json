@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.6.0+codex.20260809051936",
+  "version": "0.6.0+codex.20260809095639",
   "description": "Native Codex workflow for bounded functional subagents, inherited project capabilities, primary-session implementation, and independent verification.",
   "author": {
     "name": "shjqwert",

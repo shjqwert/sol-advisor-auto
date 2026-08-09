@@ -273,6 +273,20 @@ grep -Fq 'the primary takes over immediately' "$skill" || fail "missing primary 
 grep -Fq 'Terra / High, xHigh, or Max' "$skill" || fail "missing Context Analyst high route"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
 
+for document in "$skill" "$readme"; do
+  grep -Fqi 'fast path' "$document" || fail "missing zero-child fast path: $document"
+  grep -Fq 'Investigator and Context Analyst are alternative discovery lanes' "$document" || fail "missing alternative discovery lanes: $document"
+  grep -Fqi 'does not automatically trigger' "$document" || \
+    grep -Fqi 'Do not add a verifier' "$document" || \
+    fail "missing non-automatic verifier rule: $document"
+  grep -Fqi 'not a routine closing step' "$document" || \
+    grep -Fqi 'Do not use it as a routine' "$document" || \
+    fail "missing adjudicator anti-chain rule: $document"
+done
+grep -Fq 'Fast-path work uses zero children.' "$skill" || fail "missing explicit zero-child budget"
+grep -Fq 'never build a fixed role chain' "$skill" || fail "missing fixed-chain prohibition"
+pass "zero-child fast path and non-stacking role selection"
+
 for retired_text in 'validate-dispatch-plan.py' 'validate-agent-result.py' 'sol_advisor_paths.py' 'RESULT PATH' 'RESPONSE TOKEN' 'pending_batch' '.sol-advisor/runs' '<git-dir>/sol-advisor/runs'; do
   if grep -R -Fq --exclude='verify.sh' --exclude-dir='__pycache__' "$retired_text" "$plugin_dir" "$readme"; then
     fail "retired protocol reference remains: $retired_text"
