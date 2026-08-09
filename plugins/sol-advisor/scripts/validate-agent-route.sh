@@ -1,5 +1,5 @@
 #!/bin/sh
-# Validate the observed role, provider, model, and reasoning effort after spawn.
+# Optional development check for a documented role, model, and reasoning effort.
 
 set -eu
 
@@ -27,8 +27,7 @@ case "$role:$provider:$model:$effort" in
   sol_advisor_investigator:openai:gpt-5.6-luna:max | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:max | \
-  sol_advisor_mechanical_editor:openai:gpt-5.6-terra:xhigh | \
-  sol_advisor_mechanical_editor:openai:gpt-5.6-terra:max | \
+  sol_advisor_context_analyst:openai:gpt-5.6-terra:high | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:xhigh | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:max | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-luna:max | \

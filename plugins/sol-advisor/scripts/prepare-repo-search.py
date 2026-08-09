@@ -15,7 +15,6 @@ import xml.etree.ElementTree as ET
 
 
 GENERATED_EXCLUSIONS = [
-    ".sol-advisor/**",
     ".codegraph/**",
     ".serena/cache/**",
     ".serena/indices/**",
@@ -121,8 +120,7 @@ def is_generated_path(relative: str) -> bool:
     while normalized.startswith("./"):
         normalized = normalized[2:]
     normalized = normalized.lstrip("/")
-    return normalized == ".sol-advisor" or normalized.startswith((
-        ".sol-advisor/",
+    return normalized == ".codegraph" or normalized.startswith((
         ".codegraph/",
         ".serena/",
         "__pycache__/",
@@ -131,7 +129,7 @@ def is_generated_path(relative: str) -> bool:
 
 def filesystem_files(root: Path) -> list[str]:
     excluded_directories = {
-        ".git", ".svn", ".sol-advisor", ".codegraph", ".serena",
+        ".git", ".svn", ".codegraph", ".serena",
         "__pycache__", ".pytest_cache", ".mypy_cache",
     }
     files: list[str] = []

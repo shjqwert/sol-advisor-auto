@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.5.0+codex.20260808061205",
-  "description": "Automatically matched Codex workflow for bounded functional subagents, primary-session implementation, and independent verification.",
+  "version": "0.6.0+codex.20260809051936",
+  "description": "Native Codex workflow for bounded functional subagents, inherited project capabilities, primary-session implementation, and independent verification.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Automatically delegate bounded discovery, research, editing, and validation.",
-    "longDescription": "Sol Advisor automatically evaluates non-trivial repository work and dynamically routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, independent Luna and Terra verification, local code validation, and Sol evidence adjudication while the primary session owns complex implementation and final integration.",
+    "longDescription": "Sol Advisor evaluates non-trivial repository work and natively routes functional custom agents for repository discovery, current external research, long-context analysis, deterministic mechanical edits, independent verification, and Sol evidence adjudication. Children inherit applicable project rules plus parent MCP and Skill capabilities, while the primary session owns complex implementation, fallback, and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,8 +30,8 @@
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
       "Handle this non-trivial repository task; let Sol Advisor automatically route only bounded supporting work.",
-      "Keep complex implementation in the primary session and validate any functional-agent dispatch plan.",
-      "Apply independent verification only for material uncertainty or critical risk."
+      "Keep complex implementation in the primary session and use Codex native child status and results directly.",
+      "Allow one targeted corrective follow-up, then fall back to the primary session."
     ]
   }
 }
