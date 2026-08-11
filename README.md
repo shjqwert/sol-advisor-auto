@@ -18,12 +18,28 @@ analysis, deterministic edits, independent verification, or evidence adjudicatio
 Complex implementation remains in the primary session. Role selection defines what a
 child is responsible for; it does not reduce the child's inherited capabilities.
 
+## Project authorization
+
+Implicit child dispatch is fail-closed. It requires both an exact schema-v1
+`.agent/authorizations.json` value of
+`authorizations.solAdvisor.implicitDelegation: true` and the matching
+`## Subagent Orchestration` instruction in the applicable project-context managed
+section of `AGENTS.md`. Missing, invalid, false, or one-sided signals keep execution in
+the primary session.
+
+An explicit user invocation of Sol Advisor or its orchestration Skill bypasses this
+project gate for that task. An explicit instruction not to delegate always wins. The
+`codex-project-context` plugin can add or remove both project signals through its
+authorization command; authorization remains absent by default.
+
 ## Native orchestration flow
 
 ```mermaid
 flowchart TD
     A[User task] --> B[Primary reads applicable AGENTS.md and task rules]
-    B --> F{Fast-path conditions all satisfied?}
+    B --> G{Explicit invocation or both project authorization signals?}
+    G -->|No| P[Primary executes with zero children]
+    G -->|Yes| F{Fast-path conditions all satisfied?}
     F -->|Yes| P[Primary executes with zero children]
     F -->|No| C{Would one bounded child materially help?}
     C -->|No| P
@@ -89,6 +105,12 @@ format-driven retry loop.
 
 - Use the zero-child fast path when scope, requirements, context, and verification are
   already bounded and no material uncertainty remains.
+- Route unknown-location cross-module call paths and current official-source
+  reconciliation to Investigator.
+- Route exact mechanically checked transformations over an explicit list of two or
+  more files to Mechanical Editor.
+- Route an explicitly requested independent boundary-condition or test-gap attack to
+  Local Code Verifier.
 - Use one child by default.
 - Use at most two concurrent children, only for independent read-only questions with
   distinct attack angles.

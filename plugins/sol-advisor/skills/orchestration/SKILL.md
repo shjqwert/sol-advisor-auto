@@ -10,6 +10,27 @@ verification, and integration in the primary session. Delegate only a bounded qu
 that can run independently or materially reduce noisy context. A valid decision may use
 no child agent.
 
+## Authorize implicit delegation
+
+When this Skill activates implicitly, spawn no child unless both independent project
+signals are present:
+
+- the nearest project root contains `.agent/authorizations.json` matching schema v1
+  with `authorizations.solAdvisor.implicitDelegation` exactly `true`; and
+- the applicable project-context managed section in `AGENTS.md` contains the
+  corresponding `## Subagent Orchestration` authorization instruction.
+
+Treat a missing, unreadable, invalid, false, or unfamiliar authorization file, or a
+missing managed AGENTS instruction, as no implicit authorization. Continue in the
+primary session without blocking ordinary work. Do not infer consent from plugin
+installation, Skill activation, task complexity, or either project signal alone.
+
+An explicit user request to use Sol Advisor, including an explicit plugin or Skill
+invocation, bypasses the project authorization gate for that task. An explicit user
+instruction not to delegate always overrides both project authorization and explicit
+invocation. If a required Sol Advisor role is unavailable, keep the work in the primary
+session without substituting another role or model.
+
 Before the first spawn, read
 [references/role-contracts.md](references/role-contracts.md). Load only the role
 contract needed for the next child.
@@ -46,14 +67,30 @@ Use zero children when all of these are true:
 - requirements and success criteria are explicit and do not conflict;
 - the primary can inspect the necessary context without broad search, long-source
   synthesis, or noisy-log reduction;
-- the change is not a large deterministic batch that a mechanical editor can complete
-  independently; and
+- the change is not a listed multi-file deterministic transformation that a mechanical
+  editor can complete independently and verify mechanically;
+- the task does not explicitly request an independent boundary-condition or test-gap
+  attack; and
 - ordinary primary verification is sufficient because no material implementation,
   compatibility, safety, or release uncertainty remains.
 
 Do not delegate merely because the Skill activated, the task has several steps, or a
 child role could perform part of the work. If the primary can complete the bounded task
 directly, proceed in the primary session.
+
+The fast path does not apply when the requested evidence is deliberately outside the
+primary's bounded context. In particular:
+
+- use Investigator for an unknown-location, cross-module call path or impact search;
+- use Investigator for current official documentation that must be reconciled with
+  local API usage and cited from direct sources;
+- use Mechanical Editor for an exact transformation over an explicit list of two or
+  more files when preservation rules and a mechanical check are supplied; and
+- use Local Code Verifier when the user explicitly requests an independent read-only
+  boundary-condition or test-gap attack on an implementation claim.
+
+These signals select a bounded lane; they do not justify a fixed chain or an additional
+child after that lane has answered its question.
 
 ### Select one lane before adding another
 

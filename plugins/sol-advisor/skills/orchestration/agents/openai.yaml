@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Auto-route only when bounded delegation helps"
-  default_prompt: "Use $orchestration to keep complex implementation in this session and automatically delegate only bounded context-saving or verification work."
+  short_description: "Auto-route bounded work in authorized projects"
+  default_prompt: "Use $orchestration to keep complex implementation in this session and delegate only bounded context-saving or verification work; implicit child dispatch also requires the project's explicit authorization signals."
 
 policy:
   allow_implicit_invocation: true

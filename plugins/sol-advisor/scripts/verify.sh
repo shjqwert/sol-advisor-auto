@@ -284,6 +284,16 @@ grep -Fq 'fork_turns: "none"' "$skill" || fail "missing native isolated child sp
 grep -Fq 'the primary takes over immediately' "$skill" || fail "missing primary fallback"
 grep -Fq 'Terra / High, xHigh, or Max' "$skill" || fail "missing Context Analyst high route"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
+grep -Fq '.agent/authorizations.json' "$skill" || fail "missing implicit authorization file gate"
+grep -Fq 'authorizations.solAdvisor.implicitDelegation' "$skill" || fail "missing exact implicit authorization value"
+grep -Fq '## Subagent Orchestration' "$skill" || fail "missing managed AGENTS authorization gate"
+grep -Fq 'including an explicit plugin or Skill' "$skill" || fail "missing explicit invocation bypass"
+grep -Fq 'instruction not to delegate always overrides' "$skill" || fail "missing user no-delegation override"
+grep -Fq 'unknown-location, cross-module call path' "$skill" || fail "missing cross-module investigation signal"
+grep -Fq 'current official documentation' "$skill" || fail "missing current official research signal"
+grep -Fq 'explicit list of two or' "$skill" || fail "missing deterministic multi-file edit signal"
+grep -Fq 'boundary-condition or test-gap attack' "$skill" || fail "missing independent verifier signal"
+pass "fail-closed project authorization and B0-derived routing signals"
 
 for document in "$skill" "$readme"; do
   grep -Fqi 'fast path' "$document" || fail "missing zero-child fast path: $document"
