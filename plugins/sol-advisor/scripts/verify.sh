@@ -63,8 +63,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.6.0+"):
-    raise SystemExit("manifest version was not advanced to 0.6.0")
+if not manifest.get("version", "").startswith("0.7.0+"):
+    raise SystemExit("manifest version was not advanced to 0.7.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -75,9 +75,10 @@ for field, value in expected.items():
         raise SystemExit(f"manifest {field} does not identify the standalone repository")
 if manifest.get("mcpServers") != "./.mcp.json":
     raise SystemExit("manifest does not declare the MCP companion")
-prompts = " ".join(manifest.get("interface", {}).get("defaultPrompt", []))
-if "native child status and results" not in prompts or "targeted corrective follow-up" not in prompts:
-    raise SystemExit("manifest prompts do not describe the native fallback flow")
+prompts = " ".join(manifest.get("interface", {}).get("defaultPrompt", [])).lower()
+for required in ("clear context or quality benefit", "do not duplicate", "one native final result", "one targeted correction"):
+    if required not in prompts:
+        raise SystemExit(f"manifest prompts do not describe selective isolated orchestration: {required}")
 PY
 pass "plugin manifest JSON, version, ownership, and native workflow metadata"
 
@@ -135,6 +136,16 @@ for filename, (name, model) in roles.items():
         "inherited mcp and skill",
         "no tool allowlist or denylist",
         "ordinary result",
+        "status",
+        "return_mode",
+        "task_understanding",
+        "answer/verdict",
+        "decision-changing findings",
+        "evidence",
+        "coverage",
+        "uncertainty",
+        "required action",
+        "completeness overrides length",
         "parent-interaction messaging",
         "final response",
         "end the turn immediately",
@@ -291,7 +302,8 @@ grep -Fq 'including an explicit plugin or Skill' "$skill" || fail "missing expli
 grep -Fq 'instruction not to delegate always overrides' "$skill" || fail "missing user no-delegation override"
 grep -Fq 'unknown-location, cross-module call path' "$skill" || fail "missing cross-module investigation signal"
 grep -Fq 'current official documentation' "$skill" || fail "missing current official research signal"
-grep -Fq 'explicit list of two or' "$skill" || fail "missing deterministic multi-file edit signal"
+grep -Fq 'at least four files' "$skill" || fail "missing deterministic file-count benefit gate"
+grep -Fq 'at least twenty same-type edit points' "$skill" || fail "missing deterministic edit-point benefit gate"
 grep -Fq 'boundary-condition or test-gap attack' "$skill" || fail "missing independent verifier signal"
 pass "fail-closed project authorization and B0-derived routing signals"
 
@@ -299,7 +311,7 @@ for document in "$skill" "$readme"; do
   grep -Fqi 'fast path' "$document" || fail "missing zero-child fast path: $document"
   grep -Fq 'Investigator and Context Analyst are alternative discovery lanes' "$document" || fail "missing alternative discovery lanes: $document"
   grep -Fqi 'does not automatically trigger' "$document" || \
-    grep -Fqi 'Do not add a verifier' "$document" || \
+    grep -Fqi 'verifier merely because' "$document" || \
     fail "missing non-automatic verifier rule: $document"
   grep -Fqi 'not a routine closing step' "$document" || \
     grep -Fqi 'Do not use it as a routine' "$document" || \
@@ -308,6 +320,17 @@ done
 grep -Fq 'Fast-path work uses zero children.' "$skill" || fail "missing explicit zero-child budget"
 grep -Fq 'never build a fixed role chain' "$skill" || fail "missing fixed-chain prohibition"
 pass "zero-child fast path and non-stacking role selection"
+
+for document in "$skill" "$contracts" "$readme"; do
+  grep -Fq 'STATUS: COMPLETE | INCOMPLETE | BLOCKED' "$document" || fail "missing status protocol: $document"
+  grep -Fq 'RETURN_MODE' "$document" || fail "missing return-mode protocol: $document"
+  grep -Fqi 'Completeness overrides' "$document" || fail "missing completeness-over-length rule: $document"
+done
+grep -Fq 'DECIDE -> DISPATCH -> WAIT -> INTAKE -> VERIFY -> ACT' "$skill" || fail "missing primary state sequence"
+grep -Fq 'do not inspect interim child output' "$skill" || fail "missing interim-output isolation"
+grep -Fq 'zero to two decision-changing locators' "$skill" || fail "missing bounded primary verification"
+grep -Fq 'mutually exclusive decisions' "$skill" || fail "missing concurrent ownership isolation"
+pass "primary wait isolation, structured finals, and bounded evidence intake"
 
 for retired_text in 'validate-dispatch-plan.py' 'validate-agent-result.py' 'sol_advisor_paths.py' 'RESULT PATH' 'RESPONSE TOKEN' 'pending_batch' '.sol-advisor/runs' '<git-dir>/sol-advisor/runs'; do
   if grep -R -Fq --exclude='verify.sh' --exclude-dir='__pycache__' "$retired_text" "$plugin_dir" "$readme"; then

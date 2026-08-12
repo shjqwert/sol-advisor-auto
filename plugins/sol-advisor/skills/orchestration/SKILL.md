@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: "Automatically activate Sol Advisor only when a repository task is likely to benefit from bounded delegation: broad or multi-module search, current external research, long logs or documents, deterministic bulk edits, material implementation uncertainty, critical risk, or independent adversarial verification. Keep complex implementation in the primary Codex session. Do not activate for bounded single-module implementation or debugging the primary can inspect directly, trivial one-step questions, simple formatting, casual explanation, or work where delegation cannot reduce context, latency, or verification risk."
+description: "Automatically activate Sol Advisor for authorized-project repository work only when bounded delegation is likely to improve primary-context isolation or task accuracy: unknown-location or cross-module search, current official research reconciled with local usage, identified long sources or logs, sufficiently large deterministic edits, material implementation risk, or genuine evidence conflict. Keep complex implementation in the primary Codex session. Do not activate for bounded work the primary can inspect directly, trivial questions, simple formatting, or work where delegation has no clear context or quality benefit."
 ---
 
 # Sol Advisor Orchestration
@@ -67,8 +67,8 @@ Use zero children when all of these are true:
 - requirements and success criteria are explicit and do not conflict;
 - the primary can inspect the necessary context without broad search, long-source
   synthesis, or noisy-log reduction;
-- the change is not a listed multi-file deterministic transformation that a mechanical
-  editor can complete independently and verify mechanically;
+- the change is not a sufficiently large deterministic transformation that a
+  mechanical editor can complete independently and verify mechanically;
 - the task does not explicitly request an independent boundary-condition or test-gap
   attack; and
 - ordinary primary verification is sufficient because no material implementation,
@@ -84,10 +84,13 @@ primary's bounded context. In particular:
 - use Investigator for an unknown-location, cross-module call path or impact search;
 - use Investigator for current official documentation that must be reconciled with
   local API usage and cited from direct sources;
-- use Mechanical Editor for an exact transformation over an explicit list of two or
-  more files when preservation rules and a mechanical check are supplied; and
+- use Mechanical Editor only for an exact deterministic transformation with explicit
+  files, preservation rules, and a mechanical check when it covers at least four files,
+  or at least twenty same-type edit points across two or more files;
 - use Local Code Verifier when the user explicitly requests an independent read-only
-  boundary-condition or test-gap attack on an implementation claim.
+  boundary-condition or test-gap attack, or when a completed implementation has
+  material safety, authorization, concurrency, state, data, migration, or public-API
+  risk that ordinary primary checks do not close.
 
 These signals select a bounded lane; they do not justify a fixed chain or an additional
 child after that lane has answered its question.
@@ -100,9 +103,10 @@ use Context Analyst when the sources are already identified but long, cross-modu
 constraint-heavy. Never call both to answer the same question.
 
 Mechanical Editor is an execution lane only after the primary has fixed the exact file
-list, transformation, preservation rules, and mechanical check. Do not add a verifier
-merely because another child participated or edited files. Add Local Code Verifier only
-when substantive implementation or boundary uncertainty remains after primary checks.
+list, transformation, preservation rules, edit-point count, and mechanical check. Do
+not add a verifier merely because another child participated or edited files. Add Local
+Code Verifier only when an explicit independent review or one of the material risk
+classes above leaves substantive uncertainty after primary checks.
 
 Use Final Adjudicator only for a genuine unresolved evidence conflict or critical-risk
 decision. Do not use it as a routine closing step. Any later child must answer a distinct
@@ -127,6 +131,30 @@ Use Sol Medium for a bounded low-impact dispute, xHigh for critical code or inte
 risk, and Max for an architecture rethink, irreversible action, or severe evidence
 conflict. Keep complex implementation in the primary session even when a child gathers
 supporting evidence.
+
+## Isolate the primary session
+
+For every delegated question, follow one state sequence:
+
+`DECIDE -> DISPATCH -> WAIT -> INTAKE -> VERIFY -> ACT`
+
+1. **DECIDE:** define the one decision the child can change and its exclusive source or
+   path scope. If no clear context or quality benefit exists, use zero children.
+2. **DISPATCH:** send only the bounded packet below; do not copy long source material,
+   raw logs, or the primary's reasoning into the child message.
+3. **WAIT:** do not search, read, test, or analyze the child-owned question or source
+   scope, and do not inspect interim child output. The primary may continue only work
+   that is disjoint from the delegated decision and scope; otherwise wait.
+4. **INTAKE:** read the native final result once after the child completes. Do not open
+   the child history unless the final is unusable or a concrete lifecycle failure must
+   be diagnosed.
+5. **VERIFY:** apply the bounded verification rules below without recreating the
+   child's investigation.
+6. **ACT:** integrate the finding, issue one correction, fall back, or adjudicate.
+
+When two read-only children run concurrently, assign mutually exclusive decisions,
+source scopes, and failure classes before dispatch. A shared file, answer dependency,
+or overlapping evidence search makes the work serial.
 
 ## Search capabilities
 
@@ -171,6 +199,26 @@ Each role file pins its base model. Omit a model override for the pinned base mo
 If the required role, model, or reasoning strength is unavailable, keep the work in
 the primary session instead of substituting an unapproved route.
 
+Use this delegation packet for every role, adding only the role-specific fields from
+the contract reference:
+
+~~~text
+DECISION: <one decision this result can change>
+QUESTION: <one bounded question or deterministic change>
+SCOPE: <exclusive paths, sources, versions, or interfaces>
+EXCLUSIONS: <explicitly out-of-scope work and side effects>
+EXPECTED_EVIDENCE: <decisive locators, checks, or direct sources>
+COMPLETENESS: <what must be covered for STATUS COMPLETE>
+STOP: <ambiguity, expansion, safety, or blocker condition>
+RETURN_MODE: COMPACT | STANDARD | EXTENDED
+PROJECT_RULES: follow applicable AGENTS.md and inherited parent instructions.
+~~~
+
+Choose `COMPACT` for a narrow answer, `STANDARD` for normal investigation or review,
+and `EXTENDED` only when omitting decision-changing findings would make the result
+incomplete. Completeness overrides the requested length budget. The packet is
+self-contained but minimal; it does not include conversation history.
+
 Tell every child to return its result only as the ordinary final response and end the
 turn immediately. The child must not send progress, status, or results through
 parent-interaction messaging and then remain active. The primary waits for the native
@@ -183,15 +231,24 @@ result are the lifecycle source of truth.
 
 ## Handle the returned result
 
-Treat child output as a claim and classify it in the primary session:
+Require one ordinary final response with `STATUS: COMPLETE | INCOMPLETE | BLOCKED`,
+`RETURN_MODE`, task understanding, answer or verdict, decision-changing findings,
+evidence, coverage, uncertainty, and required action. Treat it as a claim and classify
+it once:
 
-1. `usable`: integrate it and verify any decisive evidence needed for the task.
-2. `correctable`: the direction is sound but a bounded omission, misunderstanding, or
-   missing locator can be repaired. Send one targeted native follow-up to the same
-   child, preserving its existing context.
-3. `unusable`: the role or direction is wrong, the result is empty or generic, a tool
-   is blocked, or recovery would require redoing the task. The primary executes the
-   work directly.
+1. `COMPLETE` and usable: integrate it. Verify zero to two decision-changing locators;
+   do not repeat the full search, source reading, or analysis.
+2. `INCOMPLETE` and correctable: the direction is sound but one bounded omission,
+   misunderstanding, or missing locator prevents completeness. Send one targeted native
+   follow-up to the same child, preserving its existing context.
+3. `BLOCKED` or unusable: the role or direction is wrong, the result is empty or
+   generic, recovery requires redoing the task, or the stated blocker prevents the
+   decision. The primary takes over immediately or reports the blocker.
+
+For Mechanical Editor, always inspect the complete actual diff, reject out-of-scope
+changes, and run the specified mechanical check; the zero-to-two locator limit does not
+replace edit verification. Inspect detailed child history only to diagnose an unusable
+final or concrete lifecycle failure, never as routine intake.
 
 Allow at most one corrective follow-up per child. If the follow-up is still unusable,
 the primary takes over immediately. Do not restart the same child from scratch, create
@@ -202,14 +259,15 @@ a retry state file, or loop until a format passes.
 - Fast-path work uses zero children.
 - Use one child by default.
 - Use at most two concurrent children, only for independent read-only questions with
-  distinct attack angles.
+  mutually exclusive decisions, source scopes, and failure classes.
 - Prefer one discovery lane. Add another child later only for a distinct unresolved
   decision whose expected quality or context benefit exceeds its startup and wait cost.
 - Keep shared files, dependency chains, mechanical edits, follow-ups, and adjudication
   serial.
 - No child may spawn descendants.
-- Subagent use may reduce primary-context noise while increasing total tokens; keep
-  questions narrow and never claim token savings without a controlled comparison.
+- Preserve the current role models and reasoning-effort routes. Context isolation and
+  accuracy are the acceptance goals; token totals, latency, and effective model cost
+  are secondary diagnostics.
 
 ## Verification and adjudication
 
@@ -219,7 +277,8 @@ After primary implementation and primary verification:
 2. For substantive uncertainty, use one Luna/Max local verifier.
 3. For critical risk, use Luna/Max local verification and Terra/Max cross-module
    analysis with distinct attack angles when both add independent evidence.
-4. Reproduce only findings that can change implementation or delivery.
+4. Verify no more than two decision-changing locators from a usable final; do not
+   recreate child-owned discovery or review.
 5. Fix clear defects in the primary session and rerun the minimum relevant checks.
 6. Use the Sol adjudicator only for a genuine remaining evidence conflict or critical
    decision.
