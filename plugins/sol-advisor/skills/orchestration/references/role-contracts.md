@@ -1,174 +1,194 @@
 # Functional agent contracts
 
-Use the smallest self-contained contract that lets one child answer one bounded
-question. Every child message uses this common packet:
+Read only the selected role or Spark mode. Send the exact required fields in the listed
+order, followed by any task-specific project constraints. Do not send conversation
+history, raw source contents, or the primary's reasoning when locators are sufficient.
 
-~~~text
-DECISION: <one decision this result can change>
-QUESTION: <one bounded question or deterministic change>
-SCOPE: <exclusive paths, sources, versions, or interfaces>
-EXCLUSIONS: <explicitly out-of-scope work and side effects>
-EXPECTED_EVIDENCE: <decisive locators, checks, or direct sources>
-COMPLETENESS: <what must be covered for STATUS COMPLETE>
-STOP: <ambiguity, expansion, safety, or blocker condition>
-RETURN_MODE: COMPACT | STANDARD | EXTENDED
-PROJECT_RULES: follow applicable AGENTS.md and inherited parent instructions.
-~~~
+## Common lifecycle
 
-Do not require a response token, result path, JSON sidecar, or plugin-owned state. The
-child returns one ordinary structured final through Codex native collaboration. The
-primary judges its usefulness and verifies decisive evidence.
+Every child:
 
-Every child returns its result only as its ordinary final response and ends the turn
-immediately. It must not send progress, status, or results through parent-interaction
-messaging, then continue running. A blocker is also a final response, not an interim
-message.
+- follows applicable `AGENTS.md` files and inherited parent instructions;
+- stays inside the supplied scope and stop conditions;
+- does not create or manage other agents;
+- returns one ordinary final response and ends immediately;
+- sends no progress, status, or result through parent-interaction messaging;
+- uses `STATUS: COMPLETE | INCOMPLETE | BLOCKED`; and
+- omits empty optional fields, raw logs, tool narration, progress, and repetition.
 
-## Common final response
-
-Return exactly one final response with these headings:
-
-~~~text
-STATUS: COMPLETE | INCOMPLETE | BLOCKED
-RETURN_MODE: COMPACT | STANDARD | EXTENDED
-TASK_UNDERSTANDING: <one-sentence interpretation>
-ANSWER/VERDICT: <direct answer or result>
-DECISION-CHANGING FINDINGS: <only material findings>
-EVIDENCE: <decisive locators or checks>
-COVERAGE: <what was and was not covered>
-UNCERTAINTY: <none, bounded unknowns, or blocker>
-REQUIRED ACTION: <none or the minimum next action>
-~~~
-
-Treat length as a soft budget: `COMPACT` is normally 600-1200 characters,
-`STANDARD` 1200-3000 characters, and `EXTENDED` begins with an approximately
-1200-character decision summary followed by every finding needed for completeness.
-Completeness overrides the budget; never omit decisive evidence merely to fit. Use no
-more than three decisive locators in COMPACT or STANDARD unless correctness requires
-more. Omit raw logs, large code excerpts, tool narration, progress, and repetition.
-
-Use `COMPLETE` only when the packet's completeness condition is met, `INCOMPLETE` when
-one bounded correction could complete it, and `BLOCKED` when evidence or permissions
-prevent a reliable answer. State uncertainty instead of filling gaps with inference.
-
-## Common capability rule
-
-Role selection assigns responsibility; it does not create a tool allowlist or denylist.
-Children may use any inherited MCP, Skill, search, document, or repository capability
-that is relevant and permitted by the active parent and project rules. Read-only roles
-remain behaviorally read-only, while the mechanical editor may modify only its assigned
-files.
+Do not require a response token, result path, sidecar, plugin-owned state, universal
+return mode, task-understanding paragraph, or fixed nine-heading result. Completeness
+overrides the soft output budget.
 
 ## Investigator
 
-Use `sol_advisor_investigator` with Luna/xHigh for bounded repository discovery or
-current external research. Use Luna/Max for precision search, difficult debugging,
-multiple modules, incomplete evidence, high-stakes reconciliation, or conflicting
-primary sources.
+Use `sol_advisor_investigator` with Luna/high for straightforward bounded discovery,
+Luna/xhigh for cross-module search or official-source reconciliation, and Luna/max for
+deep, incomplete, or high-stakes evidence.
 
 ~~~text
-<COMMON PACKET>
-QUESTION: <one repository or external-research question>
-SCOPE: <exclusive paths, symbols, sources, and date/version boundaries>
-EXPECTED_EVIDENCE: <paths, symbols, direct links, dates, or applicability>
-COMPLETENESS: <search coverage and reconciliation needed for COMPLETE>
-CAPABILITIES: use any relevant inherited MCP or Skill; do not inventory tools.
-STOP: remain read-only and return concise findings, unknowns, or no finding. Prefer
-static evidence; do not run tests or runtime probes unless explicitly required and
-guaranteed artifact-free, and never send an inline probe with shell redirection or
-control metacharacters through a shell.
+DECISION: <one decision this evidence can change>
+QUESTION: <one repository or official-research question>
+SEARCH_SCOPE: <exclusive paths, symbols, sources, and exclusions>
+VERSION_DATE_BOUNDARY: <applicable version and date boundary, or none>
+REQUIRED_EVIDENCE: <paths, symbols, direct links, dates, or applicability>
+DONE_WHEN: <coverage and reconciliation required for COMPLETE>
+STOP: <ambiguity, unsafe probe, expansion, or blocker condition>
 ~~~
+
+Required final fields: `STATUS`, `ANSWER`, `EVIDENCE`.
+
+Optional when nonempty: `FINDINGS`, `UNKNOWNS`.
+
+Soft budget: 600-1400 characters. Remain read-only. Prefer static evidence and do not
+run a test or probe unless explicitly required and guaranteed artifact-free.
 
 ## Context Analyst
 
-Use `sol_advisor_context_analyst` with Terra/High for bounded long-context extraction,
-Terra/xHigh for synthesis across long sources or related modules, and Terra/Max for
-difficult cross-module constraints or critical independent verification.
+Use `sol_advisor_context_analyst` with Luna/high for identified long-source extraction
+or limited summary, Terra/xhigh for cross-module synthesis or conflicting constraints,
+and Terra/max only for critical cross-module constraints. Escalate a genuine unresolved
+evidence conflict to Final Adjudicator.
 
 ~~~text
-<COMMON PACKET>
-QUESTION: <one long-context or cross-module question>
-SCOPE: <identified files, logs, documents, modules, and exclusions>
-EXPECTED_EVIDENCE: <source locations and observation/inference distinction>
-COMPLETENESS: <constraints, conflicts, and source coverage needed for COMPLETE>
-CAPABILITIES: use any relevant inherited MCP or Skill; do not inventory tools.
-STOP: remain read-only and omit unrelated summary.
+DECISION: <one decision this synthesis can change>
+QUESTION: <one identified-source question>
+SOURCES: <exclusive files, logs, documents, modules, and sections>
+SYNTHESIS_REQUIRED: <extraction, limited summary, or cross-source comparison>
+CONFLICT_RULE: <how to report or escalate conflicting evidence>
+DONE_WHEN: <constraints, coverage, and distinctions required for COMPLETE>
+STOP: <unknown-location expansion, unrelated summary, or blocker condition>
 ~~~
+
+Required final fields: `STATUS`, `SYNTHESIS`, `SOURCE_LOCATORS`.
+
+Optional when nonempty: `CONSTRAINTS`, `CONFLICTS`, `UNCERTAINTY`.
+
+Soft budget: 900-2200 characters. Remain read-only and distinguish evidence from
+inference.
 
 ## Mechanical Editor
 
-Use `sol_advisor_mechanical_editor` with Luna/xHigh for a standard deterministic edit
-or Luna/Max for a deep but still fully determined edit. Implicit use requires at least
-four files, or at least twenty same-type edit points across two or more files. Never
-share its batch with another editing route.
+Use `sol_advisor_mechanical_editor` with Luna/xhigh or max only for a fully determined
+edit covering at least four files, or at least twenty same-type points across two or
+more files. Never share the same edit batch with Spark or another writer.
 
 ~~~text
-<COMMON PACKET>
-QUESTION: <exact deterministic transformation>
-SCOPE: <exclusive path list and edit-point count>
-EXCLUSIONS: <interfaces, paths, and unrelated edits to preserve>
-EXPECTED_EVIDENCE: <actual changed files plus exact check and expected result>
-COMPLETENESS: <all listed edit points changed and check satisfied>
-CAPABILITIES: use any relevant inherited MCP or Skill within the edit scope.
-STOP: if judgment, ambiguity, architecture, dependency expansion, or an out-of-scope
-path is required, stop without further changes and report the blocker.
+TRANSFORMATION: <exact deterministic transformation>
+OWNED_FILES: <exclusive path list>
+EDIT_POINT_COUNT: <verified file and same-type point counts>
+PRESERVE: <interfaces, formatting, and unrelated work to preserve>
+CHECK: <exact mechanical command and expected result>
+DONE_WHEN: <all edits and checks required for COMPLETE>
+STOP: <judgment, architecture, dependency, shared-file, or expansion condition>
 ~~~
 
-Capture the pre-spawn working-tree status. After return, inspect the actual diff, reject
-out-of-scope changes, and rerun the minimum relevant check.
+Required final fields: `STATUS`, `CHANGED_FILES`, `CHECK`.
+
+Optional when nonempty: `RESULT`, `DEVIATIONS`.
+
+Soft budget: 500-1200 characters. Capture the pre-spawn worktree state. The primary
+must inspect the complete actual diff and rerun CHECK after return.
 
 ## Local Code Verifier
 
-Use `sol_advisor_local_code_verifier` with Luna/Max for substantive implementation
-uncertainty. Give it one independent attack angle and do not expose another verifier's
-conclusion.
+Use `sol_advisor_local_code_verifier` with Luna/high for routine deterministic checks,
+Luna/xhigh for multiple edge cases, or Luna/max for difficult bounded uncertainty. Use
+Sol/xhigh for security, authorization, concurrency, state, data, migration, public-API,
+or release risk, and Sol/max only for irreversible or system-level sign-off.
 
 ~~~text
-<COMMON PACKET>
-QUESTION: <implementation claim being attacked>
-SCOPE: <exclusive files and interfaces>
-EXCLUSIONS: <other failure classes and any proposed fixes>
+CLAIM: <implementation or verification claim to attack>
+SCOPE: <exclusive files, tests, and interfaces>
 ATTACK_ANGLE: <one independent failure class>
-EXPECTED_EVIDENCE: <trigger, impact, location/test, or checked no-finding scope>
-COMPLETENESS: <boundary and test-gap coverage needed for COMPLETE>
-CAPABILITIES: use any relevant inherited MCP or Skill; do not inventory tools.
-STOP: remain read-only and do not implement.
+PASS_FAIL_CRITERIA: <what establishes pass, fail, incomplete, or blocked>
+REQUIRED_EVIDENCE: <trigger, impact, locator, test, or checked no-finding scope>
+STOP: <scope expansion, write requirement, evidence conflict, or blocker condition>
 ~~~
+
+Required final fields: `STATUS`, `VERDICT`, `EVIDENCE`, `COVERAGE`.
+
+Optional when nonempty: `FINDINGS`, `TEST_GAPS`.
+
+Soft budget: 700-1800 characters. Remain read-only, do not inspect another verifier's
+conclusion, do not implement fixes, and do not adjudicate conflicting evidence.
 
 ## Final Adjudicator
 
-Use `sol_advisor_final_adjudicator` only for a genuine evidence conflict or critical
-decision. Use Sol/Medium for a bounded dispute, Sol/xHigh for critical code or interface
-risk, and Sol/Max for architecture rethink, irreversible action, or severe conflict.
+Use `sol_advisor_final_adjudicator` with Sol/xhigh or max only for a genuine evidence
+conflict or critical decision. Do not use it as a routine closing step.
 
 ~~~text
-<COMMON PACKET>
 DECISION: <ship, fix-first, or rethink question>
-QUESTION: <genuine conflict to resolve>
-SCOPE: <compact conflicting claims and their locators>
-EXCLUSIONS: <unsupported history and implementation work>
-EXPECTED_EVIDENCE: <decisive conflict resolution>
-COMPLETENESS: <all supplied conflict branches considered>
-CONSTRAINTS: <safety, compatibility, and reversibility>
-CAPABILITIES: use any relevant inherited MCP or Skill; do not inventory tools.
-RETURN: one verdict and the minimum decisive rationale and required action.
-STOP: remain read-only and do not implement.
+CONFLICTING_CLAIMS: <compact claims that cannot all be true>
+EVIDENCE_LOCATORS: <decisive locators for every supplied claim>
+CONSTRAINTS: <safety, compatibility, reversibility, and release constraints>
+STOP: <missing decisive evidence, new investigation, or implementation condition>
 ~~~
+
+Required final fields: `STATUS`, `VERDICT`, `DECISIVE_EVIDENCE`,
+`REJECTED_ASSUMPTIONS`, `REQUIRED_ACTION`.
+
+Soft budget: 700-1600 characters. Remain read-only, consider every supplied branch,
+and choose exactly `SHIP`, `FIX_FIRST`, or `RETHINK`.
+
+## Spark Worker: SCOUT
+
+Use `sol_advisor_spark_worker` with Spark/low for exact lookup or inventory,
+Spark/medium for narrow path mapping, or Spark/high for bounded multi-file mapping.
+Do not use it for current external research, broad synthesis, design judgment, or risk
+adjudication.
+
+~~~text
+MODE: SCOUT
+QUESTION: <one exact lookup or mapping question>
+SCOPE: <exclusive paths and exclusions>
+EXACT_TARGETS: <names, patterns, symbols, or file classes>
+DONE_WHEN: <coverage required for COMPLETE>
+STOP: <ambiguity, expansion, external research, or reasoning condition>
+~~~
+
+Required final fields: `STATUS`, `ANSWER`, `LOCATORS`.
+
+Optional when nonempty: `COVERAGE`.
+
+Soft budget: 400-900 characters. Remain read-only.
+
+## Spark Worker: EDIT
+
+Use `sol_advisor_spark_worker` with Spark/medium for a single-file exact edit or
+Spark/high for a low-risk edit covering at most three files and nineteen same-type
+points. Use no Spark/xhigh route.
+
+~~~text
+MODE: EDIT
+TRANSFORMATION: <exact deterministic transformation>
+OWNED_FILES: <one to three exclusive paths>
+EDIT_POINT_COUNT: <verified file and same-type point counts>
+PRESERVE: <interfaces, formatting, and unrelated work to preserve>
+CHECK: <exact mechanical command and expected result>
+STOP: <architecture, dependency, security, authorization, concurrency, state, data,
+migration, public-API, judgment, or expansion condition>
+~~~
+
+Required final fields: `STATUS`, `CHANGED_FILES`, `CHECK`.
+
+Optional when nonempty: `DEVIATIONS`.
+
+Soft budget: 400-900 characters. Capture the pre-spawn worktree state. The primary
+must inspect the complete actual diff and rerun CHECK after return.
 
 ## One corrective follow-up
 
-When the first result is directionally correct but misses one bounded requirement, use
-the same native child once more:
+Use one follow-up only when the result is directionally correct and one bounded
+omission prevents completion. Keep the same child, model, and effort.
 
 ~~~text
-CORRECTION: <exact misunderstanding or omission>
-MISSING EVIDENCE: <specific locator, source, check, or comparison required>
-KEEP: <correct parts of the prior result that must not be redone>
-RETURN: a revised concise result addressing only this correction.
-STOP: if the correction cannot be completed with current context and capabilities,
-state the blocker; do not restart the whole task.
+CORRECTION: <one exact misunderstanding or omission>
+MISSING_EVIDENCE: <specific locator, source, check, or comparison>
+KEEP: <correct prior work that must not be repeated>
+STOP: <condition requiring primary takeover or a new stronger child>
 ~~~
 
-Do not follow up when the role, direction, or task decomposition was wrong. In that
-case, or when the one follow-up remains unusable, the primary session executes the
-work directly.
+Do not follow up for formatting alone, a wrong role, an unsafe route, or a task that
+must be decomposed again. After one unusable correction, the primary takes over.

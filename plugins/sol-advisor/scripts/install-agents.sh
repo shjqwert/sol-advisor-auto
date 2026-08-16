@@ -1,20 +1,23 @@
 #!/bin/sh
-# Install Sol Advisor's shipped custom-agent templates without changing Codex config.
+# Install or safely upgrade Sol Advisor's custom-agent templates.
 
 set -eu
 
 usage() {
   cat <<'EOF'
-Usage: install-agents.sh [--target-dir <path>] [--check]
+Usage: install-agents.sh [--target-dir <path>] [--check | --upgrade-managed]
 
-Install the five routed Sol Advisor custom-agent templates into the target directory.
+Install the six routed Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
-set, otherwise "$HOME/.codex/agents". The script never overwrites a differing file.
+set, otherwise "$HOME/.codex/agents". Normal installation never overwrites a
+differing file.
 
 Options:
   --target-dir <path>  Explicit destination directory (absolute or relative).
   --check              Verify that every destination file already matches exactly;
                        do not create or copy anything.
+  --upgrade-managed    Replace only exact known Sol Advisor 0.7 templates, add the
+                       Spark template, and roll back the batch on failure.
   --help               Show this help text.
 EOF
 }
@@ -35,7 +38,7 @@ else
   target_dir=$HOME/.codex/agents
 fi
 
-check_only=0
+mode=install
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -49,7 +52,13 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     --check)
-      check_only=1
+      [ "$mode" = install ] || fail "--check and --upgrade-managed are mutually exclusive."
+      mode=check
+      shift
+      ;;
+    --upgrade-managed)
+      [ "$mode" = install ] || fail "--check and --upgrade-managed are mutually exclusive."
+      mode=upgrade-managed
       shift
       ;;
     --help|-h)
@@ -62,8 +71,6 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-# Canonicalize existing and non-existing paths before any destination operation.
-# This rejects aliases such as /tmp/.. that otherwise resolve to the filesystem root.
 target_dir=$(sh "$python_runner" - "$target_dir" <<'PY'
 from pathlib import Path
 import sys
@@ -73,97 +80,241 @@ PY
 
 [ "$target_dir" != "/" ] || fail "refusing to use the filesystem root as an agent target directory."
 
-agent_files='sol-advisor-investigator.toml sol-advisor-mechanical-editor.toml sol-advisor-context-analyst.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
+exec sh "$python_runner" - "$template_dir" "$target_dir" "$mode" <<'PY'
+from __future__ import annotations
 
-# Validate all shipped sources before looking at or mutating the destination.
-for agent_file in $agent_files; do
-  template=$template_dir/$agent_file
-  [ -f "$template" ] && [ ! -L "$template" ] || fail "shipped template is missing or not a regular file: $template"
-done
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import stat
+import sys
+import tempfile
 
-# Preflight every destination before creating a directory or copying a template.
-preflight_failed=0
-if [ -e "$target_dir" ] || [ -L "$target_dir" ]; then
-  if [ ! -d "$target_dir" ] || [ -L "$target_dir" ]; then
-    printf '%s\n' "ERROR: target directory is not a real directory: $target_dir" >&2
-    preflight_failed=1
-  fi
-fi
 
-for agent_file in $agent_files; do
-  template=$template_dir/$agent_file
-  destination=$target_dir/$agent_file
+template_dir = Path(sys.argv[1]).resolve(strict=False)
+target_dir = Path(sys.argv[2]).resolve(strict=False)
+mode = sys.argv[3]
 
-  if [ -e "$destination" ] || [ -L "$destination" ]; then
-    if [ ! -f "$destination" ] || [ -L "$destination" ]; then
-      printf '%s\n' "ERROR: destination is not a regular file and will not be replaced: $destination" >&2
-      preflight_failed=1
-    elif cmp -s "$template" "$destination"; then
-      :
-    else
-      printf '%s\n' "ERROR: destination differs from the shipped template and will not be overwritten: $destination" >&2
-      printf '%s\n' "       Inspect $template and resolve the conflict deliberately, then rerun --check." >&2
-      preflight_failed=1
-    fi
-  elif [ "$check_only" -eq 1 ]; then
-    printf '%s\n' "ERROR: required installed agent file is missing: $destination" >&2
-    printf '%s\n' "       Run $0 without --check after reviewing the target directory." >&2
-    preflight_failed=1
-  fi
-done
+agent_files = (
+    "sol-advisor-investigator.toml",
+    "sol-advisor-context-analyst.toml",
+    "sol-advisor-mechanical-editor.toml",
+    "sol-advisor-local-code-verifier.toml",
+    "sol-advisor-final-adjudicator.toml",
+    "sol-advisor-spark-worker.toml",
+)
 
-[ "$preflight_failed" -eq 0 ] || exit 1
+# Accept exact LF and CRLF byte forms of the shipped 0.7 templates. A differing or
+# user-modified file is never treated as managed merely because its TOML is similar.
+legacy_hashes = {
+    "sol-advisor-investigator.toml": {
+        "a15210121b38d954c67633281d4294884dab2244507d5585ae274b610cf54060",
+        "4c0b41770beea1d8092193bdaaea4af50ca09ed5174386a9be547d26be0609a3",
+    },
+    "sol-advisor-context-analyst.toml": {
+        "5ef4f96f1952d87ff90c33aa7293f32af2df1034961aff0c9f5e29123cc13d16",
+        "3a038345e1f4ded02c1c13685195cf0251c5005abad88d97b8e288636cb97913",
+    },
+    "sol-advisor-mechanical-editor.toml": {
+        "6a6cfa03653344fbc4de7971e529e63b52e7aba7b8edef8342b1410869381475",
+        "b2281ec27766dcfd32ea9dda6032da069c37da3f0ab7590936b07804869d0826",
+    },
+    "sol-advisor-local-code-verifier.toml": {
+        "b4468d367ece3eb151c45c422e21feba719dc69f8029c209af50e34218c0e201",
+        "4e553701e1d64e97b96ea62178326e69a33a5142f67bd99493fc7199f010bfaf",
+    },
+    "sol-advisor-final-adjudicator.toml": {
+        "e4fac299bb1d4780d5ee81e5f740056aa2db744e81668322670a10347d2342ce",
+        "32d8478957cba7b7e254f0745b2ff70ee01cfcc2349b353852240bfb1228265d",
+    },
+}
 
-if [ "$check_only" -eq 1 ]; then
-  printf '%s\n' "CHECK PASSED: all Sol Advisor agent files exactly match $template_dir."
-  exit 0
-fi
 
-# The full conflict preflight passed, so it is now safe to create the target directory
-# and add only files that were absent. Existing exact copies are deliberately untouched.
-if [ ! -d "$target_dir" ]; then
-  mkdir -p "$target_dir" || fail "could not create target directory: $target_dir"
-fi
+def fail(message: str) -> None:
+    raise RuntimeError(message)
 
-for agent_file in $agent_files; do
-  template=$template_dir/$agent_file
-  destination=$target_dir/$agent_file
 
-  if [ -e "$destination" ] || [ -L "$destination" ]; then
-    if [ -f "$destination" ] && [ ! -L "$destination" ] && cmp -s "$template" "$destination"; then
-      printf '%s\n' "ALREADY CURRENT: $destination"
-      continue
-    fi
-    fail "destination changed after preflight and will not be overwritten: $destination"
-  fi
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-  # Stage alongside the destination, then hard-link it into place. ln fails if another
-  # process created the destination after preflight, so a late conflicting file is
-  # never overwritten by cp's normal replacement behavior.
-  staged=$(mktemp "$target_dir/.sol-advisor-agent.XXXXXX") || fail "could not stage template for installation: $destination"
-  if ! cp "$template" "$staged"; then
-    rm -f "$staged"
-    fail "could not stage template for installation: $destination"
-  fi
 
-  if ln "$staged" "$destination"; then
-    rm -f "$staged" || fail "could not remove staged template after installation: $staged"
-  else
-    rm -f "$staged" || fail "could not remove staged template after conflict: $staged"
-    if [ -f "$destination" ] && [ ! -L "$destination" ] && cmp -s "$template" "$destination"; then
-      printf '%s\n' "ALREADY CURRENT: $destination"
-      continue
-    fi
-    fail "destination changed after preflight and will not be overwritten: $destination"
-  fi
+def regular_file(path: Path) -> bool:
+    try:
+        value = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISREG(value.st_mode) and not path.is_symlink()
 
-  printf '%s\n' "INSTALLED: $destination"
-done
 
-for agent_file in $agent_files; do
-  template=$template_dir/$agent_file
-  destination=$target_dir/$agent_file
-  cmp -s "$template" "$destination" || fail "post-install exactness check failed: $destination"
-done
+def remove_transaction_dir(path: Path) -> None:
+    if not path.exists():
+        return
+    for child in path.iterdir():
+        if child.is_dir() or child.is_symlink():
+            fail(f"unexpected transaction entry cannot be cleaned safely: {child}")
+        child.unlink()
+    path.rmdir()
 
-printf '%s\n' "INSTALL PASSED: all Sol Advisor agent files exactly match $template_dir."
+
+actual_templates = {path.name for path in template_dir.glob("*.toml")}
+if actual_templates != set(agent_files):
+    fail(f"unexpected shipped agent template set: {sorted(actual_templates ^ set(agent_files))}")
+
+template_hashes: dict[str, str] = {}
+for name in agent_files:
+    path = template_dir / name
+    if not regular_file(path):
+        fail(f"shipped template is missing or not a regular file: {path}")
+    template_hashes[name] = sha256(path)
+
+target_existed = target_dir.exists()
+if target_existed and (not target_dir.is_dir() or target_dir.is_symlink()):
+    fail(f"target directory is not a real directory: {target_dir}")
+
+actions: list[tuple[str, str, str | None]] = []
+errors: list[str] = []
+for name in agent_files:
+    destination = target_dir / name
+    if not destination.exists() and not destination.is_symlink():
+        if mode == "check":
+            errors.append(f"required installed agent file is missing: {destination}")
+        else:
+            actions.append((name, "add", None))
+        continue
+    if not regular_file(destination):
+        errors.append(f"destination is not a regular file and will not be replaced: {destination}")
+        continue
+    existing_hash = sha256(destination)
+    if existing_hash == template_hashes[name]:
+        actions.append((name, "current", existing_hash))
+    elif mode == "upgrade-managed" and existing_hash in legacy_hashes.get(name, set()):
+        actions.append((name, "replace", existing_hash))
+    else:
+        errors.append(f"destination differs from a current or recognized managed template: {destination}")
+
+if errors:
+    for message in errors:
+        print(f"ERROR: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+if mode == "check":
+    print(f"CHECK PASSED: all Sol Advisor agent files exactly match {template_dir}.")
+    raise SystemExit(0)
+
+target_created = False
+transaction_dir: Path | None = None
+applied: list[tuple[str, str]] = []
+messages: list[str] = []
+
+try:
+    if not target_existed:
+        target_dir.mkdir(parents=True, exist_ok=False)
+        target_created = True
+
+    transaction_dir = Path(tempfile.mkdtemp(prefix=".sol-advisor-agents.", dir=target_dir))
+    staged: dict[str, Path] = {}
+    backups: dict[str, Path] = {}
+
+    # Stage every template and every replacement backup before changing a destination.
+    for name in agent_files:
+        staged_path = transaction_dir / f"new-{name}"
+        shutil.copy2(template_dir / name, staged_path)
+        if sha256(staged_path) != template_hashes[name]:
+            fail(f"staged template exactness check failed: {name}")
+        staged[name] = staged_path
+
+    for name, action, expected_hash in actions:
+        if action != "replace":
+            continue
+        destination = target_dir / name
+        if not regular_file(destination) or sha256(destination) != expected_hash:
+            fail(f"destination changed after preflight and will not be replaced: {destination}")
+        backup = transaction_dir / f"old-{name}"
+        shutil.copy2(destination, backup)
+        if sha256(backup) != expected_hash:
+            fail(f"could not capture an exact rollback copy: {destination}")
+        backups[name] = backup
+
+    raw_fail_after = os.environ.get("SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER")
+    fail_after = int(raw_fail_after) if raw_fail_after else None
+    if fail_after is not None and fail_after < 1:
+        fail("SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER must be a positive integer")
+
+    for name, action, expected_hash in actions:
+        destination = target_dir / name
+        if action == "current":
+            if not regular_file(destination) or sha256(destination) != template_hashes[name]:
+                fail(f"current destination changed after preflight: {destination}")
+            messages.append(f"ALREADY CURRENT: {destination}")
+            continue
+
+        if action == "add":
+            if destination.exists() or destination.is_symlink():
+                fail(f"destination appeared after preflight and will not be overwritten: {destination}")
+            os.link(staged[name], destination)
+            applied.append((name, action))
+            messages.append(f"INSTALLED: {destination}")
+        elif action == "replace":
+            if not regular_file(destination) or sha256(destination) != expected_hash:
+                fail(f"destination changed after preflight and will not be replaced: {destination}")
+            os.replace(staged[name], destination)
+            applied.append((name, action))
+            messages.append(f"UPGRADED MANAGED: {destination}")
+        else:
+            fail(f"unknown planned installer action: {action}")
+
+        if fail_after is not None and len(applied) == fail_after:
+            fail("simulated managed-upgrade failure for rollback verification")
+
+    for name in agent_files:
+        destination = target_dir / name
+        if not regular_file(destination) or sha256(destination) != template_hashes[name]:
+            fail(f"post-install exactness check failed: {destination}")
+
+except Exception as error:
+    rollback_errors: list[str] = []
+    for name, action in reversed(applied):
+        destination = target_dir / name
+        try:
+            if action == "add":
+                if regular_file(destination) and sha256(destination) == template_hashes[name]:
+                    destination.unlink()
+                else:
+                    rollback_errors.append(f"added destination changed and was preserved: {destination}")
+            elif action == "replace":
+                backup = transaction_dir / f"old-{name}" if transaction_dir else None
+                if backup is None or not regular_file(backup):
+                    rollback_errors.append(f"rollback copy is unavailable: {destination}")
+                elif not regular_file(destination) or sha256(destination) != template_hashes[name]:
+                    rollback_errors.append(f"upgraded destination changed and was preserved: {destination}")
+                else:
+                    os.replace(backup, destination)
+        except Exception as rollback_error:
+            rollback_errors.append(f"{destination}: {rollback_error}")
+
+    try:
+        if transaction_dir is not None:
+            remove_transaction_dir(transaction_dir)
+        if target_created and target_dir.exists() and not any(target_dir.iterdir()):
+            target_dir.rmdir()
+    except Exception as cleanup_error:
+        rollback_errors.append(str(cleanup_error))
+
+    print(f"ERROR: {error}", file=sys.stderr)
+    if rollback_errors:
+        for message in rollback_errors:
+            print(f"ERROR: rollback incomplete: {message}", file=sys.stderr)
+    else:
+        print("ROLLBACK PASSED: installer changes were reverted.", file=sys.stderr)
+    raise SystemExit(1)
+
+remove_transaction_dir(transaction_dir)
+for message in messages:
+    print(message)
+print(f"INSTALL PASSED: all Sol Advisor agent files exactly match {template_dir}.")
+PY

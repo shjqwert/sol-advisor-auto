@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Delegate only for context or quality benefit"
-  default_prompt: "Use $orchestration to keep complex implementation in this session, isolate child-owned work until one final result returns, and delegate only when bounded context or quality benefit exceeds coordination cost; implicit dispatch also requires the project's exact authorization signals."
+  short_description: "Quality-first context and quota delegation"
+  default_prompt: "Use $orchestration to preserve task accuracy, keep design-dependent implementation primary, and delegate only when a bounded role reduces primary context or weighted quota cost, or adds material independent verification."
 
 policy:
   allow_implicit_invocation: true

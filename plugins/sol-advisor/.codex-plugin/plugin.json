@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.7.0+codex.20260812043855",
-  "description": "Native Codex workflow for selective functional subagents, isolated primary context, and bounded evidence verification.",
+  "version": "0.8.0+codex.20260816143901",
+  "description": "Quality-first Codex workflow for bounded functional subagents, isolated primary context, and weighted quota routing.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -13,14 +13,15 @@
     "codex",
     "orchestration",
     "multi-agent",
-    "gpt-5.6"
+    "gpt-5.6",
+    "codex-spark"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Delegate bounded work without polluting primary context.",
-    "longDescription": "Sol Advisor selectively routes functional custom agents only when bounded delegation can improve primary-context isolation or task accuracy. Children own exclusive discovery, long-context analysis, sufficiently large deterministic edits, independent verification, or evidence adjudication until one compressed final result returns. The primary session owns complex implementation, bounded evidence checks, fallback, and final integration.",
+    "shortDescription": "Quality-first delegation for context and quota efficiency.",
+    "longDescription": "Sol Advisor selectively routes six functional custom agents only when bounded delegation preserves task accuracy and completion while improving primary-context isolation, weighted quota cost, or independent verification. Spark handles eligible light scouting and small deterministic edits; GPT-5.6 roles handle investigation, synthesis, large mechanical edits, risk-selected verification, and genuine adjudication. The primary session owns design-dependent implementation, bounded evidence checks, fallback, and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -29,9 +30,9 @@
     ],
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
-      "Handle this repository task and delegate only when a bounded child has clear context or quality benefit.",
-      "Keep complex implementation in the primary session; while a child works, do not duplicate its question or source scope.",
-      "Read one native final result, verify only decisive evidence, allow one targeted correction, then fall back."
+      "Preserve task accuracy and completion before considering delegation.",
+      "Delegate only when a bounded role improves primary-context isolation, weighted quota cost, or independent verification.",
+      "Keep design-dependent implementation primary; read one native final result, allow one targeted correction with the same model and effort, then fall back."
     ]
   }
 }
