@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.8.0+codex.20260816143901",
-  "description": "Quality-first Codex workflow for bounded functional subagents, isolated primary context, and weighted quota routing.",
+  "version": "0.9.0+codex.20260816132003",
+  "description": "Quality-first Codex workflow with global route evaluation, project opt-out, bounded functional subagents, isolated primary context, and weighted quota routing.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Quality-first delegation for context and quota efficiency.",
-    "longDescription": "Sol Advisor selectively routes six functional custom agents only when bounded delegation preserves task accuracy and completion while improving primary-context isolation, weighted quota cost, or independent verification. Spark handles eligible light scouting and small deterministic edits; GPT-5.6 roles handle investigation, synthesis, large mechanical edits, risk-selected verification, and genuine adjudication. The primary session owns design-dependent implementation, bounded evidence checks, fallback, and final integration.",
+    "longDescription": "Sol Advisor evaluates bounded delegation globally unless a project opts out, and routes six functional custom agents only when delegation preserves task accuracy and completion while improving primary-context isolation, weighted quota cost, or independent verification. Spark handles eligible light scouting and small deterministic edits; GPT-5.6 roles handle investigation, synthesis, large mechanical edits, risk-selected verification, and genuine adjudication. The primary session owns design-dependent implementation, bounded evidence checks, fallback, and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [

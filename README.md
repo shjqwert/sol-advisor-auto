@@ -34,9 +34,10 @@ less-capable model with its own usage limits in
 
 ## Quality and delegation gates
 
-Implicit delegation requires all of the following:
+Implicit route evaluation is globally allowed when the plugin is installed and
+enabled. Delegation still requires all of the following:
 
-- project authorization is valid;
+- the current project has not opted out;
 - one role owns a bounded question or deterministic edit;
 - the selected model and effort are adequate for the risk;
 - scope, completion, stopping, and verification criteria are explicit;
@@ -55,26 +56,43 @@ debugging, safety-critical implementation, or final integration. Spark and Mecha
 Editor write only after the primary fixes the transformation, ownership, preservation
 rules, edit count, and mechanical check.
 
-## Project authorization
+## Global default and project opt-out
 
-Implicit child dispatch is fail-closed. It requires both:
+Installing and enabling Sol Advisor globally allows automatic route evaluation in
+every project. A project does not need an `.agent` directory, an authorization file,
+or a managed `AGENTS.md` section. The quality and benefit gates still decide whether
+zero or one child is appropriate.
 
-- schema-v1 `.agent/authorizations.json` with
-  `authorizations.solAdvisor.implicitDelegation: true`; and
-- the matching `## Subagent Orchestration` authorization instruction in the applicable
-  managed section of `AGENTS.md`.
+To disable implicit Sol Advisor delegation for one project, create a schema-v1
+`.agent/authorizations.json` at that project root:
 
-Missing, invalid, false, unreadable, or one-sided signals keep execution in the primary
-session. An explicit user invocation of Sol Advisor or `$orchestration` bypasses this
-project gate for that task. An explicit instruction not to delegate always wins.
+```json
+{
+  "schemaVersion": 1,
+  "authorizations": {
+    "solAdvisor": {
+      "implicitDelegation": false
+    }
+  }
+}
+```
+
+An applicable `AGENTS.md` instruction can also explicitly disable Sol Advisor or all
+delegation. Codex `agents.enabled = false` disables multi-agent tools independently.
+Legacy `implicitDelegation: true` remains valid but is unnecessary; a missing file or
+key leaves the global default enabled. An existing invalid or unreadable override
+fails safe to primary-only execution until corrected.
+
+An explicit current-task request to use Sol Advisor or `$orchestration` bypasses a
+project opt-out. An explicit current-task instruction not to delegate always wins.
 
 ## Native orchestration flow
 
 ```mermaid
 flowchart TD
-    A[User task] --> B{Authorization valid?}
-    B -->|No| P[Primary executes]
-    B -->|Yes| Q{Quality gate passes?}
+    A[User task] --> B{Project opted out?}
+    B -->|Yes| P[Primary executes]
+    B -->|No| Q{Quality gate passes?}
     Q -->|No| P
     Q -->|Yes| G{Context, quota, or verification benefit?}
     G -->|No| P
@@ -268,8 +286,8 @@ git diff --check
 
 The verifier checks the six role configurations, specialized prompts, documented and
 rejected routes, exact managed upgrades, rollback, runtime configuration stability,
-authorization gates, native lifecycle, static Python checks, and retired sidecar
-absence. It invokes no model or paid API.
+global-default and project-opt-out policy, native lifecycle, static Python checks, and
+retired sidecar absence. It invokes no model or paid API.
 
 Actual native-agent smoke tests can consume model quota and require separate user
 authorization.

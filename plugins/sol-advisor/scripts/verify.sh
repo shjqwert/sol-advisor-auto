@@ -67,8 +67,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.8.0+"):
-    raise SystemExit("manifest version was not advanced to 0.8.0")
+if not manifest.get("version", "").startswith("0.9.0+"):
+    raise SystemExit("manifest version was not advanced to 0.9.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -85,9 +85,9 @@ if not interface.get("displayName") or not interface.get("defaultPrompt"):
 prompts = " ".join(interface.get("defaultPrompt", [])).lower()
 for required in ("accuracy", "primary-context", "weighted quota", "one native final result"):
     if required not in prompts:
-        raise SystemExit(f"manifest prompts do not describe the 0.8 routing goals: {required}")
+        raise SystemExit(f"manifest prompts do not describe the 0.9 routing goals: {required}")
 PY
-pass "plugin manifest version, ownership, interface, and 0.8 routing metadata"
+pass "plugin manifest version, ownership, interface, and 0.9 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -385,9 +385,14 @@ grep -Fq 'accuracy and completion' "$skill" || fail "missing quality-first prior
 grep -Fq 'Keep complex implementation primary' "$skill" || fail "missing complex implementation boundary"
 grep -Fq 'Development-time static validation' "$skill" || fail "missing static Python-validation allowance"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
-grep -Fq '.agent/authorizations.json' "$skill" || fail "missing implicit authorization file gate"
-grep -Fq 'authorizations.solAdvisor.implicitDelegation' "$skill" || fail "missing exact implicit authorization value"
-grep -Fq '## Subagent Orchestration' "$skill" || fail "missing managed AGENTS authorization gate"
+grep -Fq 'globally allowed' "$skill" || fail "missing global implicit route-evaluation default"
+grep -Fq 'Do not require a project `.agent` directory' "$skill" || fail "missing no-project-bootstrap rule"
+grep -Fq 'authorizations.solAdvisor.implicitDelegation` exactly `false`' "$skill" || fail "missing project opt-out value"
+grep -Fq 'Exact `true`, a missing file, or a missing key' "$skill" || fail "missing default-allow compatibility rule"
+grep -Fq 'agents.enabled = false' "$skill" || fail "missing Codex multi-agent hard-disable rule"
+grep -Fq 'invalid or unreadable' "$skill" || fail "missing invalid-override fail-safe rule"
+if grep -Fq 'spawn no child unless both signals are present' "$skill"; then fail "retired dual authorization gate remains"; fi
+if grep -Fq 'matching `## Subagent Orchestration` authorization instruction' "$skill"; then fail "retired managed AGENTS authorization gate remains"; fi
 grep -Fq 'instruction not to' "$skill" || fail "missing explicit no-delegation override"
 grep -Fq 'Use zero children' "$skill" || fail "missing zero-child fast path"
 grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child read-only cap"
@@ -433,4 +438,4 @@ grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforc
 [ "$(wc -l < "$skill")" -lt 500 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
 pass "static Python checks, shell syntax, LF policy, and Skill size budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.8 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.9 no-cost checks completed in $tmp_dir"

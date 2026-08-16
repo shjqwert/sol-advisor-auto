@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: "Automatically activate Sol Advisor for authorized-project repository work when quality-preserving bounded delegation is likely to reduce primary-context load or weighted quota cost, or materially improve independent verification: exact Spark scouting or small edits, unknown-location investigation, identified long-source synthesis, large deterministic edits, risk-based local verification, or genuine evidence adjudication. Keep design-dependent or iterative implementation and final integration in the primary Codex session. Do not activate for trivial work, already-bounded primary work, or any route that can reduce accuracy or completion reliability."
+description: "Automatically evaluate Sol Advisor in repository work unless the current project explicitly opts out, and activate it when quality-preserving bounded delegation is likely to reduce primary-context load or weighted quota cost, or materially improve independent verification: exact Spark scouting or small edits, unknown-location investigation, identified long-source synthesis, large deterministic edits, risk-based local verification, or genuine evidence adjudication. Keep design-dependent or iterative implementation and final integration in the primary Codex session. Do not activate for trivial work, already-bounded primary work, or any route that can reduce accuracy or completion reliability."
 ---
 
 # Sol Advisor Orchestration
@@ -14,19 +14,29 @@ Before the first spawn, read
 [references/role-contracts.md](references/role-contracts.md). Load only the selected
 role or Spark mode contract.
 
-## Authorize implicit delegation
+## Apply the global default and project opt-out
 
-For implicit use, spawn no child unless both signals are present:
+When this plugin is installed and enabled, implicit Sol Advisor route evaluation is
+globally allowed. Do not require a project `.agent` directory, authorization file, or
+managed `AGENTS.md` section. Evaluate this Skill before broad search, long-source
+retrieval, noisy verification, or a bounded deterministic edit consumes primary
+context; evaluation may still select zero children.
 
-- the nearest project root contains schema-v1 `.agent/authorizations.json` with
-  `authorizations.solAdvisor.implicitDelegation` exactly `true`; and
-- the applicable managed `AGENTS.md` section contains the corresponding
-  `## Subagent Orchestration` authorization instruction.
+Before the first spawn, honor these overrides:
 
-Treat any missing, invalid, false, unreadable, or one-sided signal as no implicit
-authorization and continue in the primary session. Explicit user invocation of Sol
-Advisor bypasses this project gate for that task. An explicit instruction not to
-delegate always wins. Never substitute an unavailable role, model, or effort.
+- Codex `agents.enabled = false` disables multi-agent tools and keeps the task primary.
+- A schema-v1 `.agent/authorizations.json` at the nearest project root with
+  `authorizations.solAdvisor.implicitDelegation` exactly `false` disables implicit Sol
+  Advisor delegation for that project. Exact `true`, a missing file, or a missing key
+  leaves the global default enabled.
+- An applicable `AGENTS.md` instruction that explicitly disables Sol Advisor or says
+  not to delegate disables implicit delegation.
+- If an existing project override file is invalid or unreadable, fail safe by keeping
+  the task primary until the override is corrected.
+
+An explicit current-task user request to use Sol Advisor bypasses a project opt-out.
+An explicit current-task instruction not to delegate always wins. Never substitute an
+unavailable role, model, or effort.
 
 ## Apply the quality and benefit gates
 
