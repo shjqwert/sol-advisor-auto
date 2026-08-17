@@ -1,38 +1,47 @@
 ---
 name: orchestration
-description: "Automatically evaluate Sol Advisor in repository work unless the current project explicitly opts out, and activate it when quality-preserving bounded delegation is likely to reduce primary-context load or weighted quota cost, or materially improve independent verification: exact Spark scouting or small edits, unknown-location investigation, identified long-source synthesis, large deterministic edits, risk-based local verification, or genuine evidence adjudication. Keep design-dependent or iterative implementation and final integration in the primary Codex session. Do not activate for trivial work, already-bounded primary work, or any route that can reduce accuracy or completion reliability."
+description: "Use for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether optional subagent delegation preserves quality and saves context or quota; zero children is valid."
 ---
 
 # Sol Advisor Orchestration
 
-Prioritize, in order: task accuracy and completion, primary-context isolation, weighted
-quota cost, then latency. Keep requirements, architecture, design-dependent or iterative
-implementation, cross-module behavioral changes, final verification, integration, and
-release decisions in the primary session. A valid routing decision may use no child.
+Prioritize, in order: task accuracy and completion, primary-context isolation,
+weighted quota cost, then latency. Keep requirements, architecture, design-dependent
+or iterative implementation, cross-module behavioral changes, final verification,
+integration, and release decisions in the primary session. A valid routing decision
+may use no child.
 
 Before the first spawn, read
 [references/role-contracts.md](references/role-contracts.md). Load only the selected
-role or Spark mode contract.
+role contract.
 
 ## Apply the global default and project opt-out
 
 When this plugin is installed and enabled, implicit Sol Advisor route evaluation is
-globally allowed. Do not require a project `.agent` directory, authorization file, or
-managed `AGENTS.md` section. Evaluate this Skill before broad search, long-source
-retrieval, noisy verification, or a bounded deterministic edit consumes primary
-context; evaluation may still select zero children.
+globally allowed in repositories, non-Git directories, empty folders, and from-scratch
+workspaces. Do not require a project `.agent` directory, authorization file, managed
+`AGENTS.md` section, or version-control root. Global eligibility permits automatic
+consideration; it does not require a route-evaluation record, child, or fixed workflow.
 
 Before the first spawn, honor these overrides:
 
 - Codex `agents.enabled = false` disables multi-agent tools and keeps the task primary.
-- A schema-v1 `.agent/authorizations.json` at the nearest project root with
+- A schema-v1 `.agent/authorizations.json` at the nearest workspace root with
   `authorizations.solAdvisor.implicitDelegation` exactly `false` disables implicit Sol
-  Advisor delegation for that project. Exact `true`, a missing file, or a missing key
-  leaves the global default enabled.
+  Advisor delegation for that workspace. For a plain non-repository directory, treat
+  the current working directory as the workspace root. Exact `true`, a missing file,
+  or a missing key leaves the global default enabled.
 - An applicable `AGENTS.md` instruction that explicitly disables Sol Advisor or says
   not to delegate disables implicit delegation.
 - If an existing project override file is invalid or unreadable, fail safe by keeping
   the task primary until the override is corrected.
+
+Sol Advisor only reads these policy surfaces. Never create, modify, or remove a user-
+or project-level `AGENTS.md`, `.agent/context.json`, `.agent/authorizations.json`,
+`.agent/planMsg.md`, or `.agent/handoff/` entry. When durable project context is
+desired, the separate Project Context plugin owns initialization, synchronization,
+policy changes, plans, and handoffs. Sol Advisor remains usable without that plugin;
+an absent project override simply inherits the global default.
 
 An explicit current-task user request to use Sol Advisor bypasses a project opt-out.
 An explicit current-task instruction not to delegate always wins. Never substitute an
@@ -42,13 +51,14 @@ unavailable role, model, or effort.
 
 Delegate only when all quality conditions hold:
 
-- one role owns a bounded question or exact deterministic edit;
+- one role owns a bounded question, focused local production goal, or repeated exact
+  transformation;
 - the model and effort are adequate for the risk and reasoning difficulty;
 - scope, stopping conditions, and completion criteria are explicit;
 - the result can be verified without repeating the delegated work; and
 - delegation is not expected to reduce first-pass accuracy or completion reliability.
 
-After the quality gate passes, require at least one material benefit:
+After the quality gate passes, delegate only when at least one benefit is material:
 
 - the child keeps broad search, long sources, or noisy evidence out of primary context;
 - the child uses a lower weighted quota route without reducing quality; or
@@ -57,7 +67,16 @@ After the quality gate passes, require at least one material benefit:
 Use zero children when the primary already has sufficient bounded evidence, when
 dispatch and intake would duplicate the work, or when implementation needs continuing
 design judgment. Do not delegate merely because a role exists or because the task has
-multiple steps.
+multiple steps. Do not require the primary to report or persist a no-delegation
+decision.
+
+## Consider a cheap prerequisite when useful
+
+When an obvious, cheap, read-only prerequisite could invalidate heavy retrieval or
+delegation, consider checking it first. This is optional context hygiene, not a fixed
+phase, delegation trigger, or required order. Do not turn it into broad discovery.
+When practical, retain complete items from a partial batch and retry only failed,
+missing, truncated, or invalidated items.
 
 ## Select one route
 
@@ -68,12 +87,12 @@ adjudication. Do not hard-code benchmark scores, prices, or latency as routing g
 
 | Scenario | Agent | Allowed route | Responsibility |
 |---|---|---|---|
-| Exact lookup, inventory, or narrow path mapping | `sol_advisor_spark_worker` | Spark/low, medium, or high; `MODE: SCOUT` | read-only light scouting |
-| At most 3 files and 19 low-risk deterministic edit points | `sol_advisor_spark_worker` | Spark/medium or high; `MODE: EDIT` | small serial edit |
-| Unknown-location repository evidence or current official research | `sol_advisor_investigator` | Luna/high, xhigh, or max | read-only investigation |
+| Exact symbol, relationship, configuration, or log lookup already covered by an available tool | primary session | inherited MCP, index, or exact read | bounded direct lookup |
+| Frozen local production goal with compact named inputs and mechanical acceptance | `sol_advisor_spark_worker` | Spark/low, medium, or high; `MODE: PRODUCE` | focused local creation or patch |
+| Unknown-location workspace evidence or current official research | `sol_advisor_investigator` | Luna/high, xhigh, or max | read-only investigation |
 | Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/high | read-only extraction |
 | Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/xhigh; max for critical constraints | read-only synthesis |
-| At least 4 files, or 20 same-type points across at least 2 files | `sol_advisor_mechanical_editor` | Luna/xhigh or max | large deterministic edit |
+| Same fully determined transformation repeated across known locations | `sol_advisor_mechanical_editor` | Luna/xhigh or max | repetitive mechanical edit |
 | Routine through difficult bounded verification | `sol_advisor_local_code_verifier` | Luna/high, xhigh, or max | read-only verification |
 | Security, authorization, concurrency, state, data, migration, public-API, or release risk | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
 | Genuine evidence conflict or critical decision | `sol_advisor_final_adjudicator` | Sol/xhigh or max | read-only adjudication |
@@ -81,18 +100,22 @@ adjudication. Do not hard-code benchmark scores, prices, or latency as routing g
 Reject Spark/xhigh, Context Luna/xhigh, Context Terra/high, Verifier Sol/medium or high,
 and Adjudicator Sol/medium or high. If no allowed route fits, keep the work primary.
 
-Investigator and Context Analyst are alternative discovery lanes for the same decision.
-Mechanical Editor and Spark EDIT are mutually exclusive for the same batch. Do not add
-a verifier merely because another child participated. Do not use Final Adjudicator as
-a routine closing step or build a fixed role chain.
+Use an available MCP, index, or exact read in the primary session for bounded symbol,
+relationship, configuration, or log lookup. Investigator and Context Analyst are
+alternative discovery lanes for the same decision. Spark PRODUCE and Mechanical Editor
+are mutually exclusive: use Spark for one local production goal and Mechanical Editor
+for one transformation repeated across known locations. Do not add a verifier merely
+because another child participated. Do not use Final Adjudicator as a routine closing
+step or build a fixed role chain.
 
 ## Keep complex implementation primary
 
 Do not delegate implementation that requires design or architecture judgment,
 cross-module behavioral changes, public-interface or dependency changes, repeated
 debugging, safety-critical implementation, or final integration. Spark and Mechanical
-Editor may write only after the primary fixes the transformation, owned files,
-preservation rules, edit count, and mechanical check.
+Editor may write only after the primary freezes their respective production goal or
+transformation, owned files, preservation rules, completion criteria, and mechanical
+check.
 
 ## Isolate the primary session
 
@@ -111,7 +134,8 @@ Use one sequence for every child:
 
 Two concurrent read-only children require mutually exclusive decisions, source scopes,
 and failure classes. Shared files, answer dependencies, edits, follow-ups, and
-adjudication remain serial.
+adjudication remain serial. Children do not communicate directly or form a fixed
+pipeline; the primary reviews and transfers any dependent result.
 
 ## Spawn with a stable configuration
 
@@ -143,10 +167,11 @@ permissions, sandbox, MCP servers, Skills, web, and shell environment. Role
 responsibility constrains side effects; it is not a tool allowlist. Never ask a child
 to inventory, install, or reconfigure capabilities.
 
-For repository relationships prefer Serena or CodeGraph when available; for exact
+For workspace relationships prefer Serena or CodeGraph when available; for exact
 configuration or logs use exact text search and targeted reads; for versioned APIs use
 official documentation or an inherited documentation capability. Missing indexes do
-not block bounded exact-text investigation.
+not block bounded exact-text investigation. Do not route such bounded direct lookups
+to Spark.
 
 ## Handle the native final
 
@@ -174,7 +199,8 @@ is allowed and does not participate in dispatch.
 
 ## Bound final ownership
 
-- Use zero children for the fast path and one child by default.
+- Use zero children unless a quality-preserving benefit is clear; after deciding to
+  delegate, use one child by default.
 - Use at most two concurrent children, only for independent read-only work.
 - Allow at most one corrective follow-up per child.
 - Keep all writes serial and inspect their complete diffs.

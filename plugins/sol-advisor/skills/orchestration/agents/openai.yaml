@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
   short_description: "Quality-first context and quota delegation"
-  default_prompt: "Use $orchestration by global default unless the project opts out; preserve task accuracy, keep design-dependent implementation primary, and delegate only when a bounded role reduces primary context or weighted quota cost, or adds material independent verification."
+  default_prompt: "Use $orchestration for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether optional subagent delegation preserves quality and saves context or quota; otherwise use zero children."
 
 policy:
   allow_implicit_invocation: true

@@ -8,13 +8,14 @@ benefit. Latency is a lower priority.
 The primary session owns requirements, architecture, design-dependent or iterative
 implementation, cross-module behavioral changes, final verification, integration, and
 release decisions. Children handle only bounded investigation, identified-source
-analysis, deterministic edits, independent verification, or evidence adjudication.
+analysis, focused local production, repeated mechanical transformations, independent
+verification, or evidence adjudication.
 
 ## Roles
 
 | Native agent type | Allowed model / effort | Scenario | Responsibility |
 |---|---|---|---|
-| `sol_advisor_spark_worker` | Spark/low, medium, or high | exact scouting or a small low-risk deterministic edit | read-only `SCOUT` or bounded serial `EDIT` |
+| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused serial `PRODUCE` |
 | `sol_advisor_investigator` | Luna/high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/High; Terra/xHigh or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
 | `sol_advisor_mechanical_editor` | Luna/xHigh or Max | large, fully determined repetitive edits | bounded serial edit |
@@ -27,9 +28,9 @@ Pinned roles receive only an effort override. Spark effort is selected before sp
 there is no literal automatic effort value. This follows the inheritance and override
 behavior documented in [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
-Spark and GPT-5.6 are treated as separate quota pools. Spark is reserved for light work
-that remains within its quality boundary; OpenAI describes it as a separate, faster,
-less-capable model with its own usage limits in
+Spark and GPT-5.6 are treated as separate quota pools. Spark is reserved for compact,
+focused production that remains within its quality boundary; OpenAI describes it as a
+separate, faster, less-capable model with its own usage limits in
 [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
 ## Quality and delegation gates
@@ -38,33 +39,46 @@ Implicit route evaluation is globally allowed when the plugin is installed and
 enabled. Delegation still requires all of the following:
 
 - the current project has not opted out;
-- one role owns a bounded question or deterministic edit;
+- one role owns a bounded question, focused local production goal, or repeated exact
+  transformation;
 - the selected model and effort are adequate for the risk;
 - scope, completion, stopping, and verification criteria are explicit;
 - first-pass accuracy and completion reliability are not expected to decline; and
 - delegation materially improves primary-context isolation, weighted quota cost, or
   independent verification.
 
-Use zero children when the primary already has bounded evidence, when dispatch would
-duplicate work, or when implementation needs continuing design judgment. Use one child
-by default. Use at most two concurrent children, only for read-only work with mutually
-exclusive decisions, source scopes, and failure classes.
+Use zero children when the primary already has bounded evidence, direct tools are
+sufficient, the benefit is unclear, dispatch would duplicate work, or implementation
+needs continuing design judgment. After deciding to delegate, use one child by default.
+Use at most two concurrent children, only for read-only work with mutually exclusive
+decisions, source scopes, and failure classes.
 
 Do not delegate implementation that requires architecture or design judgment,
 cross-module behavior changes, public-interface or dependency changes, repeated
 debugging, safety-critical implementation, or final integration. Spark and Mechanical
-Editor write only after the primary fixes the transformation, ownership, preservation
-rules, edit count, and mechanical check.
+Editor write only after the primary freezes their respective production goal or
+transformation, ownership, preservation rules, completion criteria, and mechanical
+check.
+
+## Optional context preflight
+
+When an obvious, cheap, read-only prerequisite could invalidate heavy retrieval or
+delegation, the primary may check it first. This is optional context hygiene, not a
+fixed phase, delegation trigger, or required order. When practical, complete items from
+a partial batch remain valid and only failed, missing, truncated, or invalidated items
+are retried.
 
 ## Global default and project opt-out
 
-Installing and enabling Sol Advisor globally allows automatic route evaluation in
-every project. A project does not need an `.agent` directory, an authorization file,
-or a managed `AGENTS.md` section. The quality and benefit gates still decide whether
-zero or one child is appropriate.
+Installing and enabling Sol Advisor makes its implicit-capable orchestration Skill
+eligible in repositories, non-Git directories, empty folders, and from-scratch
+workspaces. Eligibility permits automatic consideration but does not require a route
+record or child. A workspace does not need a project `.agent` directory, authorization
+file, or local `AGENTS.md`.
 
-To disable implicit Sol Advisor delegation for one project, create a schema-v1
-`.agent/authorizations.json` at that project root:
+To disable implicit Sol Advisor delegation for one workspace, create a schema-v1
+`.agent/authorizations.json` at its root. In a plain non-repository directory, the
+current working directory is the workspace root:
 
 ```json
 {
@@ -85,6 +99,12 @@ fails safe to primary-only execution until corrected.
 
 An explicit current-task request to use Sol Advisor or `$orchestration` bypasses a
 project opt-out. An explicit current-task instruction not to delegate always wins.
+
+Sol Advisor never writes user- or project-level `AGENTS.md` files or `.agent` context,
+authorization, plan, and handoff files. For durable project initialization and policy
+management, use Codex Project Context: it owns those project surfaces and emits a
+minimal integration section that Sol Advisor only reads. The two plugins remain
+independently usable.
 
 ## Native orchestration flow
 
@@ -150,8 +170,7 @@ fields:
   `TEST_GAPS`.
 - Final Adjudicator: `VERDICT`, `DECISIVE_EVIDENCE`, `REJECTED_ASSUMPTIONS`,
   `REQUIRED_ACTION`.
-- Spark `SCOUT`: `ANSWER`, `LOCATORS`; optional `COVERAGE`.
-- Spark `EDIT`: `CHANGED_FILES`, `CHECK`; optional `DEVIATIONS`.
+- Spark `PRODUCE`: `CHANGED_FILES`, `CHECK`; optional `DEVIATIONS`, `UNVERIFIED`.
 
 Detailed dispatch fields, stopping rules, and soft output budgets are in
 `plugins/sol-advisor/skills/orchestration/references/role-contracts.md` and are loaded
@@ -179,30 +198,34 @@ files omit MCP, Skill, web, shell-environment, and sandbox overrides, so the run
 provides inherited capabilities.
 
 Role responsibility constrains behavior rather than tools. Investigator, Context
-Analyst, Local Code Verifier, Final Adjudicator, and Spark `SCOUT` remain read-only.
-Mechanical Editor and Spark `EDIT` may modify only their assigned files.
+Analyst, Local Code Verifier, and Final Adjudicator remain read-only. Mechanical Editor
+and Spark `PRODUCE` may modify only their assigned files.
 
 The plugin continues to bundle optional Context7, Exa, and MarkItDown MCP companions.
 It does not require a particular index or deny other inherited capabilities.
 
 ## Route boundaries
 
-- Spark `SCOUT`: exact lookup, inventory, or narrow path mapping; no external research
-  or design judgment.
-- Spark `EDIT`: at most 3 files and 19 same-type points; no architecture, dependency,
-  security, authorization, concurrency, state, data, migration, or public-API work.
+- Available MCP, index, or exact reads in the primary session handle bounded symbol,
+  relationship, configuration, and log lookup; Spark does not scout.
+- Spark `PRODUCE`: one frozen local production goal with compact named inputs,
+  explicitly owned files, mechanical acceptance, and no architecture, public-API,
+  dependency, security, authentication, concurrency, state, migration, cross-module,
+  search, or continuing-debugging requirement.
 - Investigator: unknown evidence locations or current official-source reconciliation.
 - Context Analyst: already identified long sources; Luna/High for extraction,
   Terra/xHigh or Max for synthesis.
-- Mechanical Editor: at least 4 files, or at least 20 same-type points across at least
-  2 files.
+- Mechanical Editor: one fully determined transformation repeated across known
+  locations; not one focused local behavior-production goal.
 - Local Code Verifier: Luna for routine through difficult bounded review; Sol only for
   high-risk or irreversible verification.
 - Final Adjudicator: genuine evidence conflict or critical decision only.
 
-Investigator and Context Analyst are alternative discovery lanes. Spark `EDIT` and
-Mechanical Editor never share the same batch. An edit does not automatically trigger a
-verifier, and Final Adjudicator is not a routine closing step.
+Investigator and Context Analyst are alternative discovery lanes. Spark `PRODUCE` and
+Mechanical Editor are mutually exclusive by work type and never share the same batch.
+Children do not communicate directly; the primary reviews and transfers dependent
+results. An edit does not automatically trigger a verifier, and Final Adjudicator is
+not a routine closing step.
 
 ## Installation
 
@@ -213,8 +236,8 @@ codex plugin marketplace add shjqwert/sol-advisor-auto --ref main
 codex plugin add sol-advisor@sol-advisor
 ```
 
-Plugin installation does not write user-owned custom-agent files. Install the six
-native templates separately:
+Plugin installation does not write user- or project-owned instructions or custom-agent
+files. Install the six native templates separately:
 
 ```sh
 plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')"
@@ -223,16 +246,17 @@ sh "$plugin_dir/scripts/install-agents.sh"
 sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
-For an existing exact Sol Advisor 0.7 installation, use the managed upgrade:
+For an existing exact recognized Sol Advisor installation, use the managed upgrade:
 
 ```sh
 sh "$plugin_dir/scripts/install-agents.sh" --upgrade-managed
 sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
-Managed upgrade recognizes only exact shipped 0.7 template hashes, stages all six new
-files, adds Spark, and rolls back the batch on failure. Any user-modified or unknown
-file aborts before mutation. Normal installation still refuses every differing file.
+Managed upgrade recognizes only exact shipped template hashes, including the managed
+0.7 set and the changed 0.9.4 Spark and Mechanical Editor templates. It stages all six
+files and rolls back the batch on failure. Any user-modified or unknown file aborts
+before mutation. Normal installation still refuses every differing file.
 
 Windows PowerShell example:
 
@@ -285,9 +309,10 @@ git diff --check
 ```
 
 The verifier checks the six role configurations, specialized prompts, documented and
-rejected routes, exact managed upgrades, rollback, runtime configuration stability,
-global-default and project-opt-out policy, native lifecycle, static Python checks, and
-retired sidecar absence. It invokes no model or paid API.
+rejected routes, exact managed upgrades and rollback, runtime configuration stability,
+global-default and workspace-opt-out policy, the no-`AGENTS.md`-writer boundary,
+native lifecycle, static Python checks, and retired sidecar absence. It invokes no
+model or paid API.
 
 Actual native-agent smoke tests can consume model quota and require separate user
 authorization.

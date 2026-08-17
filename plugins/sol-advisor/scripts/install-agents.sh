@@ -16,8 +16,8 @@ Options:
   --target-dir <path>  Explicit destination directory (absolute or relative).
   --check              Verify that every destination file already matches exactly;
                        do not create or copy anything.
-  --upgrade-managed    Replace only exact known Sol Advisor 0.7 templates, add the
-                       Spark template, and roll back the batch on failure.
+  --upgrade-managed    Replace only exact recognized Sol Advisor templates, add any
+                       missing role, and roll back the batch on failure.
   --help               Show this help text.
 EOF
 }
@@ -105,7 +105,7 @@ agent_files = (
     "sol-advisor-spark-worker.toml",
 )
 
-# Accept exact LF and CRLF byte forms of the shipped 0.7 templates. A differing or
+# Accept exact LF and CRLF byte forms of recognized managed templates. A differing or
 # user-modified file is never treated as managed merely because its TOML is similar.
 legacy_hashes = {
     "sol-advisor-investigator.toml": {
@@ -119,6 +119,8 @@ legacy_hashes = {
     "sol-advisor-mechanical-editor.toml": {
         "6a6cfa03653344fbc4de7971e529e63b52e7aba7b8edef8342b1410869381475",
         "b2281ec27766dcfd32ea9dda6032da069c37da3f0ab7590936b07804869d0826",
+        "ab4cb064cbc71d578e8352d6ee42b4f0153795e47e99a7530a1e30a8aebefc0f",
+        "064531ba81ea21ab2ac268c7f59acf0373279ca54f416616fa9b238fabd8bfc9",
     },
     "sol-advisor-local-code-verifier.toml": {
         "b4468d367ece3eb151c45c422e21feba719dc69f8029c209af50e34218c0e201",
@@ -127,6 +129,10 @@ legacy_hashes = {
     "sol-advisor-final-adjudicator.toml": {
         "e4fac299bb1d4780d5ee81e5f740056aa2db744e81668322670a10347d2342ce",
         "32d8478957cba7b7e254f0745b2ff70ee01cfcc2349b353852240bfb1228265d",
+    },
+    "sol-advisor-spark-worker.toml": {
+        "36be86456404373582108586c80b0043ee03ea10b2336362a3c87148412603ca",
+        "66f579e38f26252cd78bf123c8a7e3c0db3dd3e6bc63291e2e7d489b4518b68d",
     },
 }
 

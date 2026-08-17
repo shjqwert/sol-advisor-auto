@@ -25,6 +25,7 @@ python_runner=$script_dir/run-python.sh
 search_preflight=$script_dir/prepare-repo-search.py
 templates=$plugin_dir/agents
 legacy_templates=$script_dir/fixtures/agents-0.7.0
+previous_templates=$script_dir/fixtures/agents-0.9.4
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
@@ -55,11 +56,17 @@ for required in "$installer" "$route_validator" "$runtime_inspector" "$python_ru
   test -f "$required" || fail "required file missing: $required"
 done
 test -d "$legacy_templates" || fail "legacy managed-upgrade fixtures are missing"
+test -d "$previous_templates" || fail "previous managed-upgrade fixtures are missing"
 
 for retired in "$script_dir/validate-dispatch-plan.py" "$script_dir/validate-agent-result.py" "$script_dir/sol_advisor_paths.py"; do
   test ! -e "$retired" || fail "retired runtime protocol file remains: $retired"
 done
 pass "retired runtime dispatch, result, and state scripts remain absent"
+
+for retired_writer in "$script_dir/install-global-trigger.sh" "$plugin_dir/templates/global-agents-block.md"; do
+  test ! -e "$retired_writer" || fail "retired AGENTS.md writer remains: $retired_writer"
+done
+pass "Sol Advisor ships no user- or project-level AGENTS.md writer"
 
 sh "$python_runner" - "$manifest" <<'PY'
 import json
@@ -67,8 +74,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.9.0+"):
-    raise SystemExit("manifest version was not advanced to 0.9.0")
+if not manifest.get("version", "").startswith("0.9.7+"):
+    raise SystemExit("manifest version was not advanced to 0.9.7")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -86,8 +93,13 @@ prompts = " ".join(interface.get("defaultPrompt", [])).lower()
 for required in ("accuracy", "primary-context", "weighted quota", "one native final result"):
     if required not in prompts:
         raise SystemExit(f"manifest prompts do not describe the 0.9 routing goals: {required}")
+for required in ("consider a bounded child", "use zero children"):
+    if required not in prompts:
+        raise SystemExit(f"manifest prompts do not describe optional delegation: {required}")
+if "check cheap hard prerequisites" in prompts:
+    raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, interface, and 0.9 routing metadata"
+pass "plugin manifest version, ownership, interface, and 0.9.7 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -111,13 +123,14 @@ if set(servers) != {"context7", "exa", "markitdown"}:
 PY
 pass "existing Context7, Exa, and MarkItDown MCP configuration"
 
-sh "$python_runner" - "$templates" "$legacy_templates" <<'PY'
+sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" <<'PY'
 from pathlib import Path
 import sys
 import tomllib
 
 templates = Path(sys.argv[1])
 legacy_templates = Path(sys.argv[2])
+previous_templates = Path(sys.argv[3])
 roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
@@ -150,10 +163,10 @@ universal_retired = (
 role_required = {
     "sol-advisor-investigator.toml": ("search_scope", "version_date_boundary", "answer", "evidence", "600-1400"),
     "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "gpt-5.6-luna", "gpt-5.6-terra", "900-2200"),
-    "sol-advisor-mechanical-editor.toml": ("owned_files", "edit_point_count", "changed_files", "at least four files", "500-1200"),
+    "sol-advisor-mechanical-editor.toml": ("owned_files", "repetition_scope", "repeated across known locations", "changed_files", "500-1200"),
     "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "gpt-5.6-luna", "gpt-5.6-sol", "test_gaps", "700-1800"),
     "sol-advisor-final-adjudicator.toml": ("conflicting_claims", "evidence_locators", "ship", "fix_first", "rethink", "700-1600"),
-    "sol-advisor-spark-worker.toml": ("mode: scout", "mode: edit", "at most three files", "nineteen", "400-900"),
+    "sol-advisor-spark-worker.toml": ("mode: produce", "goal", "owned_files", "input_facts", "reference_locators", "acceptance", "preserve", "check", "done_when", "stop", "unverified", "400-900"),
 }
 
 for filename, (name, model) in roles.items():
@@ -187,8 +200,13 @@ if legacy != set(roles) - {"sol-advisor-spark-worker.toml"}:
     raise SystemExit("legacy upgrade fixture set is incomplete")
 for path in legacy_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
+previous = {path.name for path in previous_templates.glob("*.toml")}
+if previous != {"sol-advisor-mechanical-editor.toml", "sol-advisor-spark-worker.toml"}:
+    raise SystemExit("0.9.4 managed-upgrade fixture set is incomplete")
+for path in previous_templates.glob("*.toml"):
+    tomllib.loads(path.read_text(encoding="utf-8"))
 PY
-pass "six role configurations, dynamic model profiles, specialized prompts, and 0.7 fixtures"
+pass "six role configurations, dynamic model profiles, specialized prompts, and managed fixtures"
 
 valid_routes='sol_advisor_spark_worker openai gpt-5.3-codex-spark low
 sol_advisor_spark_worker openai gpt-5.3-codex-spark medium
@@ -286,6 +304,18 @@ after_conflict=$(hash_agents "$upgrade_conflict")
 [ "$before_conflict" = "$after_conflict" ] || fail "managed conflict caused partial replacement"
 test ! -e "$upgrade_conflict/sol-advisor-spark-worker.toml" || fail "managed conflict caused partial Spark install"
 pass "0.7 managed upgrade, exact-hash safety, rollback, and all-or-nothing conflict handling"
+
+previous_upgrade=$tmp_dir/managed-upgrade-0.9.4
+mkdir "$previous_upgrade"
+for agent_file in $agent_files; do cp "$templates/$agent_file" "$previous_upgrade/$agent_file"; done
+cp "$previous_templates/sol-advisor-mechanical-editor.toml" "$previous_upgrade/sol-advisor-mechanical-editor.toml"
+cp "$previous_templates/sol-advisor-spark-worker.toml" "$previous_upgrade/sol-advisor-spark-worker.toml"
+sh "$installer" --target-dir "$previous_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$previous_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$previous_upgrade/$agent_file" || fail "0.9.4 managed upgrade differs: $agent_file"
+done
+pass "0.9.4 managed Spark and Mechanical Editor upgrade"
 
 index_target=$tmp_dir/index-plan
 mkdir "$index_target"
@@ -387,8 +417,12 @@ grep -Fq 'Development-time static validation' "$skill" || fail "missing static P
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
 grep -Fq 'globally allowed' "$skill" || fail "missing global implicit route-evaluation default"
 grep -Fq 'Do not require a project `.agent` directory' "$skill" || fail "missing no-project-bootstrap rule"
+grep -Fq 'empty folders' "$skill" || fail "missing empty-folder automatic-evaluation scope"
+grep -Fq 'non-Git directories' "$skill" || fail "missing non-Git automatic-evaluation scope"
+grep -Fq 'from-scratch' "$skill" || fail "missing from-scratch automatic-evaluation scope"
 grep -Fq 'authorizations.solAdvisor.implicitDelegation` exactly `false`' "$skill" || fail "missing project opt-out value"
-grep -Fq 'Exact `true`, a missing file, or a missing key' "$skill" || fail "missing default-allow compatibility rule"
+grep -Fq 'Exact `true`, a missing file,' "$skill" || fail "missing default-allow compatibility rule"
+grep -Fq 'or a missing key leaves the global default enabled' "$skill" || fail "missing default-allow compatibility rule"
 grep -Fq 'agents.enabled = false' "$skill" || fail "missing Codex multi-agent hard-disable rule"
 grep -Fq 'invalid or unreadable' "$skill" || fail "missing invalid-override fail-safe rule"
 if grep -Fq 'spawn no child unless both signals are present' "$skill"; then fail "retired dual authorization gate remains"; fi
@@ -399,6 +433,70 @@ grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child r
 grep -Fq 'Do not use Final Adjudicator as' "$skill" || fail "missing fixed-chain prevention"
 grep -Fq 'Required final fields' "$contracts" || fail "missing role-specific required fields"
 grep -Fq 'Optional when nonempty' "$contracts" || fail "missing role-specific optional fields"
+if grep -Fq 'install-global-trigger.sh' "$readme"; then fail "README still installs a global AGENTS.md writer"; fi
+grep -Fq 'never writes user- or project-level `AGENTS.md`' "$readme" || fail "README lacks the AGENTS.md ownership boundary"
+grep -Fq 'Never create, modify, or remove a user-' "$skill" || fail "Skill lacks the no-AGENTS-writer boundary"
+grep -Fq 'Global eligibility permits automatic' "$skill" || fail "missing eligibility-not-obligation rule"
+grep -Fq 'optional context hygiene, not a fixed' "$skill" || fail "missing optional-preflight boundary"
+grep -Fq 'Do not require the primary to report or persist' "$skill" || fail "missing no-route-record rule"
+grep -Fq 'Children do not communicate directly' "$skill" || fail "missing child-communication boundary"
+grep -Fq 'Do not route such bounded direct lookups' "$skill" || fail "missing primary direct-tool boundary"
+grep -Fq 'Optional context preflight' "$readme" || fail "README lacks optional preflight guidance"
+grep -Fq 'Use $orchestration for engineering work' "$metadata" || fail "Skill metadata lacks engineering-work invocation wording"
+grep -Fq 'otherwise use zero children' "$metadata" || fail "Skill metadata lacks zero-child default"
+if grep -Fq 'cheap hard prerequisites before loading phase-specific' "$metadata"; then fail "Skill metadata still mandates phase preflight"; fi
+
+for active in "$skill" "$contracts" "$readme" "$templates/sol-advisor-spark-worker.toml" "$templates/sol-advisor-mechanical-editor.toml"; do
+  for retired_route in 'MODE: SCOUT' 'MODE: EDIT' EDIT_POINT_COUNT 'at most three files' nineteen 'at least four files' 'twenty same-type'; do
+    if grep -Fq "$retired_route" "$active"; then fail "retired count-based Spark or Mechanical route remains in $active: $retired_route"; fi
+  done
+done
+grep -Fq 'MODE: PRODUCE' "$skill" || fail "Skill lacks Spark PRODUCE route"
+grep -Fq 'MODE: PRODUCE' "$contracts" || fail "contracts lack Spark PRODUCE mode"
+grep -Fq 'MODE: PRODUCE' "$templates/sol-advisor-spark-worker.toml" || fail "Spark prompt lacks PRODUCE mode"
+grep -Fq 'REPETITION_SCOPE' "$contracts" || fail "Mechanical Editor contract lacks nature-based repetition scope"
+grep -Fq 'REPETITION_SCOPE' "$templates/sol-advisor-mechanical-editor.toml" || fail "Mechanical Editor prompt lacks nature-based repetition scope"
+
+sh "$python_runner" - "$skill" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+skill = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.match(r'^---\n.*?^description: "([^"]+)"\n---\n', skill, re.MULTILINE | re.DOTALL)
+if not match:
+    raise SystemExit("could not parse Skill frontmatter description")
+description = match.group(1)
+front = description.lower()
+if len(description) > 240:
+    raise SystemExit(f"frontmatter description exceeds the 240-character catalog budget: {len(description)}")
+for phrase in (
+    "use for engineering work",
+    "long sources",
+    "unknown search",
+    "focused production",
+    "repeated edits",
+    "independent review",
+    "decide whether optional subagent delegation",
+    "preserves quality",
+    "saves context or quota",
+    "zero children is valid",
+):
+    if phrase not in front:
+        raise SystemExit(f"compact optional trigger guidance is missing: {phrase}")
+scenario_specific = ("p" + "df", "note" + "booklm", "ch" + "ip")
+for phrase in (
+    "must delegate",
+    "always delegate",
+    "evaluate sol advisor before",
+    "empty folders",
+    "non-git",
+    "from-scratch",
+    *scenario_specific,
+):
+    if phrase in front:
+        raise SystemExit(f"frontmatter contains a forced or scenario-specific trigger: {phrase}")
+PY
 
 for document in "$skill" "$contracts" "$readme"; do
   for retired_field in RETURN_MODE TASK_UNDERSTANDING 'ANSWER/VERDICT' 'DECISION-CHANGING FINDINGS'; do
@@ -411,6 +509,12 @@ for agent_file in $agent_files; do
   done
 done
 pass "quality gate, specialized contracts, stable spawn configuration, and native lifecycle documentation"
+
+deprecated_tool=$(printf '%s%s' 'Notebook' 'LM')
+if grep -R -Fiq --exclude-dir='fixtures' --exclude-dir='__pycache__' "$deprecated_tool" "$plugin_dir" "$readme"; then
+  fail "tool-specific trigger remains in active plugin content: $deprecated_tool"
+fi
+pass "trigger policy remains tool-neutral"
 
 for retired_text in 'validate-dispatch-plan.py' 'validate-agent-result.py' 'sol_advisor_paths.py' 'RESULT PATH' 'RESPONSE TOKEN' 'pending_batch' '.sol-advisor/runs' '<git-dir>/sol-advisor/runs'; do
   if grep -R -Fq --exclude='verify.sh' --exclude-dir='fixtures' --exclude-dir='__pycache__' "$retired_text" "$plugin_dir" "$readme"; then
@@ -438,4 +542,4 @@ grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforc
 [ "$(wc -l < "$skill")" -lt 500 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
 pass "static Python checks, shell syntax, LF policy, and Skill size budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.9 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.9.7 no-cost checks completed in $tmp_dir"

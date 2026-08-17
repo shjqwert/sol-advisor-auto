@@ -1,6 +1,6 @@
 # Functional agent contracts
 
-Read only the selected role or Spark mode. Send the exact required fields in the listed
+Read only the selected role contract. Send the exact required fields in the listed
 order, followed by any task-specific project constraints. Do not send conversation
 history, raw source contents, or the primary's reasoning when locators are sufficient.
 
@@ -69,14 +69,14 @@ inference.
 
 ## Mechanical Editor
 
-Use `sol_advisor_mechanical_editor` with Luna/xhigh or max only for a fully determined
-edit covering at least four files, or at least twenty same-type points across two or
-more files. Never share the same edit batch with Spark or another writer.
+Use `sol_advisor_mechanical_editor` with Luna/xhigh or max only for one fully determined
+transformation repeated across known locations. Do not use it for one focused local
+behavior-production goal, and never share the same edit batch with another writer.
 
 ~~~text
 TRANSFORMATION: <exact deterministic transformation>
 OWNED_FILES: <exclusive path list>
-EDIT_POINT_COUNT: <verified file and same-type point counts>
+REPETITION_SCOPE: <known locations or file classes receiving the same transformation>
 PRESERVE: <interfaces, formatting, and unrelated work to preserve>
 CHECK: <exact mechanical command and expected result>
 DONE_WHEN: <all edits and checks required for COMPLETE>
@@ -132,51 +132,37 @@ Required final fields: `STATUS`, `VERDICT`, `DECISIVE_EVIDENCE`,
 Soft budget: 700-1600 characters. Remain read-only, consider every supplied branch,
 and choose exactly `SHIP`, `FIX_FIRST`, or `RETHINK`.
 
-## Spark Worker: SCOUT
+## Spark Worker: PRODUCE
 
-Use `sol_advisor_spark_worker` with Spark/low for exact lookup or inventory,
-Spark/medium for narrow path mapping, or Spark/high for bounded multi-file mapping.
-Do not use it for current external research, broad synthesis, design judgment, or risk
-adjudication.
-
-~~~text
-MODE: SCOUT
-QUESTION: <one exact lookup or mapping question>
-SCOPE: <exclusive paths and exclusions>
-EXACT_TARGETS: <names, patterns, symbols, or file classes>
-DONE_WHEN: <coverage required for COMPLETE>
-STOP: <ambiguity, expansion, external research, or reasoning condition>
-~~~
-
-Required final fields: `STATUS`, `ANSWER`, `LOCATORS`.
-
-Optional when nonempty: `COVERAGE`.
-
-Soft budget: 400-900 characters. Remain read-only.
-
-## Spark Worker: EDIT
-
-Use `sol_advisor_spark_worker` with Spark/medium for a single-file exact edit or
-Spark/high for a low-risk edit covering at most three files and nineteen same-type
-points. Use no Spark/xhigh route.
+Use `sol_advisor_spark_worker` with Spark/low for template filling, simple declarations,
+or one small artifact; Spark/medium for a focused local code change and its specified
+check; or Spark/high for a larger output serving the same frozen local goal. High
+effort does not compensate for incomplete facts, uncertain behavior, or design work.
+Use no Spark/xhigh route.
 
 ~~~text
-MODE: EDIT
-TRANSFORMATION: <exact deterministic transformation>
-OWNED_FILES: <one to three exclusive paths>
-EDIT_POINT_COUNT: <verified file and same-type point counts>
-PRESERVE: <interfaces, formatting, and unrelated work to preserve>
+MODE: PRODUCE
+GOAL: <one frozen local production goal>
+OWNED_FILES: <exclusive paths that may be created or modified>
+INPUT_FACTS: <confirmed facts that require no reinterpretation>
+REFERENCE_LOCATORS: <small set of exact files or symbols the child may read>
+ACCEPTANCE: <mechanically decidable behavior or output requirements>
+PRESERVE: <interfaces, formatting, unrelated work, and existing changes>
 CHECK: <exact mechanical command and expected result>
-STOP: <architecture, dependency, security, authorization, concurrency, state, data,
-migration, public-API, judgment, or expansion condition>
+DONE_WHEN: <all output and check conditions required for COMPLETE>
+STOP: <search, design, architecture, public-API, dependency, security, authentication,
+concurrency, state, data-migration, cross-module, expansion, or repeated-debugging condition>
 ~~~
 
 Required final fields: `STATUS`, `CHANGED_FILES`, `CHECK`.
 
-Optional when nonempty: `DEVIATIONS`.
+Optional when nonempty: `DEVIATIONS`, `UNVERIFIED`.
 
-Soft budget: 400-900 characters. Capture the pre-spawn worktree state. The primary
-must inspect the complete actual diff and rerun CHECK after return.
+Soft budget: 400-900 characters. Capture the pre-spawn worktree state, read only the
+named owned files and reference locators, and do not search unknown locations or
+interpret long material. If CHECK fails and correction requires broader search,
+redesign, or continuing debugging, return `INCOMPLETE` or `BLOCKED`. The primary must
+inspect the complete actual diff and rerun CHECK after return.
 
 ## One corrective follow-up
 
