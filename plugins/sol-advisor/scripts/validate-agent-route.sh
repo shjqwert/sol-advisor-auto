@@ -26,14 +26,19 @@ case "$role:$provider:$model:$effort" in
   sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:low | \
   sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:medium | \
   sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:high | \
+  sol_advisor_investigator:openai:gpt-5.6-luna:medium | \
   sol_advisor_investigator:openai:gpt-5.6-luna:high | \
   sol_advisor_investigator:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_investigator:openai:gpt-5.6-luna:max | \
+  sol_advisor_mechanical_editor:openai:gpt-5.6-luna:high | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:max | \
+  sol_advisor_context_analyst:openai:gpt-5.6-luna:medium | \
   sol_advisor_context_analyst:openai:gpt-5.6-luna:high | \
+  sol_advisor_context_analyst:openai:gpt-5.6-terra:high | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:xhigh | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:max | \
+  sol_advisor_local_code_verifier:openai:gpt-5.6-luna:medium | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-luna:high | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-luna:max | \

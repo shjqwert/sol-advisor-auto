@@ -30,6 +30,14 @@ manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
+contract_dir=$plugin_dir/skills/orchestration/references/roles
+investigator_contract=$contract_dir/investigator.md
+context_contract=$contract_dir/context-analyst.md
+mechanical_contract=$contract_dir/mechanical-editor.md
+verifier_contract=$contract_dir/local-code-verifier.md
+adjudicator_contract=$contract_dir/final-adjudicator.md
+spark_contract=$contract_dir/spark-worker.md
+role_contract_files="$investigator_contract $context_contract $mechanical_contract $verifier_contract $adjudicator_contract $spark_contract"
 metadata=$plugin_dir/skills/orchestration/agents/openai.yaml
 repo_root=$(CDPATH= cd "$plugin_dir/../.." && pwd) || exit 1
 readme=$repo_root/README.md
@@ -52,7 +60,7 @@ trap cleanup 0 HUP INT TERM
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
 case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-for required in "$installer" "$route_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$contracts" "$metadata" "$readme" "$gitattributes"; do
+for required in "$installer" "$route_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$contracts" $role_contract_files "$metadata" "$readme" "$gitattributes"; do
   test -f "$required" || fail "required file missing: $required"
 done
 test -d "$legacy_templates" || fail "legacy managed-upgrade fixtures are missing"
@@ -74,8 +82,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.9.7+"):
-    raise SystemExit("manifest version was not advanced to 0.9.7")
+if not manifest.get("version", "").startswith("0.10.0+"):
+    raise SystemExit("manifest version was not advanced to 0.10.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -90,7 +98,7 @@ interface = manifest.get("interface", {})
 if not interface.get("displayName") or not interface.get("defaultPrompt"):
     raise SystemExit("existing plugin interface was removed")
 prompts = " ".join(interface.get("defaultPrompt", [])).lower()
-for required in ("accuracy", "primary-context", "weighted quota", "one native final result"):
+for required in ("accuracy", "first-pass completion", "expected total workflow cost", "one native final result"):
     if required not in prompts:
         raise SystemExit(f"manifest prompts do not describe the 0.9 routing goals: {required}")
 for required in ("consider a bounded child", "use zero children"):
@@ -99,7 +107,7 @@ for required in ("consider a bounded child", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, interface, and 0.9.7 routing metadata"
+pass "plugin manifest version, ownership, interface, and 0.10.0 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -161,10 +169,10 @@ universal_retired = (
     "decision-changing findings",
 )
 role_required = {
-    "sol-advisor-investigator.toml": ("search_scope", "version_date_boundary", "answer", "evidence", "600-1400"),
-    "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "gpt-5.6-luna", "gpt-5.6-terra", "900-2200"),
-    "sol-advisor-mechanical-editor.toml": ("owned_files", "repetition_scope", "repeated across known locations", "changed_files", "500-1200"),
-    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "gpt-5.6-luna", "gpt-5.6-sol", "test_gaps", "700-1800"),
+    "sol-advisor-investigator.toml": ("search_scope", "version_date_boundary", "medium for straightforward", "high for cross-module", "answer", "evidence", "600-1400"),
+    "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "medium for straightforward", "terra at high", "900-2200"),
+    "sol-advisor-mechanical-editor.toml": ("owned_files", "repetition_scope", "high for routine", "boundary-heavy", "changed_files", "500-1200"),
+    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "medium for routine", "high for multiple", "gpt-5.6-sol", "test_gaps", "700-1800"),
     "sol-advisor-final-adjudicator.toml": ("conflicting_claims", "evidence_locators", "ship", "fix_first", "rethink", "700-1600"),
     "sol-advisor-spark-worker.toml": ("mode: produce", "goal", "owned_files", "input_facts", "reference_locators", "acceptance", "preserve", "check", "done_when", "stop", "unverified", "400-900"),
 }
@@ -206,19 +214,24 @@ if previous != {"sol-advisor-mechanical-editor.toml", "sol-advisor-spark-worker.
 for path in previous_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
 PY
-pass "six role configurations, dynamic model profiles, specialized prompts, and managed fixtures"
+pass "six role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
 
 valid_routes='sol_advisor_spark_worker openai gpt-5.3-codex-spark low
 sol_advisor_spark_worker openai gpt-5.3-codex-spark medium
 sol_advisor_spark_worker openai gpt-5.3-codex-spark high
+sol_advisor_investigator openai gpt-5.6-luna medium
 sol_advisor_investigator openai gpt-5.6-luna high
 sol_advisor_investigator openai gpt-5.6-luna xhigh
 sol_advisor_investigator openai gpt-5.6-luna max
+sol_advisor_context_analyst openai gpt-5.6-luna medium
 sol_advisor_context_analyst openai gpt-5.6-luna high
+sol_advisor_context_analyst openai gpt-5.6-terra high
 sol_advisor_context_analyst openai gpt-5.6-terra xhigh
 sol_advisor_context_analyst openai gpt-5.6-terra max
+sol_advisor_mechanical_editor openai gpt-5.6-luna high
 sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh
 sol_advisor_mechanical_editor openai gpt-5.6-luna max
+sol_advisor_local_code_verifier openai gpt-5.6-luna medium
 sol_advisor_local_code_verifier openai gpt-5.6-luna high
 sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
 sol_advisor_local_code_verifier openai gpt-5.6-luna max
@@ -232,9 +245,11 @@ printf '%s\n' "$valid_routes" | while read -r role provider model effort; do
 done
 
 invalid_routes='sol_advisor_spark_worker openai gpt-5.3-codex-spark xhigh
-sol_advisor_investigator openai gpt-5.6-luna medium
+sol_advisor_investigator openai gpt-5.6-luna low
 sol_advisor_context_analyst openai gpt-5.6-luna xhigh
-sol_advisor_context_analyst openai gpt-5.6-terra high
+sol_advisor_context_analyst openai gpt-5.6-luna max
+sol_advisor_context_analyst openai gpt-5.6-terra medium
+sol_advisor_mechanical_editor openai gpt-5.6-luna medium
 sol_advisor_mechanical_editor openai gpt-5.6-terra max
 sol_advisor_local_code_verifier openai gpt-5.6-sol medium
 sol_advisor_local_code_verifier openai gpt-5.6-sol high
@@ -247,7 +262,7 @@ printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
     fail "undocumented route accepted: $role $provider $model $effort"
   fi
 done
-pass "quality-preserving six-role route matrix and invalid-route rejection"
+pass "quality-gated cost-aware route matrix and invalid-route rejection"
 
 clean_target=$tmp_dir/clean-install
 sh "$installer" --target-dir "$clean_target" >/dev/null
@@ -410,8 +425,10 @@ done
 
 grep -Fq 'fork_turns: "none"' "$skill" || fail "missing isolated child spawn rule"
 grep -Fq 'Pass both the exact `model`' "$skill" || fail "missing explicit dynamic model and effort rule"
-grep -Fq 'weighted quota cost' "$skill" || fail "missing weighted quota objective"
-grep -Fq 'accuracy and completion' "$skill" || fail "missing quality-first priority"
+grep -Fq 'expected total workflow cost' "$skill" || fail "missing complete-workflow cost objective"
+grep -Fq 'task accuracy and first-pass completion as hard gates' "$skill" || fail "missing quality hard gate"
+grep -Fq 'Do not infer ChatGPT subscription credit multipliers' "$skill" || fail "missing subscription-pricing evidence boundary"
+grep -Fq 'available capacity, not a target to fill' "$skill" || fail "missing large-context capacity boundary"
 grep -Fq 'Keep complex implementation primary' "$skill" || fail "missing complex implementation boundary"
 grep -Fq 'Development-time static validation' "$skill" || fail "missing static Python-validation allowance"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
@@ -431,8 +448,29 @@ grep -Fq 'instruction not to' "$skill" || fail "missing explicit no-delegation o
 grep -Fq 'Use zero children' "$skill" || fail "missing zero-child fast path"
 grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child read-only cap"
 grep -Fq 'Do not use Final Adjudicator as' "$skill" || fail "missing fixed-chain prevention"
-grep -Fq 'Required final fields' "$contracts" || fail "missing role-specific required fields"
-grep -Fq 'Optional when nonempty' "$contracts" || fail "missing role-specific optional fields"
+contract_count=$(find "$contract_dir" -maxdepth 1 -type f -name '*.md' | awk 'END { print NR + 0 }')
+[ "$contract_count" -eq 6 ] || fail "progressive role-contract set must contain exactly six files"
+for mapping in \
+  'sol_advisor_investigator:roles/investigator.md' \
+  'sol_advisor_context_analyst:roles/context-analyst.md' \
+  'sol_advisor_mechanical_editor:roles/mechanical-editor.md' \
+  'sol_advisor_local_code_verifier:roles/local-code-verifier.md' \
+  'sol_advisor_final_adjudicator:roles/final-adjudicator.md' \
+  'sol_advisor_spark_worker:roles/spark-worker.md'; do
+  role=${mapping%%:*}
+  path=${mapping#*:}
+  grep -Fq "\`$role\`" "$contracts" || fail "contract index lacks role: $role"
+  grep -Fq "($path)" "$contracts" || fail "contract index lacks selected role path: $path"
+done
+grep -Fq 'load exactly one selected file' "$skill" || fail "Skill lacks selected-only contract loading"
+grep -Fq 'do not load the other role files' "$contracts" || fail "contract index lacks progressive-disclosure boundary"
+for contract in $role_contract_files; do
+  grep -Fq 'Required final fields' "$contract" || fail "missing required fields in $contract"
+  [ "$(wc -l < "$contract")" -lt 80 ] || fail "selected role contract is too large: $contract"
+done
+for contract in "$investigator_contract" "$context_contract" "$mechanical_contract" "$verifier_contract" "$spark_contract"; do
+  grep -Fq 'Optional when nonempty' "$contract" || fail "missing optional-field rule in $contract"
+done
 if grep -Fq 'install-global-trigger.sh' "$readme"; then fail "README still installs a global AGENTS.md writer"; fi
 grep -Fq 'never writes user- or project-level `AGENTS.md`' "$readme" || fail "README lacks the AGENTS.md ownership boundary"
 grep -Fq 'Never create, modify, or remove a user-' "$skill" || fail "Skill lacks the no-AGENTS-writer boundary"
@@ -446,15 +484,15 @@ grep -Fq 'Use $orchestration for engineering work' "$metadata" || fail "Skill me
 grep -Fq 'otherwise use zero children' "$metadata" || fail "Skill metadata lacks zero-child default"
 if grep -Fq 'cheap hard prerequisites before loading phase-specific' "$metadata"; then fail "Skill metadata still mandates phase preflight"; fi
 
-for active in "$skill" "$contracts" "$readme" "$templates/sol-advisor-spark-worker.toml" "$templates/sol-advisor-mechanical-editor.toml"; do
+for active in "$skill" "$contracts" $role_contract_files "$readme" "$templates/sol-advisor-spark-worker.toml" "$templates/sol-advisor-mechanical-editor.toml"; do
   for retired_route in 'MODE: SCOUT' 'MODE: EDIT' EDIT_POINT_COUNT 'at most three files' nineteen 'at least four files' 'twenty same-type'; do
     if grep -Fq "$retired_route" "$active"; then fail "retired count-based Spark or Mechanical route remains in $active: $retired_route"; fi
   done
 done
 grep -Fq 'MODE: PRODUCE' "$skill" || fail "Skill lacks Spark PRODUCE route"
-grep -Fq 'MODE: PRODUCE' "$contracts" || fail "contracts lack Spark PRODUCE mode"
+grep -Fq 'MODE: PRODUCE' "$spark_contract" || fail "Spark contract lacks PRODUCE mode"
 grep -Fq 'MODE: PRODUCE' "$templates/sol-advisor-spark-worker.toml" || fail "Spark prompt lacks PRODUCE mode"
-grep -Fq 'REPETITION_SCOPE' "$contracts" || fail "Mechanical Editor contract lacks nature-based repetition scope"
+grep -Fq 'REPETITION_SCOPE' "$mechanical_contract" || fail "Mechanical Editor contract lacks nature-based repetition scope"
 grep -Fq 'REPETITION_SCOPE' "$templates/sol-advisor-mechanical-editor.toml" || fail "Mechanical Editor prompt lacks nature-based repetition scope"
 
 sh "$python_runner" - "$skill" <<'PY'
@@ -477,9 +515,9 @@ for phrase in (
     "focused production",
     "repeated edits",
     "independent review",
-    "decide whether optional subagent delegation",
+    "decide whether bounded delegation",
     "preserves quality",
-    "saves context or quota",
+    "lowers total workflow cost",
     "zero children is valid",
 ):
     if phrase not in front:
@@ -498,7 +536,7 @@ for phrase in (
         raise SystemExit(f"frontmatter contains a forced or scenario-specific trigger: {phrase}")
 PY
 
-for document in "$skill" "$contracts" "$readme"; do
+for document in "$skill" "$contracts" $role_contract_files "$readme"; do
   for retired_field in RETURN_MODE TASK_UNDERSTANDING 'ANSWER/VERDICT' 'DECISION-CHANGING FINDINGS'; do
     if grep -Fq "$retired_field" "$document"; then fail "retired universal field remains in $document: $retired_field"; fi
   done
@@ -508,7 +546,7 @@ for agent_file in $agent_files; do
     if grep -Fq "$retired_field" "$templates/$agent_file"; then fail "retired universal field remains in $agent_file: $retired_field"; fi
   done
 done
-pass "quality gate, specialized contracts, stable spawn configuration, and native lifecycle documentation"
+pass "quality and total-cost gates, progressive contracts, stable spawn configuration, and native lifecycle documentation"
 
 deprecated_tool=$(printf '%s%s' 'Notebook' 'LM')
 if grep -R -Fiq --exclude-dir='fixtures' --exclude-dir='__pycache__' "$deprecated_tool" "$plugin_dir" "$readme"; then
@@ -540,6 +578,8 @@ for shell_file in "$installer" "$route_validator" "$runtime_inspector" "$python_
 done
 grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforce LF for shell scripts"
 [ "$(wc -l < "$skill")" -lt 500 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
-pass "static Python checks, shell syntax, LF policy, and Skill size budget"
+index_chars=$(wc -c < "$contracts")
+[ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
+pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.9.7 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.10.0 no-cost checks completed in $tmp_dir"

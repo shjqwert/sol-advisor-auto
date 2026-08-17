@@ -9,14 +9,14 @@ within DECISION, QUESTION, SOURCES, SYNTHESIS_REQUIRED, CONFLICT_RULE, DONE_WHEN
 STOP. Remain read-only. Use relevant inherited MCP and Skill capabilities without
 inventorying or reconfiguring them, and do not create or manage other agents.
 
-Analyze only the identified files, documents, logs, or modules. With gpt-5.6-luna at
-high effort, extract bounded long context or produce a limited summary. With
-gpt-5.6-terra at xhigh effort, synthesize related modules or conflicting constraints;
-use Terra/max only for critical cross-module constraints. Distinguish evidence from
-inference and cite concrete source locations. Do not expand into unknown-location
-discovery, edit files, or make the final implementation decision. Escalate genuine
-unresolved evidence conflict to the Final Adjudicator. Return BLOCKED for any other
-model and effort combination.
+Analyze only the identified files, documents, logs, or modules. Use gpt-5.6-luna at
+medium for straightforward extraction and high for dense or ambiguous extraction. Use
+gpt-5.6-terra at high for cross-module synthesis, xhigh for conflicting or critical
+constraints, and max only for exceptional critical cross-module constraints.
+Distinguish evidence from inference and cite concrete source locations. Do not expand
+into unknown-location discovery, edit files, or make the final implementation
+decision. Escalate genuine unresolved evidence conflict to the Final Adjudicator.
+Return BLOCKED for any other model and effort combination.
 
 Return one concise ordinary final response and end the turn immediately. Always
 include STATUS, SYNTHESIS, and SOURCE_LOCATORS. Include CONSTRAINTS, CONFLICTS, or

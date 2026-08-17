@@ -1,19 +1,20 @@
 ---
 name: orchestration
-description: "Use for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether optional subagent delegation preserves quality and saves context or quota; zero children is valid."
+description: "Use for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether bounded delegation preserves quality and lowers total workflow cost; zero children is valid."
 ---
 
 # Sol Advisor Orchestration
 
-Prioritize, in order: task accuracy and completion, primary-context isolation,
-weighted quota cost, then latency. Keep requirements, architecture, design-dependent
-or iterative implementation, cross-module behavioral changes, final verification,
-integration, and release decisions in the primary session. A valid routing decision
-may use no child.
+Treat task accuracy and first-pass completion as hard gates. Among routes that pass
+those gates, minimize expected total workflow cost, then reduce primary-context
+pollution and latency. Keep requirements, architecture, design-dependent or iterative
+implementation, cross-module behavioral changes, final verification, integration,
+and release decisions in the primary session. A valid routing decision may use no
+child.
 
-Before the first spawn, read
-[references/role-contracts.md](references/role-contracts.md). Load only the selected
-role contract.
+Before the first spawn, read the common
+[contract index](references/role-contracts.md), then load exactly one selected file
+under `references/roles/` as directed by that index.
 
 ## Apply the global default and project opt-out
 
@@ -47,7 +48,7 @@ An explicit current-task user request to use Sol Advisor bypasses a project opt-
 An explicit current-task instruction not to delegate always wins. Never substitute an
 unavailable role, model, or effort.
 
-## Apply the quality and benefit gates
+## Apply the quality and total-cost gates
 
 Delegate only when all quality conditions hold:
 
@@ -58,17 +59,26 @@ Delegate only when all quality conditions hold:
 - the result can be verified without repeating the delegated work; and
 - delegation is not expected to reduce first-pass accuracy or completion reliability.
 
-After the quality gate passes, delegate only when at least one benefit is material:
+After the quality gate passes, estimate the complete workflow rather than the child
+route in isolation. Include:
 
-- the child keeps broad search, long sources, or noisy evidence out of primary context;
-- the child uses a lower weighted quota route without reducing quality; or
-- an independent attack angle materially improves confidence.
+- primary work avoided and primary work added by dispatch and intake;
+- child model, tool, and source-processing work;
+- bounded result verification; and
+- the probability and cost of a corrective follow-up, escalation, or primary fallback.
+
+Delegate only when expected total workflow cost is lower, when isolating long or noisy
+evidence is likely to prevent a quality loss, or when an independent attack angle
+materially improves decision quality enough to justify its cost. Context isolation by
+itself is not a sufficient benefit.
 
 Use zero children when the primary already has sufficient bounded evidence, when
+expected total cost is not lower and there is no material quality benefit, when
 dispatch and intake would duplicate the work, or when implementation needs continuing
-design judgment. Do not delegate merely because a role exists or because the task has
-multiple steps. Do not require the primary to report or persist a no-delegation
-decision.
+design judgment. Do not delegate merely because a role exists, because the task has
+multiple steps, or because a large context window is available.
+Do not require the primary to report or persist a no-delegation decision or
+route-evaluation record.
 
 ## Consider a cheap prerequisite when useful
 
@@ -81,24 +91,30 @@ missing, truncated, or invalidated items.
 ## Select one route
 
 Treat Spark and GPT-5.6 as separate quota pools. Among routes that pass the quality
-gate, prefer the lowest effective quota cost: Spark for eligible light work, then Luna,
-Terra for cross-module synthesis, and Sol only for high-risk verification or genuine
-adjudication. Do not hard-code benchmark scores, prices, or latency as routing gates.
+gate, start with the lowest adequate model and effort: Spark for eligible light work,
+then Luna, Terra for cross-module synthesis, and Sol only for high-risk verification
+or genuine adjudication. Escalate only when scope, risk, or evidence requires it.
+Higher effort does not compensate for incomplete task facts or an ambiguous packet.
 
 | Scenario | Agent | Allowed route | Responsibility |
 |---|---|---|---|
 | Exact symbol, relationship, configuration, or log lookup already covered by an available tool | primary session | inherited MCP, index, or exact read | bounded direct lookup |
 | Frozen local production goal with compact named inputs and mechanical acceptance | `sol_advisor_spark_worker` | Spark/low, medium, or high; `MODE: PRODUCE` | focused local creation or patch |
-| Unknown-location workspace evidence or current official research | `sol_advisor_investigator` | Luna/high, xhigh, or max | read-only investigation |
-| Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/high | read-only extraction |
-| Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/xhigh; max for critical constraints | read-only synthesis |
-| Same fully determined transformation repeated across known locations | `sol_advisor_mechanical_editor` | Luna/xhigh or max | repetitive mechanical edit |
-| Routine through difficult bounded verification | `sol_advisor_local_code_verifier` | Luna/high, xhigh, or max | read-only verification |
+| Unknown-location workspace evidence or current official research | `sol_advisor_investigator` | Luna/medium, high, xhigh, or max | read-only investigation |
+| Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/medium or high | read-only extraction |
+| Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/high, xhigh, or max | read-only synthesis |
+| Same fully determined transformation repeated across known locations | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | repetitive mechanical edit |
+| Routine through difficult bounded verification | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only verification |
 | Security, authorization, concurrency, state, data, migration, public-API, or release risk | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
 | Genuine evidence conflict or critical decision | `sol_advisor_final_adjudicator` | Sol/xhigh or max | read-only adjudication |
 
-Reject Spark/xhigh, Context Luna/xhigh, Context Terra/high, Verifier Sol/medium or high,
-and Adjudicator Sol/medium or high. If no allowed route fits, keep the work primary.
+Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, Mechanical
+Luna/medium, Verifier Sol/medium or high, and Adjudicator Sol/medium or high. If no
+allowed route fits, keep the work primary.
+
+Do not infer ChatGPT subscription credit multipliers from API pricing thresholds.
+Use observed Codex usage when available and otherwise compare relative route cost.
+Treat a large context window as available capacity, not a target to fill.
 
 Use an available MCP, index, or exact read in the primary session for bounded symbol,
 relationship, configuration, or log lookup. Investigator and Context Analyst are

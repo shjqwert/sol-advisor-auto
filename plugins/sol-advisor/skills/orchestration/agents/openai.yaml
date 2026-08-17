@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Quality-first context and quota delegation"
-  default_prompt: "Use $orchestration for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether optional subagent delegation preserves quality and saves context or quota; otherwise use zero children."
+  short_description: "Quality-gated total-cost delegation"
+  default_prompt: "Use $orchestration for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether bounded delegation preserves quality and lowers total workflow cost; otherwise use zero children."
 
 policy:
   allow_implicit_invocation: true

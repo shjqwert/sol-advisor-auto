@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.9.7+codex.20260817002625",
-  "description": "Quality-first Codex workflow with optional bounded delegation, project opt-out, isolated primary context, and weighted quota routing.",
+  "version": "0.10.0+codex.20260817135937",
+  "description": "Quality-gated Codex workflow with bounded delegation, project opt-out, and total-cost routing.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -20,8 +20,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Quality-first delegation for context and quota efficiency.",
-    "longDescription": "Sol Advisor makes bounded delegation globally eligible unless the current workspace opts out, without requiring a child or route record. It routes six functional custom agents only when delegation preserves task accuracy and completion while materially improving primary-context isolation, weighted quota cost, or independent verification. Spark handles compact frozen local production; GPT-5.6 roles handle investigation, synthesis, repeated mechanical transformations, risk-selected verification, and genuine adjudication. The primary session owns direct tool lookups, design-dependent implementation, bounded evidence checks, fallback, and final integration.",
+    "shortDescription": "Quality-gated delegation with total-cost routing.",
+    "longDescription": "Sol Advisor makes bounded delegation globally eligible unless the current workspace opts out, without requiring a child or route record. Task accuracy and first-pass completion are hard gates; among routes that preserve them, it minimizes expected total workflow cost across primary work, child work, result intake, verification, and retry risk. Spark handles compact frozen local production; GPT-5.6 roles handle investigation, synthesis, repeated mechanical transformations, risk-selected verification, and genuine adjudication. Context isolation remains a quality and cost mechanism, while the primary session owns direct tool lookups, design-dependent implementation, bounded evidence checks, fallback, and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,9 +30,9 @@
     ],
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
-      "Preserve task accuracy and completion before considering delegation.",
-      "Consider a bounded child only when it materially improves primary-context isolation, weighted quota cost, or independent verification.",
-      "Use zero children when direct tools suffice or delegation benefit is unclear.",
+      "Preserve task accuracy and first-pass completion as hard gates before considering delegation.",
+      "Consider a bounded child only when expected total workflow cost is lower or evidence isolation or independent verification materially improves quality.",
+      "Use zero children when direct tools suffice or the total-cost and quality benefit is unclear.",
       "Keep design-dependent implementation primary; read one native final result, allow one targeted correction with the same model and effort, then fall back."
     ]
   }

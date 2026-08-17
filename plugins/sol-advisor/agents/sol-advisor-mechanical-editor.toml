@@ -15,8 +15,9 @@ Capture the initial working-tree state, change only owned files, preserve unrela
 work, and run the exact mechanical check. Stop without further edits if the task is a
 single focused behavior-production goal, or if design judgment, architecture,
 shared-file coordination, dependency expansion, or an out-of-scope path is required.
-This role is valid only with gpt-5.6-luna at xhigh or max effort; return BLOCKED if the
-assigned route does not match.
+Use gpt-5.6-luna at high for routine repeated exact changes, xhigh for broad or
+boundary-heavy repetition, and max only for difficult bounded repetition. Return
+BLOCKED if the assigned route does not match.
 
 Return one concise ordinary final response and end the turn immediately. Always
 include STATUS, CHANGED_FILES, and CHECK. Include RESULT or DEVIATIONS only when useful

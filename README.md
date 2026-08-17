@@ -1,9 +1,9 @@
 # Sol Advisor
 
 Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
-orchestration. It delegates only when task accuracy and completion are protected and a
-child provides material primary-context, weighted quota, or independent-verification
-benefit. Latency is a lower priority.
+orchestration. Task accuracy and first-pass completion are hard gates. Among routes
+that preserve them, Sol Advisor minimizes expected total workflow cost before reducing
+context pollution or latency.
 
 The primary session owns requirements, architecture, design-dependent or iterative
 implementation, cross-module behavioral changes, final verification, integration, and
@@ -16,10 +16,10 @@ verification, or evidence adjudication.
 | Native agent type | Allowed model / effort | Scenario | Responsibility |
 |---|---|---|---|
 | `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused serial `PRODUCE` |
-| `sol_advisor_investigator` | Luna/high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
-| `sol_advisor_context_analyst` | Luna/High; Terra/xHigh or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
-| `sol_advisor_mechanical_editor` | Luna/xHigh or Max | large, fully determined repetitive edits | bounded serial edit |
-| `sol_advisor_local_code_verifier` | Luna/high, xHigh, or Max; Sol/xHigh or Max | routine through high-risk implementation review | read-only verification |
+| `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
+| `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
+| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | large, fully determined repetitive edits | bounded serial edit |
+| `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | routine through high-risk implementation review | read-only verification |
 | `sol_advisor_final_adjudicator` | Sol/xHigh or Max | genuine evidence conflict or critical decision | read-only adjudication |
 
 Context Analyst and Local Code Verifier deliberately do not pin a base model in their
@@ -33,7 +33,7 @@ focused production that remains within its quality boundary; OpenAI describes it
 separate, faster, less-capable model with its own usage limits in
 [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
-## Quality and delegation gates
+## Quality and total-cost gates
 
 Implicit route evaluation is globally allowed when the plugin is installed and
 enabled. Delegation still requires all of the following:
@@ -44,12 +44,17 @@ enabled. Delegation still requires all of the following:
 - the selected model and effort are adequate for the risk;
 - scope, completion, stopping, and verification criteria are explicit;
 - first-pass accuracy and completion reliability are not expected to decline; and
-- delegation materially improves primary-context isolation, weighted quota cost, or
-  independent verification.
+- expected total workflow cost is lower, evidence isolation is likely to prevent a
+  quality loss, or independent verification materially improves decision quality.
+
+Total workflow cost includes primary work avoided and added, child model and tool work,
+result intake, bounded verification, and likely correction or escalation. A cheaper
+child model does not by itself establish a cheaper workflow.
 
 Use zero children when the primary already has bounded evidence, direct tools are
-sufficient, the benefit is unclear, dispatch would duplicate work, or implementation
-needs continuing design judgment. After deciding to delegate, use one child by default.
+sufficient, expected total cost is not lower and there is no material quality benefit,
+dispatch would duplicate work, or implementation needs continuing design judgment.
+After deciding to delegate, use one child by default.
 Use at most two concurrent children, only for read-only work with mutually exclusive
 decisions, source scopes, and failure classes.
 
@@ -67,6 +72,10 @@ delegation, the primary may check it first. This is optional context hygiene, no
 fixed phase, delegation trigger, or required order. When practical, complete items from
 a partial batch remain valid and only failed, missing, truncated, or invalidated items
 are retried.
+
+A large model context window is available capacity, not a target to fill. Sol Advisor
+does not infer ChatGPT subscription credit multipliers from API pricing thresholds; it
+uses observed Codex usage when available and otherwise compares relative route cost.
 
 ## Global default and project opt-out
 
@@ -114,7 +123,7 @@ flowchart TD
     B -->|Yes| P[Primary executes]
     B -->|No| Q{Quality gate passes?}
     Q -->|No| P
-    Q -->|Yes| G{Context, quota, or verification benefit?}
+    Q -->|Yes| G{Lower total cost or material quality benefit?}
     G -->|No| P
     G -->|Yes| R[Select one allowed role and stable model/effort]
     R --> D[Dispatch one specialized packet with fork_turns none]
@@ -172,9 +181,10 @@ fields:
   `REQUIRED_ACTION`.
 - Spark `PRODUCE`: `CHANGED_FILES`, `CHECK`; optional `DEVIATIONS`, `UNVERIFIED`.
 
-Detailed dispatch fields, stopping rules, and soft output budgets are in
-`plugins/sol-advisor/skills/orchestration/references/role-contracts.md` and are loaded
-only for the selected role.
+The common lifecycle and role index are in
+`plugins/sol-advisor/skills/orchestration/references/role-contracts.md`. Detailed
+dispatch fields, stopping rules, and soft output budgets are split under
+`references/roles/`; only the selected role file is loaded.
 
 Only one corrective follow-up is allowed. It identifies one exact omission, missing
 evidence, and correct prior work to preserve. Formatting alone never triggers a retry.
