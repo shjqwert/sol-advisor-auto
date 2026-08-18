@@ -82,8 +82,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.10.0+"):
-    raise SystemExit("manifest version was not advanced to 0.10.0")
+if not manifest.get("version", "").startswith("0.10.1+"):
+    raise SystemExit("manifest version was not advanced to 0.10.1")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -97,6 +97,9 @@ if manifest.get("mcpServers") != "./.mcp.json":
 interface = manifest.get("interface", {})
 if not interface.get("displayName") or not interface.get("defaultPrompt"):
     raise SystemExit("existing plugin interface was removed")
+for index, prompt in enumerate(interface.get("defaultPrompt", [])):
+    if len(prompt) > 128:
+        raise SystemExit(f"manifest defaultPrompt[{index}] exceeds the Codex 128-character limit: {len(prompt)}")
 prompts = " ".join(interface.get("defaultPrompt", [])).lower()
 for required in ("accuracy", "first-pass completion", "expected total workflow cost", "one native final result"):
     if required not in prompts:
@@ -107,7 +110,7 @@ for required in ("consider a bounded child", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, interface, and 0.10.0 routing metadata"
+pass "plugin manifest version, ownership, interface, 128-character prompt limits, and 0.10.1 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -582,4 +585,4 @@ index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.10.0 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.10.1 no-cost checks completed in $tmp_dir"
