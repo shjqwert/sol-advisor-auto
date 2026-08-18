@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.10.1+codex.20260818160000",
+  "version": "0.10.2+codex.20260819002000",
   "description": "Quality-gated Codex workflow with bounded delegation, project opt-out, and total-cost routing.",
   "author": {
     "name": "shjqwert",
@@ -32,8 +32,7 @@
     "defaultPrompt": [
       "Preserve task accuracy and first-pass completion as hard gates before considering delegation.",
       "Consider a bounded child when expected total workflow cost falls or isolation or independent verification improves quality.",
-      "Use zero children when direct tools suffice or the total-cost and quality benefit is unclear.",
-      "Keep design-dependent implementation primary; use one native final result, one same-route correction, then fall back."
+      "Use zero children when tools suffice. Keep design work primary; use one native final result, one correction, then fall back."
     ]
   }
 }
