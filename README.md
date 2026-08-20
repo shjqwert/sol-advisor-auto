@@ -294,9 +294,10 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
 Managed upgrade recognizes only exact shipped template hashes, including the managed
-0.7 set and the changed 0.9.4 Spark and Mechanical Editor templates. It stages all
-seven files and rolls back the batch on failure. Any user-modified or unknown file
-aborts before mutation. Normal installation still refuses every differing file.
+0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, and the 0.10.2 Local
+Code Verifier. It stages all seven files and rolls back the batch on failure. Any
+user-modified or unknown file aborts before mutation. Normal installation still
+refuses every differing file.
 
 Windows PowerShell example:
 

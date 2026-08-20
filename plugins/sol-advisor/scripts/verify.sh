@@ -26,6 +26,7 @@ search_preflight=$script_dir/prepare-repo-search.py
 templates=$plugin_dir/agents
 legacy_templates=$script_dir/fixtures/agents-0.7.0
 previous_templates=$script_dir/fixtures/agents-0.9.4
+immediate_templates=$script_dir/fixtures/agents-0.10.2
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
@@ -137,7 +138,7 @@ if set(servers) != {"context7", "exa", "markitdown"}:
 PY
 pass "existing Context7, Exa, and MarkItDown MCP configuration"
 
-sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" <<'PY'
+sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" <<'PY'
 from pathlib import Path
 import sys
 import tomllib
@@ -145,6 +146,7 @@ import tomllib
 templates = Path(sys.argv[1])
 legacy_templates = Path(sys.argv[2])
 previous_templates = Path(sys.argv[3])
+immediate_templates = Path(sys.argv[4])
 roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
@@ -220,6 +222,11 @@ previous = {path.name for path in previous_templates.glob("*.toml")}
 if previous != {"sol-advisor-mechanical-editor.toml", "sol-advisor-spark-worker.toml"}:
     raise SystemExit("0.9.4 managed-upgrade fixture set is incomplete")
 for path in previous_templates.glob("*.toml"):
+    tomllib.loads(path.read_text(encoding="utf-8"))
+immediate = {path.name for path in immediate_templates.glob("*.toml")}
+if immediate != {"sol-advisor-local-code-verifier.toml"}:
+    raise SystemExit("0.10.2 managed-upgrade fixture set is incomplete")
+for path in immediate_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
 PY
 pass "seven role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
@@ -345,6 +352,19 @@ for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$previous_upgrade/$agent_file" || fail "0.9.4 managed upgrade differs: $agent_file"
 done
 pass "0.9.4 managed Spark and Mechanical Editor upgrade"
+
+immediate_upgrade=$tmp_dir/managed-upgrade-0.10.2
+mkdir "$immediate_upgrade"
+for agent_file in $agent_files; do
+  [ "$agent_file" = sol-advisor-test-executor.toml ] || cp "$templates/$agent_file" "$immediate_upgrade/$agent_file"
+done
+cp "$immediate_templates/sol-advisor-local-code-verifier.toml" "$immediate_upgrade/sol-advisor-local-code-verifier.toml"
+sh "$installer" --target-dir "$immediate_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$immediate_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$immediate_upgrade/$agent_file" || fail "0.10.2 managed upgrade differs: $agent_file"
+done
+pass "0.10.2 managed Local Code Verifier upgrade and Test Executor install"
 
 index_target=$tmp_dir/index-plan
 mkdir "$index_target"
