@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage: install-agents.sh [--target-dir <path>] [--check | --upgrade-managed]
 
-Install the six routed Sol Advisor custom-agent templates into the target directory.
+Install the seven routed Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents". Normal installation never overwrites a
 differing file.
@@ -100,6 +100,7 @@ agent_files = (
     "sol-advisor-investigator.toml",
     "sol-advisor-context-analyst.toml",
     "sol-advisor-mechanical-editor.toml",
+    "sol-advisor-test-executor.toml",
     "sol-advisor-local-code-verifier.toml",
     "sol-advisor-final-adjudicator.toml",
     "sol-advisor-spark-worker.toml",
@@ -113,12 +114,14 @@ legacy_hashes = {
         "4c0b41770beea1d8092193bdaaea4af50ca09ed5174386a9be547d26be0609a3",
         "e215f19fc9239d737084819f1106e82f6d981ea9d7c41a8a284943030fb6af1f",
         "20e69ccac66ea37e239dfd0b5a4fa73ff330fe544abf5f29fce456c687a797f4",
+        "5e32f293a1f1947d404b29524edc5c53352ea749fcb86a6418eb2529215ed8c1",
     },
     "sol-advisor-context-analyst.toml": {
         "5ef4f96f1952d87ff90c33aa7293f32af2df1034961aff0c9f5e29123cc13d16",
         "3a038345e1f4ded02c1c13685195cf0251c5005abad88d97b8e288636cb97913",
         "16b00933fb6b02b9163f14309432e58246c26f7aa92341997adb88f3fca3d278",
         "2f919e4359e4be5c93d10ccd4406254b441888e0314f91fd6bfdfc22c42b6836",
+        "be9a21c8722c4967b582a667108f45c23cba650a18157b7262609ae6e5b2f79e",
     },
     "sol-advisor-mechanical-editor.toml": {
         "6a6cfa03653344fbc4de7971e529e63b52e7aba7b8edef8342b1410869381475",
@@ -127,18 +130,21 @@ legacy_hashes = {
         "064531ba81ea21ab2ac268c7f59acf0373279ca54f416616fa9b238fabd8bfc9",
         "ecf5ac9d058be5ca48400014000dad7b3a4cf80f1e3b0ac9424adf50aa87cfef",
         "7d9590e1be7f6c8c42b22826f6a3b8987e484658065b1874c76676ee1767e2f4",
+        "6465e3796e5e1de30b4845c02e9836479176f057adf033b61a30484b6d542df7",
     },
     "sol-advisor-local-code-verifier.toml": {
         "b4468d367ece3eb151c45c422e21feba719dc69f8029c209af50e34218c0e201",
         "4e553701e1d64e97b96ea62178326e69a33a5142f67bd99493fc7199f010bfaf",
         "74af56e8a3da0aedb79389128b2f0fdfbc010401f36d436e934613c98c366693",
         "109684e6b97fc73d103d2f08434cd54b157f2e01ef4e9303b84898f06e507d7b",
+        "9115147d2b04c3a8e844e93360872874396d6b2dc0b8f63d0aa29f24b160e3ab",
     },
     "sol-advisor-final-adjudicator.toml": {
         "e4fac299bb1d4780d5ee81e5f740056aa2db744e81668322670a10347d2342ce",
         "32d8478957cba7b7e254f0745b2ff70ee01cfcc2349b353852240bfb1228265d",
         "3997f5233c87512e4bb5e753af26243de443c36814f7fd8743ff5ead7bab4876",
         "d2a321b6aa2af34a4fb1a309b784fe7c1bb566170abec30d142cceb3d9e98fc0",
+        "d1d934debfb1d1dd2db5d6c70e45427a307658b038a1caa2916915f8a7a97745",
     },
     "sol-advisor-spark-worker.toml": {
         "36be86456404373582108586c80b0043ee03ea10b2336362a3c87148412603ca",

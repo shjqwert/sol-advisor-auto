@@ -33,6 +33,8 @@ case "$role:$provider:$model:$effort" in
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:high | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:xhigh | \
   sol_advisor_mechanical_editor:openai:gpt-5.6-luna:max | \
+  sol_advisor_test_executor:openai:gpt-5.6-luna:xhigh | \
+  sol_advisor_test_executor:openai:gpt-5.6-luna:max | \
   sol_advisor_context_analyst:openai:gpt-5.6-luna:medium | \
   sol_advisor_context_analyst:openai:gpt-5.6-luna:high | \
   sol_advisor_context_analyst:openai:gpt-5.6-terra:high | \

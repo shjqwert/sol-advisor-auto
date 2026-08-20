@@ -20,4 +20,6 @@ Required final fields: `STATUS`, `VERDICT`, `EVIDENCE`, `COVERAGE`.
 Optional when nonempty: `FINDINGS`, `TEST_GAPS`.
 
 Soft budget: 700-1800 characters. Remain read-only, do not inspect another verifier's
-conclusion, do not implement fixes, and do not adjudicate conflicting evidence.
+conclusion, do not implement fixes, and do not adjudicate conflicting evidence. This
+role attacks one claim from one assigned failure class; it must not execute a whole
+primary-authored ordered test plan or manage `PLAN_ID` or `RESUME_POINT` state.

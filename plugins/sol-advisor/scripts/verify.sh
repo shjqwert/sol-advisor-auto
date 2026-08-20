@@ -6,7 +6,7 @@ set -eu
 pass() { printf '%s\n' "PASS: $*"; }
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-agent_files='sol-advisor-investigator.toml sol-advisor-context-analyst.toml sol-advisor-mechanical-editor.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml sol-advisor-spark-worker.toml'
+agent_files='sol-advisor-investigator.toml sol-advisor-context-analyst.toml sol-advisor-mechanical-editor.toml sol-advisor-test-executor.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml sol-advisor-spark-worker.toml'
 legacy_agent_files='sol-advisor-investigator.toml sol-advisor-context-analyst.toml sol-advisor-mechanical-editor.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 hash_agents() {
@@ -34,10 +34,11 @@ contract_dir=$plugin_dir/skills/orchestration/references/roles
 investigator_contract=$contract_dir/investigator.md
 context_contract=$contract_dir/context-analyst.md
 mechanical_contract=$contract_dir/mechanical-editor.md
+test_executor_contract=$contract_dir/test-executor.md
 verifier_contract=$contract_dir/local-code-verifier.md
 adjudicator_contract=$contract_dir/final-adjudicator.md
 spark_contract=$contract_dir/spark-worker.md
-role_contract_files="$investigator_contract $context_contract $mechanical_contract $verifier_contract $adjudicator_contract $spark_contract"
+role_contract_files="$investigator_contract $context_contract $mechanical_contract $test_executor_contract $verifier_contract $adjudicator_contract $spark_contract"
 metadata=$plugin_dir/skills/orchestration/agents/openai.yaml
 repo_root=$(CDPATH= cd "$plugin_dir/../.." && pwd) || exit 1
 readme=$repo_root/README.md
@@ -82,8 +83,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.10.2+"):
-    raise SystemExit("manifest version was not advanced to 0.10.2")
+if not manifest.get("version", "").startswith("0.11.0+"):
+    raise SystemExit("manifest version was not advanced to 0.11.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -112,7 +113,7 @@ for required in ("consider a bounded child", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, three-prompt interface limits, and 0.10.2 routing metadata"
+pass "plugin manifest version, ownership, three-prompt interface limits, and 0.11.0 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -148,6 +149,7 @@ roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
     "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", "gpt-5.6-luna"),
+    "sol-advisor-test-executor.toml": ("sol_advisor_test_executor", "gpt-5.6-luna"),
     "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", None),
     "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "gpt-5.6-sol"),
     "sol-advisor-spark-worker.toml": ("sol_advisor_spark_worker", "gpt-5.3-codex-spark"),
@@ -177,7 +179,8 @@ role_required = {
     "sol-advisor-investigator.toml": ("search_scope", "version_date_boundary", "medium for straightforward", "high for cross-module", "answer", "evidence", "600-1400"),
     "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "medium for straightforward", "terra at high", "900-2200"),
     "sol-advisor-mechanical-editor.toml": ("owned_files", "repetition_scope", "high for routine", "boundary-heavy", "changed_files", "500-1200"),
-    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "medium for routine", "high for multiple", "gpt-5.6-sol", "test_gaps", "700-1800"),
+    "sol-advisor-test-executor.toml": ("plan_id", "authorized_side_effects", "evidence_output", "xhigh for a difficult", "max only", "next_action", "repair_resume", "new_child", "primary_decision", "resume_point", "900-2200"),
+    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "ordered test plan", "plan_id", "resume_point", "medium for routine", "high for multiple", "gpt-5.6-sol", "test_gaps", "700-1800"),
     "sol-advisor-final-adjudicator.toml": ("conflicting_claims", "evidence_locators", "ship", "fix_first", "rethink", "700-1600"),
     "sol-advisor-spark-worker.toml": ("mode: produce", "goal", "owned_files", "input_facts", "reference_locators", "acceptance", "preserve", "check", "done_when", "stop", "unverified", "400-900"),
 }
@@ -209,7 +212,7 @@ for filename, (name, model) in roles.items():
             raise SystemExit(f"{path}: retired runtime protocol remains: {forbidden}")
 
 legacy = {path.name for path in legacy_templates.glob("*.toml")}
-if legacy != set(roles) - {"sol-advisor-spark-worker.toml"}:
+if legacy != set(roles) - {"sol-advisor-spark-worker.toml", "sol-advisor-test-executor.toml"}:
     raise SystemExit("legacy upgrade fixture set is incomplete")
 for path in legacy_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
@@ -219,7 +222,7 @@ if previous != {"sol-advisor-mechanical-editor.toml", "sol-advisor-spark-worker.
 for path in previous_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
 PY
-pass "six role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
+pass "seven role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
 
 valid_routes='sol_advisor_spark_worker openai gpt-5.3-codex-spark low
 sol_advisor_spark_worker openai gpt-5.3-codex-spark medium
@@ -236,6 +239,8 @@ sol_advisor_context_analyst openai gpt-5.6-terra max
 sol_advisor_mechanical_editor openai gpt-5.6-luna high
 sol_advisor_mechanical_editor openai gpt-5.6-luna xhigh
 sol_advisor_mechanical_editor openai gpt-5.6-luna max
+sol_advisor_test_executor openai gpt-5.6-luna xhigh
+sol_advisor_test_executor openai gpt-5.6-luna max
 sol_advisor_local_code_verifier openai gpt-5.6-luna medium
 sol_advisor_local_code_verifier openai gpt-5.6-luna high
 sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
@@ -256,6 +261,8 @@ sol_advisor_context_analyst openai gpt-5.6-luna max
 sol_advisor_context_analyst openai gpt-5.6-terra medium
 sol_advisor_mechanical_editor openai gpt-5.6-luna medium
 sol_advisor_mechanical_editor openai gpt-5.6-terra max
+sol_advisor_test_executor openai gpt-5.6-luna high
+sol_advisor_test_executor openai gpt-5.6-sol max
 sol_advisor_local_code_verifier openai gpt-5.6-sol medium
 sol_advisor_local_code_verifier openai gpt-5.6-sol high
 sol_advisor_local_code_verifier openai gpt-5.6-terra max
@@ -275,7 +282,7 @@ for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "clean install differs: $agent_file"
 done
 installed_count=$(find "$clean_target" -maxdepth 1 -type f -name 'sol-advisor-*.toml' | awk 'END { print NR + 0 }')
-[ "$installed_count" -eq 6 ] || fail "installer did not produce exactly six roles"
+[ "$installed_count" -eq 7 ] || fail "installer did not produce exactly seven roles"
 
 missing_check_target=$tmp_dir/missing-check
 if sh "$installer" --target-dir "$missing_check_target" --check >/dev/null 2>&1; then fail "--check accepted missing target"; fi
@@ -292,18 +299,19 @@ mkdir "$conflict_target"
 printf '%s\n' conflict > "$conflict_target/sol-advisor-investigator.toml"
 if sh "$installer" --target-dir "$conflict_target" >/dev/null 2>&1; then fail "installer overwrote a custom conflict"; fi
 test ! -e "$conflict_target/sol-advisor-spark-worker.toml" || fail "conflict caused a partial install"
-pass "clean six-role install, exact check, idempotence, and conflict refusal"
+pass "clean seven-role install, exact check, idempotence, and conflict refusal"
 
 upgrade_target=$tmp_dir/managed-upgrade
 mkdir "$upgrade_target"
 for agent_file in $legacy_agent_files; do cp "$legacy_templates/$agent_file" "$upgrade_target/$agent_file"; done
 before_rollback=$(hash_agents "$upgrade_target")
-if SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER=2 sh "$installer" --target-dir "$upgrade_target" --upgrade-managed >/dev/null 2>&1; then
+if SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER=4 sh "$installer" --target-dir "$upgrade_target" --upgrade-managed >/dev/null 2>&1; then
   fail "simulated managed-upgrade failure unexpectedly succeeded"
 fi
 after_rollback=$(hash_agents "$upgrade_target")
 [ "$before_rollback" = "$after_rollback" ] || fail "managed-upgrade rollback changed legacy files"
 test ! -e "$upgrade_target/sol-advisor-spark-worker.toml" || fail "managed-upgrade rollback left Spark installed"
+test ! -e "$upgrade_target/sol-advisor-test-executor.toml" || fail "managed-upgrade rollback left Test Executor installed"
 test "$(find "$upgrade_target" -maxdepth 1 -type d -name '.sol-advisor-agents.*' | awk 'END { print NR + 0 }')" -eq 0 || fail "managed-upgrade rollback left a transaction directory"
 
 sh "$installer" --target-dir "$upgrade_target" --upgrade-managed >/dev/null
@@ -323,6 +331,7 @@ fi
 after_conflict=$(hash_agents "$upgrade_conflict")
 [ "$before_conflict" = "$after_conflict" ] || fail "managed conflict caused partial replacement"
 test ! -e "$upgrade_conflict/sol-advisor-spark-worker.toml" || fail "managed conflict caused partial Spark install"
+test ! -e "$upgrade_conflict/sol-advisor-test-executor.toml" || fail "managed conflict caused partial Test Executor install"
 pass "0.7 managed upgrade, exact-hash safety, rollback, and all-or-nothing conflict handling"
 
 previous_upgrade=$tmp_dir/managed-upgrade-0.9.4
@@ -419,7 +428,7 @@ fi
 pass "stable multi-turn configuration and mixed model/effort rejection without prompt leakage"
 
 for document in "$skill" "$contracts" "$readme"; do
-  for role in sol_advisor_investigator sol_advisor_context_analyst sol_advisor_mechanical_editor sol_advisor_local_code_verifier sol_advisor_final_adjudicator sol_advisor_spark_worker; do
+  for role in sol_advisor_investigator sol_advisor_context_analyst sol_advisor_mechanical_editor sol_advisor_test_executor sol_advisor_local_code_verifier sol_advisor_final_adjudicator sol_advisor_spark_worker; do
     grep -Fq "$role" "$document" || fail "missing role $role in $document"
   done
   grep -Fq 'AGENTS.md' "$document" || fail "missing project-rule inheritance: $document"
@@ -453,12 +462,22 @@ grep -Fq 'instruction not to' "$skill" || fail "missing explicit no-delegation o
 grep -Fq 'Use zero children' "$skill" || fail "missing zero-child fast path"
 grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child read-only cap"
 grep -Fq 'Do not use Final Adjudicator as' "$skill" || fail "missing fixed-chain prevention"
+grep -Fq 'frozen ordered test plan' "$skill" || fail "quality gate lacks the Test Executor work type"
+grep -Fq 'Test Executor and Local Code Verifier are mutually exclusive' "$skill" || fail "missing Test Executor and verifier role boundary"
+grep -Fq 'Test Executor has one role-specific lifecycle exception' "$skill" || fail "missing Test Executor resume exception"
+grep -Fq 'repair-resume turns do not consume the one corrective follow-up' "$skill" || fail "Test Executor resume consumes the corrective retry"
+grep -Fq 'Test Executor is the only resumable role' "$contracts" || fail "common contract lacks the resumable-role boundary"
+grep -Fq 'A new full run or material plan/scope change requires a new child' "$contracts" || fail "common contract lacks the new-run boundary"
+grep -Fq '`NEXT_ACTION` must be exactly `REPAIR_RESUME`, `NEW_CHILD`, or `PRIMARY_DECISION`' "$test_executor_contract" || fail "Test Executor contract lacks the blocked-action discriminant"
+grep -Fq 'Required only when `NEXT_ACTION: REPAIR_RESUME`' "$test_executor_contract" || fail "Test Executor resume fields are not conditional"
+grep -Fq 'must not execute a whole' "$verifier_contract" || fail "verifier contract can own a whole ordered plan"
 contract_count=$(find "$contract_dir" -maxdepth 1 -type f -name '*.md' | awk 'END { print NR + 0 }')
-[ "$contract_count" -eq 6 ] || fail "progressive role-contract set must contain exactly six files"
+[ "$contract_count" -eq 7 ] || fail "progressive role-contract set must contain exactly seven files"
 for mapping in \
   'sol_advisor_investigator:roles/investigator.md' \
   'sol_advisor_context_analyst:roles/context-analyst.md' \
   'sol_advisor_mechanical_editor:roles/mechanical-editor.md' \
+  'sol_advisor_test_executor:roles/test-executor.md' \
   'sol_advisor_local_code_verifier:roles/local-code-verifier.md' \
   'sol_advisor_final_adjudicator:roles/final-adjudicator.md' \
   'sol_advisor_spark_worker:roles/spark-worker.md'; do
@@ -473,7 +492,7 @@ for contract in $role_contract_files; do
   grep -Fq 'Required final fields' "$contract" || fail "missing required fields in $contract"
   [ "$(wc -l < "$contract")" -lt 80 ] || fail "selected role contract is too large: $contract"
 done
-for contract in "$investigator_contract" "$context_contract" "$mechanical_contract" "$verifier_contract" "$spark_contract"; do
+for contract in "$investigator_contract" "$context_contract" "$mechanical_contract" "$test_executor_contract" "$verifier_contract" "$spark_contract"; do
   grep -Fq 'Optional when nonempty' "$contract" || fail "missing optional-field rule in $contract"
 done
 if grep -Fq 'install-global-trigger.sh' "$readme"; then fail "README still installs a global AGENTS.md writer"; fi
@@ -587,4 +606,4 @@ index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.10.2 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.11.0 no-cost checks completed in $tmp_dir"

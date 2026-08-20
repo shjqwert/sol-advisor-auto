@@ -11,6 +11,7 @@ conversation history, raw source contents, or primary reasoning when locators su
 - `sol_advisor_context_analyst`: [Context Analyst](roles/context-analyst.md)
 - `sol_advisor_mechanical_editor`: [Mechanical Editor](roles/mechanical-editor.md)
 - `sol_advisor_local_code_verifier`: [Local Code Verifier](roles/local-code-verifier.md)
+- `sol_advisor_test_executor`: [Test Executor](roles/test-executor.md)
 - `sol_advisor_final_adjudicator`: [Final Adjudicator](roles/final-adjudicator.md)
 - `sol_advisor_spark_worker`: [Spark Worker](roles/spark-worker.md)
 
@@ -25,6 +26,12 @@ Every child:
 - sends no progress, status, or result through parent-interaction messaging;
 - uses `STATUS: COMPLETE | INCOMPLETE | BLOCKED`; and
 - omits empty optional fields, raw logs, tool narration, progress, and repetition.
+
+Test Executor is the only resumable role. After a blocking final with
+`NEXT_ACTION: REPAIR_RESUME`, the primary may repair the implementation and reactivate
+the same native child with the repair-resume packet from its selected contract. A
+`NEW_CHILD` or `PRIMARY_DECISION` result is not resumable. Each activation still
+returns one ordinary final and ends immediately; the child never waits for the repair.
 
 Do not require a response token, result path, sidecar, plugin-owned state, universal
 return mode, task-understanding paragraph, or fixed nine-heading result. Completeness
@@ -44,3 +51,7 @@ STOP: <condition requiring primary takeover or a new stronger child>
 
 Do not follow up for formatting alone, a wrong role, an unsafe route, or a task that
 must be decomposed again. After one unusable correction, the primary takes over.
+
+This corrective limit is separate from Test Executor `REPAIR_RESUME` turns. That role
+may be reactivated repeatedly only while `PLAN_ID`, model, effort, and material scope
+remain unchanged. A new full run or material plan/scope change requires a new child.

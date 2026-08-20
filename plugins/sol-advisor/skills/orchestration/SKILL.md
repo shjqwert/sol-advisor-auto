@@ -52,8 +52,8 @@ unavailable role, model, or effort.
 
 Delegate only when all quality conditions hold:
 
-- one role owns a bounded question, focused local production goal, or repeated exact
-  transformation;
+- one role owns a bounded question, focused local production goal, repeated exact
+  transformation, or frozen ordered test plan;
 - the model and effort are adequate for the risk and reasoning difficulty;
 - scope, stopping conditions, and completion criteria are explicit;
 - the result can be verified without repeating the delegated work; and
@@ -104,13 +104,14 @@ Higher effort does not compensate for incomplete task facts or an ambiguous pack
 | Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/medium or high | read-only extraction |
 | Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/high, xhigh, or max | read-only synthesis |
 | Same fully determined transformation repeated across known locations | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | repetitive mechanical edit |
+| Primary-authored ordered test plan with bounded evidence output | `sol_advisor_test_executor` | Luna/xhigh or max | resumable test execution without fixes |
 | Routine through difficult bounded verification | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only verification |
 | Security, authorization, concurrency, state, data, migration, public-API, or release risk | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
 | Genuine evidence conflict or critical decision | `sol_advisor_final_adjudicator` | Sol/xhigh or max | read-only adjudication |
 
 Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, Mechanical
-Luna/medium, Verifier Sol/medium or high, and Adjudicator Sol/medium or high. If no
-allowed route fits, keep the work primary.
+Luna/medium, Test Executor Luna/low, medium, or high, Verifier Sol/medium or high, and
+Adjudicator Sol/medium or high. If no allowed route fits, keep the work primary.
 
 Do not infer ChatGPT subscription credit multipliers from API pricing thresholds.
 Use observed Codex usage when available and otherwise compare relative route cost.
@@ -123,6 +124,18 @@ are mutually exclusive: use Spark for one local production goal and Mechanical E
 for one transformation repeated across known locations. Do not add a verifier merely
 because another child participated. Do not use Final Adjudicator as a routine closing
 step or build a fixed role chain.
+
+Use Test Executor only after the primary freezes an ordered plan with stable test IDs,
+dependencies, authorized side effects, pass/fail criteria, evidence output, and stop
+conditions. It may record non-blocking findings and continue independent tests, but it
+never repairs implementation, changes the plan, or owns final high-risk or release
+sign-off.
+
+Test Executor and Local Code Verifier are mutually exclusive for one assignment. Test
+Executor owns a frozen primary-authored ordered plan, authorized side effects,
+evidence output, and repair-resume state. Local Code Verifier attacks one implementation
+or verification claim from one failure class; it must not execute the whole ordered
+plan or manage `PLAN_ID` or `RESUME_POINT` state.
 
 ## Keep complex implementation primary
 
@@ -158,8 +171,9 @@ pipeline; the primary reviews and transfers any dependent result.
 Use native Desktop collaboration with a unique task name, a minimal self-contained
 message, and `fork_turns: "none"`.
 
-- Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Final Adjudicator/Sol, and
-  Spark Worker/Spark. Pass `reasoning_effort`; omit redundant model overrides.
+- Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Test Executor/Luna, Final
+  Adjudicator/Sol, and Spark Worker/Spark. Pass `reasoning_effort`; omit redundant
+  model overrides.
 - Dynamic roles: Context Analyst and Local Code Verifier. Pass both the exact `model`
   and `reasoning_effort` selected from the route table.
 - Spark has no literal automatic effort setting. The primary chooses low, medium, or
@@ -175,6 +189,16 @@ same child with the same configuration. State only the correction, missing evide
 and prior work to preserve. If stronger capability is required, end the current child
 as INCOMPLETE or BLOCKED, then let the primary take over or create at most one new
 stronger child and accept the new cold start.
+
+Test Executor has one role-specific lifecycle exception. When it returns `BLOCKED`
+with `NEXT_ACTION: REPAIR_RESUME`, the primary may repair the implementation and send
+the selected contract's repair-resume packet to the same native child. Keep `PLAN_ID`,
+model, effort, and material scope unchanged; rerun the blocking test and invalidated
+prerequisites before continuing. Repeat only within that same plan. A new full run,
+material plan/scope change, route change, or unusable target state returns
+`NEXT_ACTION: NEW_CHILD`.
+These repair-resume turns do not consume the one corrective follow-up, and the child
+never remains running while the primary repairs.
 
 ## Use inherited capabilities safely
 
@@ -198,13 +222,20 @@ layout. Treat the result as a claim:
 - `COMPLETE` and usable: verify decisive evidence and integrate it.
 - `INCOMPLETE` and correctable: send one same-child correction without changing model
   or effort.
-- `BLOCKED`, unusable, or still incomplete after correction: take over immediately or
-  report the genuine blocker.
+- Test Executor `BLOCKED` with `NEXT_ACTION: REPAIR_RESUME`: repair in the primary or
+  an authorized repair child, then reactivate the same Test Executor with the
+  repair-resume packet.
+- Test Executor `BLOCKED` with `NEXT_ACTION: NEW_CHILD`: freeze the replacement packet
+  and start a new child.
+- Test Executor `BLOCKED` with `NEXT_ACTION: PRIMARY_DECISION`, other `BLOCKED`,
+  unusable, or still incomplete after correction: take over immediately or report the
+  genuine blocker.
 
-Every child returns only one ordinary final response and ends immediately. It must not
-send progress, status, or results through parent-interaction messaging and remain
-active. Inspect detailed child history only for a concrete unusable-final or lifecycle
-diagnosis.
+Every child activation returns only one ordinary final response and ends immediately.
+It must neither send progress, status, or results through parent-interaction messaging
+nor remain active. Test Executor may be reactivated after a primary repair but never
+waits through that repair. Inspect detailed child history only for a concrete
+unusable-final or lifecycle diagnosis.
 
 Do not create a dispatch plan, run directory, `state.json`, pending record, response
 token, result path, visible result copy, runtime copy, or machine sidecar. Do not use
@@ -218,7 +249,8 @@ is allowed and does not participate in dispatch.
 - Use zero children unless a quality-preserving benefit is clear; after deciding to
   delegate, use one child by default.
 - Use at most two concurrent children, only for independent read-only work.
-- Allow at most one corrective follow-up per child.
+- Allow at most one corrective follow-up per child. Test Executor repair-resume turns
+  are a role-scoped exception for the same frozen plan, not corrective retries.
 - Keep all writes serial and inspect their complete diffs.
 - Do not let children spawn descendants.
 - Keep complex implementation, final verification, integration, and the user response

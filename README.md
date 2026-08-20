@@ -8,8 +8,8 @@ context pollution or latency.
 The primary session owns requirements, architecture, design-dependent or iterative
 implementation, cross-module behavioral changes, final verification, integration, and
 release decisions. Children handle only bounded investigation, identified-source
-analysis, focused local production, repeated mechanical transformations, independent
-verification, or evidence adjudication.
+analysis, focused local production, repeated mechanical transformations, resumable
+test-plan execution, independent verification, or evidence adjudication.
 
 ## Roles
 
@@ -19,14 +19,16 @@ verification, or evidence adjudication.
 | `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
 | `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | large, fully determined repetitive edits | bounded serial edit |
+| `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
 | `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | routine through high-risk implementation review | read-only verification |
 | `sol_advisor_final_adjudicator` | Sol/xHigh or Max | genuine evidence conflict or critical decision | read-only adjudication |
 
 Context Analyst and Local Code Verifier deliberately do not pin a base model in their
 TOML profiles. The primary must pass both the selected model and effort at spawn.
-Pinned roles receive only an effort override. Spark effort is selected before spawn;
-there is no literal automatic effort value. This follows the inheritance and override
-behavior documented in [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+Pinned roles, including Test Executor on Luna, receive only an effort override. Spark
+effort is selected before spawn; there is no literal automatic effort value. This
+follows the inheritance and override behavior documented in
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
 Spark and GPT-5.6 are treated as separate quota pools. Spark is reserved for compact,
 focused production that remains within its quality boundary; OpenAI describes it as a
@@ -39,8 +41,8 @@ Implicit route evaluation is globally allowed when the plugin is installed and
 enabled. Delegation still requires all of the following:
 
 - the current project has not opted out;
-- one role owns a bounded question, focused local production goal, or repeated exact
-  transformation;
+- one role owns a bounded question, focused local production goal, repeated exact
+  transformation, or frozen ordered test plan;
 - the selected model and effort are adequate for the risk;
 - scope, completion, stopping, and verification criteria are explicit;
 - first-pass accuracy and completion reliability are not expected to decline; and
@@ -132,7 +134,13 @@ flowchart TD
     F --> S{Status}
     S -->|COMPLETE| V[Verify decisive evidence]
     S -->|INCOMPLETE| C[One same-child corrective follow-up]
-    S -->|BLOCKED or unusable| P
+    S -->|BLOCKED| T{Test Executor NEXT_ACTION?}
+    T -->|REPAIR_RESUME| RPR[Primary repairs implementation]
+    T -->|NEW_CHILD| NC[Freeze packet and start new child]
+    T -->|PRIMARY_DECISION or other role| P
+    RPR --> RR[Resume same child and retest blocker]
+    RR --> S
+    NC --> W
     C --> S2{Correction usable?}
     S2 -->|Yes| V
     S2 -->|No| P
@@ -144,10 +152,12 @@ flowchart TD
     I --> O[Primary final response]
 ```
 
-Every child returns one ordinary final response and ends immediately. It does not send
-progress, status, or results through parent-interaction messaging and remain active.
-The primary reads the final once and uses detailed child history only to diagnose a
-concrete unusable-final or lifecycle failure.
+Every child activation returns one ordinary final response and ends immediately. It
+does not send progress, status, or results through parent-interaction messaging or
+remain active. A blocked Test Executor may be reactivated after the primary repairs
+the implementation only when `NEXT_ACTION: REPAIR_RESUME`; it never waits during that
+repair. The primary reads each final once and uses detailed child history only to
+diagnose a concrete unusable-final or lifecycle failure.
 
 ## Stable configuration and prompt caching
 
@@ -159,6 +169,13 @@ Model and effort do not change during that child. One corrective follow-up reuse
 same child and configuration. If stronger capability is required, the current child
 ends as `INCOMPLETE` or `BLOCKED`; the primary takes over or creates one new stronger
 child and accepts a new cold start.
+
+Test Executor adds a separate repair-resume follow-up. The same native child may be
+reactivated repeatedly only after `NEXT_ACTION: REPAIR_RESUME` and for the same
+`PLAN_ID`, model, effort, and material scope. Each resume receives the repair evidence,
+invalidated prerequisites, and prior resume point, then retests the blocker before
+continuing. `NEW_CHILD` starts a new frozen packet; `PRIMARY_DECISION` returns control
+to the primary. A new full run or material plan or scope change requires a new child.
 
 Stable instructions and tool definitions precede variable task data. This avoids
 configuration-driven cache misses but does not guarantee a hit; actual caching still
@@ -175,6 +192,9 @@ fields:
 - Context Analyst: `SYNTHESIS`, `SOURCE_LOCATORS`; optional `CONSTRAINTS`, `CONFLICTS`,
   `UNCERTAINTY`.
 - Mechanical Editor: `CHANGED_FILES`, `CHECK`; optional `RESULT`, `DEVIATIONS`.
+- Test Executor: `PLAN_RESULT`, `EVIDENCE`, `COVERAGE`, `TARGET_STATE`; when blocked,
+  `NEXT_ACTION`, `BLOCKER`; only for `REPAIR_RESUME`, `RESUME_POINT`,
+  `REMAINING_TESTS`; optional `FINDINGS`, `OUTPUT_ARTIFACTS`.
 - Local Code Verifier: `VERDICT`, `EVIDENCE`, `COVERAGE`; optional `FINDINGS`,
   `TEST_GAPS`.
 - Final Adjudicator: `VERDICT`, `DECISIVE_EVIDENCE`, `REJECTED_ASSUMPTIONS`,
@@ -188,6 +208,8 @@ dispatch fields, stopping rules, and soft output budgets are split under
 
 Only one corrective follow-up is allowed. It identifies one exact omission, missing
 evidence, and correct prior work to preserve. Formatting alone never triggers a retry.
+Test Executor repair-resume turns are a role-scoped exception and do not consume that
+corrective follow-up.
 
 ## Native lifecycle and static validation boundary
 
@@ -208,8 +230,10 @@ files omit MCP, Skill, web, shell-environment, and sandbox overrides, so the run
 provides inherited capabilities.
 
 Role responsibility constrains behavior rather than tools. Investigator, Context
-Analyst, Local Code Verifier, and Final Adjudicator remain read-only. Mechanical Editor
-and Spark `PRODUCE` may modify only their assigned files.
+Analyst, Local Code Verifier, and Final Adjudicator remain read-only. Test Executor
+keeps source and configuration read-only, writes evidence only to its declared output,
+and performs only plan-authorized target-state changes. Mechanical Editor and Spark
+`PRODUCE` may modify only their assigned files.
 
 The plugin continues to bundle optional Context7, Exa, and MarkItDown MCP companions.
 It does not require a particular index or deny other inherited capabilities.
@@ -227,12 +251,18 @@ It does not require a particular index or deny other inherited capabilities.
   Terra/xHigh or Max for synthesis.
 - Mechanical Editor: one fully determined transformation repeated across known
   locations; not one focused local behavior-production goal.
-- Local Code Verifier: Luna for routine through difficult bounded review; Sol only for
-  high-risk or irreversible verification.
+- Test Executor: one primary-authored ordered plan with stable test IDs, dependencies,
+  pass/fail criteria, authorized side effects, evidence output, and stop conditions;
+  findings are recorded but implementation is never repaired.
+- Local Code Verifier: one implementation or verification claim attacked from one
+  failure class; it never owns a whole ordered plan or its repair-resume state. Use
+  Luna for routine through difficult bounded review and Sol only for high-risk or
+  irreversible verification.
 - Final Adjudicator: genuine evidence conflict or critical decision only.
 
 Investigator and Context Analyst are alternative discovery lanes. Spark `PRODUCE` and
 Mechanical Editor are mutually exclusive by work type and never share the same batch.
+Test Executor and Local Code Verifier are mutually exclusive for one assignment.
 Children do not communicate directly; the primary reviews and transfers dependent
 results. An edit does not automatically trigger a verifier, and Final Adjudicator is
 not a routine closing step.
@@ -247,7 +277,7 @@ codex plugin add sol-advisor@sol-advisor
 ```
 
 Plugin installation does not write user- or project-owned instructions or custom-agent
-files. Install the six native templates separately:
+files. Install the seven native templates separately:
 
 ```sh
 plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')"
@@ -264,9 +294,9 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
 Managed upgrade recognizes only exact shipped template hashes, including the managed
-0.7 set and the changed 0.9.4 Spark and Mechanical Editor templates. It stages all six
-files and rolls back the batch on failure. Any user-modified or unknown file aborts
-before mutation. Normal installation still refuses every differing file.
+0.7 set and the changed 0.9.4 Spark and Mechanical Editor templates. It stages all
+seven files and rolls back the batch on failure. Any user-modified or unknown file
+aborts before mutation. Normal installation still refuses every differing file.
 
 Windows PowerShell example:
 
@@ -318,7 +348,7 @@ sh plugins/sol-advisor/scripts/verify.sh
 git diff --check
 ```
 
-The verifier checks the six role configurations, specialized prompts, documented and
+The verifier checks the seven role configurations, specialized prompts, documented and
 rejected routes, exact managed upgrades and rollback, runtime configuration stability,
 global-default and workspace-opt-out policy, the no-`AGENTS.md`-writer boundary,
 native lifecycle, static Python checks, and retired sidecar absence. It invokes no
