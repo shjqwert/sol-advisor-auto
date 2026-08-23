@@ -27,6 +27,8 @@ templates=$plugin_dir/agents
 legacy_templates=$script_dir/fixtures/agents-0.7.0
 previous_templates=$script_dir/fixtures/agents-0.9.4
 immediate_templates=$script_dir/fixtures/agents-0.10.2
+current_templates=$script_dir/fixtures/agents-0.11.0
+latest_templates=$script_dir/fixtures/agents-0.12.0
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
@@ -67,6 +69,7 @@ for required in "$installer" "$route_validator" "$runtime_inspector" "$python_ru
 done
 test -d "$legacy_templates" || fail "legacy managed-upgrade fixtures are missing"
 test -d "$previous_templates" || fail "previous managed-upgrade fixtures are missing"
+test -d "$latest_templates" || fail "latest managed-upgrade fixtures are missing"
 
 for retired in "$script_dir/validate-dispatch-plan.py" "$script_dir/validate-agent-result.py" "$script_dir/sol_advisor_paths.py"; do
   test ! -e "$retired" || fail "retired runtime protocol file remains: $retired"
@@ -84,8 +87,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.11.0+"):
-    raise SystemExit("manifest version was not advanced to 0.11.0")
+if not manifest.get("version", "").startswith("0.12.1+"):
+    raise SystemExit("manifest version was not advanced to 0.12.1")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -114,7 +117,7 @@ for required in ("consider a bounded child", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, three-prompt interface limits, and 0.11.0 routing metadata"
+pass "plugin manifest version, ownership, three-prompt interface limits, and 0.12.1 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -138,7 +141,7 @@ if set(servers) != {"context7", "exa", "markitdown"}:
 PY
 pass "existing Context7, Exa, and MarkItDown MCP configuration"
 
-sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" <<'PY'
+sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" "$current_templates" "$latest_templates" <<'PY'
 from pathlib import Path
 import sys
 import tomllib
@@ -147,6 +150,8 @@ templates = Path(sys.argv[1])
 legacy_templates = Path(sys.argv[2])
 previous_templates = Path(sys.argv[3])
 immediate_templates = Path(sys.argv[4])
+current_templates = Path(sys.argv[5])
+latest_templates = Path(sys.argv[6])
 roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
@@ -180,10 +185,10 @@ universal_retired = (
 role_required = {
     "sol-advisor-investigator.toml": ("search_scope", "version_date_boundary", "medium for straightforward", "high for cross-module", "answer", "evidence", "600-1400"),
     "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "medium for straightforward", "terra at high", "900-2200"),
-    "sol-advisor-mechanical-editor.toml": ("owned_files", "repetition_scope", "high for routine", "boundary-heavy", "changed_files", "500-1200"),
+    "sol-advisor-mechanical-editor.toml": ("implementation_plan", "owned_files", "reference_locators", "acceptance", "high for routine", "boundary-heavy", "changed_files", "checks", "600-1400"),
     "sol-advisor-test-executor.toml": ("plan_id", "authorized_side_effects", "evidence_output", "xhigh for a difficult", "max only", "next_action", "repair_resume", "new_child", "primary_decision", "resume_point", "900-2200"),
     "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "ordered test plan", "plan_id", "resume_point", "medium for routine", "high for multiple", "gpt-5.6-sol", "test_gaps", "700-1800"),
-    "sol-advisor-final-adjudicator.toml": ("conflicting_claims", "evidence_locators", "ship", "fix_first", "rethink", "700-1600"),
+    "sol-advisor-final-adjudicator.toml": ("solution_review", "conflict_review", "user_confirmed_baseline", "attack_angles", "conflicting_claims", "evidence_locators", "missing_user_state", "user_decisions_required", "no_material_gap_found", "material_concerns", "insufficient_evidence", "900-2200"),
     "sol-advisor-spark-worker.toml": ("mode: produce", "goal", "owned_files", "input_facts", "reference_locators", "acceptance", "preserve", "check", "done_when", "stop", "unverified", "400-900"),
 }
 
@@ -228,6 +233,16 @@ if immediate != {"sol-advisor-local-code-verifier.toml"}:
     raise SystemExit("0.10.2 managed-upgrade fixture set is incomplete")
 for path in immediate_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
+current = {path.name for path in current_templates.glob("*.toml")}
+if current != {"sol-advisor-mechanical-editor.toml", "sol-advisor-final-adjudicator.toml"}:
+    raise SystemExit("0.11.0 managed-upgrade fixture set is incomplete")
+for path in current_templates.glob("*.toml"):
+    tomllib.loads(path.read_text(encoding="utf-8"))
+latest = {path.name for path in latest_templates.glob("*.toml")}
+if latest != {"sol-advisor-final-adjudicator.toml"}:
+    raise SystemExit("0.12.0 managed-upgrade fixture set is incomplete")
+for path in latest_templates.glob("*.toml"):
+    tomllib.loads(path.read_text(encoding="utf-8"))
 PY
 pass "seven role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
 
@@ -254,8 +269,12 @@ sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
 sol_advisor_local_code_verifier openai gpt-5.6-luna max
 sol_advisor_local_code_verifier openai gpt-5.6-sol xhigh
 sol_advisor_local_code_verifier openai gpt-5.6-sol max
+sol_advisor_final_adjudicator openai gpt-5.6-sol low
+sol_advisor_final_adjudicator openai gpt-5.6-sol medium
+sol_advisor_final_adjudicator openai gpt-5.6-sol high
 sol_advisor_final_adjudicator openai gpt-5.6-sol xhigh
-sol_advisor_final_adjudicator openai gpt-5.6-sol max'
+sol_advisor_final_adjudicator openai gpt-5.6-sol max
+sol_advisor_final_adjudicator openai gpt-5.6-sol ultra'
 printf '%s\n' "$valid_routes" | while read -r role provider model effort; do
   [ -n "$role" ] || continue
   sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null || fail "documented route rejected: $role $provider $model $effort"
@@ -273,8 +292,8 @@ sol_advisor_test_executor openai gpt-5.6-sol max
 sol_advisor_local_code_verifier openai gpt-5.6-sol medium
 sol_advisor_local_code_verifier openai gpt-5.6-sol high
 sol_advisor_local_code_verifier openai gpt-5.6-terra max
-sol_advisor_final_adjudicator openai gpt-5.6-sol medium
-sol_advisor_final_adjudicator openai gpt-5.6-sol ultra'
+sol_advisor_final_adjudicator openai gpt-5.6-terra max
+sol_advisor_final_adjudicator openai gpt-5.6-luna xhigh'
 printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
   [ -n "$role" ] || continue
   if sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null 2>&1; then
@@ -365,6 +384,29 @@ for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$immediate_upgrade/$agent_file" || fail "0.10.2 managed upgrade differs: $agent_file"
 done
 pass "0.10.2 managed Local Code Verifier upgrade and Test Executor install"
+
+current_upgrade=$tmp_dir/managed-upgrade-0.11.0
+mkdir "$current_upgrade"
+for agent_file in $agent_files; do cp "$templates/$agent_file" "$current_upgrade/$agent_file"; done
+cp "$current_templates/sol-advisor-mechanical-editor.toml" "$current_upgrade/sol-advisor-mechanical-editor.toml"
+cp "$current_templates/sol-advisor-final-adjudicator.toml" "$current_upgrade/sol-advisor-final-adjudicator.toml"
+sh "$installer" --target-dir "$current_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$current_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$current_upgrade/$agent_file" || fail "0.11.0 managed upgrade differs: $agent_file"
+done
+pass "0.11.0 managed Mechanical Editor and Final Adjudicator upgrade"
+
+latest_upgrade=$tmp_dir/managed-upgrade-0.12.0
+mkdir "$latest_upgrade"
+for agent_file in $agent_files; do cp "$templates/$agent_file" "$latest_upgrade/$agent_file"; done
+cp "$latest_templates/sol-advisor-final-adjudicator.toml" "$latest_upgrade/sol-advisor-final-adjudicator.toml"
+sh "$installer" --target-dir "$latest_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$latest_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$latest_upgrade/$agent_file" || fail "0.12.0 managed upgrade differs: $agent_file"
+done
+pass "0.12.0 managed Final Adjudicator upgrade"
 
 index_target=$tmp_dir/index-plan
 mkdir "$index_target"
@@ -463,7 +505,7 @@ grep -Fq 'expected total workflow cost' "$skill" || fail "missing complete-workf
 grep -Fq 'task accuracy and first-pass completion as hard gates' "$skill" || fail "missing quality hard gate"
 grep -Fq 'Do not infer ChatGPT subscription credit multipliers' "$skill" || fail "missing subscription-pricing evidence boundary"
 grep -Fq 'available capacity, not a target to fill' "$skill" || fail "missing large-context capacity boundary"
-grep -Fq 'Keep complex implementation primary' "$skill" || fail "missing complex implementation boundary"
+grep -Fq 'Keep unresolved implementation primary' "$skill" || fail "missing unresolved implementation boundary"
 grep -Fq 'Development-time static validation' "$skill" || fail "missing static Python-validation allowance"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
 grep -Fq 'globally allowed' "$skill" || fail "missing global implicit route-evaluation default"
@@ -481,7 +523,8 @@ if grep -Fq 'matching `## Subagent Orchestration` authorization instruction' "$s
 grep -Fq 'instruction not to' "$skill" || fail "missing explicit no-delegation override"
 grep -Fq 'Use zero children' "$skill" || fail "missing zero-child fast path"
 grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child read-only cap"
-grep -Fq 'Do not use Final Adjudicator as' "$skill" || fail "missing fixed-chain prevention"
+grep -Fq 'Do not add a' "$skill" || fail "missing fixed-chain prevention"
+grep -Fq 'PRESENT -> USER_DECIDE' "$skill" || fail "missing adversarial user-disposition gate"
 grep -Fq 'frozen ordered test plan' "$skill" || fail "quality gate lacks the Test Executor work type"
 grep -Fq 'Test Executor and Local Code Verifier are mutually exclusive' "$skill" || fail "missing Test Executor and verifier role boundary"
 grep -Fq 'Test Executor has one role-specific lifecycle exception' "$skill" || fail "missing Test Executor resume exception"
@@ -536,8 +579,59 @@ done
 grep -Fq 'MODE: PRODUCE' "$skill" || fail "Skill lacks Spark PRODUCE route"
 grep -Fq 'MODE: PRODUCE' "$spark_contract" || fail "Spark contract lacks PRODUCE mode"
 grep -Fq 'MODE: PRODUCE' "$templates/sol-advisor-spark-worker.toml" || fail "Spark prompt lacks PRODUCE mode"
-grep -Fq 'REPETITION_SCOPE' "$mechanical_contract" || fail "Mechanical Editor contract lacks nature-based repetition scope"
-grep -Fq 'REPETITION_SCOPE' "$templates/sol-advisor-mechanical-editor.toml" || fail "Mechanical Editor prompt lacks nature-based repetition scope"
+grep -Fq 'IMPLEMENTATION_PLAN' "$mechanical_contract" || fail "Mechanical Editor contract lacks frozen plan input"
+grep -Fq 'IMPLEMENTATION_PLAN' "$templates/sol-advisor-mechanical-editor.toml" || fail "Mechanical Editor prompt lacks frozen plan input"
+grep -Fq 'MODE: SOLUTION_REVIEW' "$adjudicator_contract" || fail "Final Adjudicator contract lacks solution review mode"
+grep -Fq 'MODE: CONFLICT_REVIEW' "$adjudicator_contract" || fail "Final Adjudicator contract lacks conflict review mode"
+grep -Fq 'USER_DECISIONS_REQUIRED' "$adjudicator_contract" || fail "Final Adjudicator contract lacks user-decision boundary"
+grep -Fq 'accept the supported reasoning effort selected by' "$templates/sol-advisor-final-adjudicator.toml" || fail "Final Adjudicator prompt fixes its effort"
+
+sh "$python_runner" - "$skill" "$contracts" "$verifier_contract" "$adjudicator_contract" "$templates/sol-advisor-final-adjudicator.toml" <<'PY'
+from pathlib import Path
+import sys
+
+skill, contracts, verifier, adjudicator, prompt = [
+    " ".join(Path(value).read_text(encoding="utf-8").lower().split())
+    for value in sys.argv[1:]
+]
+required = {
+    "skill": (
+        skill,
+        "local code verifier and final adjudicator are mutually exclusive",
+        "route concrete code, test, implementation-correctness, verification, and release-sign-off",
+        "decision-level solution whose primary object is goals, constraints, tradeoffs",
+        "does not perform fresh implementation verification or release sign-off",
+    ),
+    "common contract": (
+        contracts,
+        "local code verifier owns concrete code, test, implementation-correctness",
+        "final adjudicator owns decision-level proposed solutions and supplied conflicts",
+    ),
+    "verifier contract": (
+        verifier,
+        "concrete code, test, implementation-correctness, verification, or release-sign-off claim",
+        "do not use it for a decision-level solution",
+        "or to adjudicate supplied evidence conflicts",
+    ),
+    "adjudicator contract": (
+        adjudicator,
+        "decision-level proposed solution or supplied conflict",
+        "does not verify concrete code",
+        "route those claims to local code verifier",
+    ),
+    "adjudicator prompt": (
+        prompt,
+        "decision-level solution",
+        "those claims belong to local code verifier",
+        "return blocked when the assigned decision is actually an implementation-verification",
+    ),
+}
+for name, (document, *phrases) in required.items():
+    for phrase in phrases:
+        if phrase not in document:
+            raise SystemExit(f"review-routing scenario boundary missing from {name}: {phrase}")
+PY
+pass "scenario-level Local Code Verifier and Final Adjudicator exclusivity contracts"
 
 sh "$python_runner" - "$skill" <<'PY'
 from pathlib import Path
@@ -557,8 +651,8 @@ for phrase in (
     "long sources",
     "unknown search",
     "focused production",
-    "repeated edits",
-    "independent review",
+    "frozen plans",
+    "independent adversarial review",
     "decide whether bounded delegation",
     "preserves quality",
     "lowers total workflow cost",
@@ -626,4 +720,4 @@ index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.11.0 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.12.1 no-cost checks completed in $tmp_dir"

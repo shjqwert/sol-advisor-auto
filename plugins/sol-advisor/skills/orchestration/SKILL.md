@@ -1,16 +1,16 @@
 ---
 name: orchestration
-description: "Use for engineering work with long sources, unknown search, focused production, repeated edits, or independent review to decide whether bounded delegation preserves quality and lowers total workflow cost; zero children is valid."
+description: "Use for engineering work: long sources, unknown search, focused production, frozen plans, or independent adversarial review. Decide whether bounded delegation preserves quality and lowers total workflow cost; zero children is valid."
 ---
 
 # Sol Advisor Orchestration
 
 Treat task accuracy and first-pass completion as hard gates. Among routes that pass
 those gates, minimize expected total workflow cost, then reduce primary-context
-pollution and latency. Keep requirements, architecture, design-dependent or iterative
-implementation, cross-module behavioral changes, final verification, integration,
-and release decisions in the primary session. A valid routing decision may use no
-child.
+pollution and latency. Keep requirements, architecture, unresolved design decisions,
+iterative debugging, final verification, integration, and release decisions in the
+primary session. A frozen detailed implementation plan may be delegated within named
+files. A valid routing decision may use no child.
 
 Before the first spawn, read the common
 [contract index](references/role-contracts.md), then load exactly one selected file
@@ -52,8 +52,8 @@ unavailable role, model, or effort.
 
 Delegate only when all quality conditions hold:
 
-- one role owns a bounded question, focused local production goal, repeated exact
-  transformation, or frozen ordered test plan;
+- one role owns a bounded question, focused local production goal, frozen detailed
+  implementation plan, frozen ordered test plan, or independent adversarial review;
 - the model and effort are adequate for the risk and reasoning difficulty;
 - scope, stopping conditions, and completion criteria are explicit;
 - the result can be verified without repeating the delegated work; and
@@ -103,15 +103,16 @@ Higher effort does not compensate for incomplete task facts or an ambiguous pack
 | Unknown-location workspace evidence or current official research | `sol_advisor_investigator` | Luna/medium, high, xhigh, or max | read-only investigation |
 | Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/medium or high | read-only extraction |
 | Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/high, xhigh, or max | read-only synthesis |
-| Same fully determined transformation repeated across known locations | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | repetitive mechanical edit |
+| Frozen detailed implementation plan with named files, decided behavior, and mechanical checks | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | plan-bound implementation |
 | Primary-authored ordered test plan with bounded evidence output | `sol_advisor_test_executor` | Luna/xhigh or max | resumable test execution without fixes |
-| Routine through difficult bounded verification | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only verification |
-| Security, authorization, concurrency, state, data, migration, public-API, or release risk | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
-| Genuine evidence conflict or critical decision | `sol_advisor_final_adjudicator` | Sol/xhigh or max | read-only adjudication |
+| Concrete code, test, implementation-correctness, or verification claim | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only implementation verification |
+| Security, authorization, concurrency, state, data, migration, public-API, or release-sign-off claim | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
+| Decision-level proposed solution or supplied conflict that benefits from an independent adversarial attack | `sol_advisor_final_adjudicator` | Sol with primary-selected supported effort | read-only decision review |
 
 Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, Mechanical
 Luna/medium, Test Executor Luna/low, medium, or high, Verifier Sol/medium or high, and
-Adjudicator Sol/medium or high. If no allowed route fits, keep the work primary.
+any Final Adjudicator route that does not use its pinned Sol model or a supported
+effort. If no allowed route fits, keep the work primary.
 
 Do not infer ChatGPT subscription credit multipliers from API pricing thresholds.
 Use observed Codex usage when available and otherwise compare relative route cost.
@@ -120,10 +121,11 @@ Treat a large context window as available capacity, not a target to fill.
 Use an available MCP, index, or exact read in the primary session for bounded symbol,
 relationship, configuration, or log lookup. Investigator and Context Analyst are
 alternative discovery lanes for the same decision. Spark PRODUCE and Mechanical Editor
-are mutually exclusive: use Spark for one local production goal and Mechanical Editor
-for one transformation repeated across known locations. Do not add a verifier merely
-because another child participated. Do not use Final Adjudicator as a routine closing
-step or build a fixed role chain.
+are mutually exclusive: use Spark for one compact frozen local goal and Mechanical
+Editor for an approved detailed implementation plan across named files. Do not add a
+verifier or Final Adjudicator merely because another child participated. Use Final
+Adjudicator only when a proposed solution or supplied conflict has a bounded review
+object and an independent adversarial attack can materially improve the decision.
 
 Use Test Executor only after the primary freezes an ordered plan with stable test IDs,
 dependencies, authorized side effects, pass/fail criteria, evidence output, and stop
@@ -137,14 +139,21 @@ evidence output, and repair-resume state. Local Code Verifier attacks one implem
 or verification claim from one failure class; it must not execute the whole ordered
 plan or manage `PLAN_ID` or `RESUME_POINT` state.
 
-## Keep complex implementation primary
+Local Code Verifier and Final Adjudicator are mutually exclusive for one assignment.
+Route concrete code, test, implementation-correctness, verification, and release-sign-off
+claims to Local Code Verifier, even when the review is adversarial. Route a
+decision-level solution whose primary object is goals, constraints, tradeoffs,
+assumptions, scope, or accepted risk to Final Adjudicator. Final Adjudicator may inspect
+supplied implementation evidence for that decision, or adjudicate supplied conflicting
+claims, but it does not perform fresh implementation verification or release sign-off.
 
-Do not delegate implementation that requires design or architecture judgment,
-cross-module behavioral changes, public-interface or dependency changes, repeated
-debugging, safety-critical implementation, or final integration. Spark and Mechanical
-Editor may write only after the primary freezes their respective production goal or
-transformation, owned files, preservation rules, completion criteria, and mechanical
-check.
+## Keep unresolved implementation primary
+
+Do not delegate implementation that still requires product, design, or architecture
+judgment, public-interface or dependency decisions, repeated debugging, safety-critical
+judgment, or final integration. Spark and Mechanical Editor may write only after the
+primary freezes their respective production goal or detailed implementation plan,
+owned files, preservation rules, completion criteria, and mechanical checks.
 
 ## Isolate the primary session
 
@@ -161,6 +170,12 @@ Use one sequence for every child:
    After any edit, inspect the complete diff and rerun the specified check.
 6. **ACT:** integrate, issue one bounded correction, or fall back to the primary.
 
+For adversarial-review findings that could change the solution, scope, accepted risk,
+or implementation, insert `PRESENT -> USER_DECIDE` between VERIFY and ACT. A child
+finding is a claim, not repair authorization. The primary presents verified findings
+and options; only user-accepted findings may change the agreed solution or authorize
+repair.
+
 Two concurrent read-only children require mutually exclusive decisions, source scopes,
 and failure classes. Shared files, answer dependencies, edits, follow-ups, and
 adjudication remain serial. Children do not communicate directly or form a fixed
@@ -173,7 +188,9 @@ message, and `fork_turns: "none"`.
 
 - Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Test Executor/Luna, Final
   Adjudicator/Sol, and Spark Worker/Spark. Pass `reasoning_effort`; omit redundant
-  model overrides.
+  model overrides. For Final Adjudicator, the primary automatically selects any
+  supported Sol effort from the review consequence and uncertainty instead of using a
+  fixed default.
 - Dynamic roles: Context Analyst and Local Code Verifier. Pass both the exact `model`
   and `reasoning_effort` selected from the route table.
 - Spark has no literal automatic effort setting. The primary chooses low, medium, or
@@ -253,5 +270,5 @@ is allowed and does not participate in dispatch.
   are a role-scoped exception for the same frozen plan, not corrective retries.
 - Keep all writes serial and inspect their complete diffs.
 - Do not let children spawn descendants.
-- Keep complex implementation, final verification, integration, and the user response
-  in the primary session.
+- Keep unresolved implementation decisions, final verification, integration, and the
+  user response in the primary session.

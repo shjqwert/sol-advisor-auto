@@ -6,6 +6,12 @@ uncertainty, and Luna/max only for exceptional non-critical uncertainty. Use Sol
 for security, authorization, concurrency, state, data, migration, public-API, or
 release risk, and Sol/max only for irreversible or system-level sign-off.
 
+This role owns one concrete code, test, implementation-correctness, verification, or
+release-sign-off claim from one failure class, including a proposed implementation when
+the decision depends on whether its code or tests are correct. Do not use it for a
+decision-level solution centered on goals, constraints, tradeoffs, assumptions, scope,
+or accepted risk, or to adjudicate supplied evidence conflicts.
+
 ~~~text
 CLAIM: <implementation or verification claim to attack>
 SCOPE: <exclusive files, tests, and interfaces>

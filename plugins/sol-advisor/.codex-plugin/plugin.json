@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.11.0+codex.20260820182339",
-  "description": "Quality-gated Codex workflow with bounded delegation, resumable test execution, project opt-out, and total-cost routing.",
+  "version": "0.12.1+codex.20260821165609",
+  "description": "Quality-gated Codex workflow with plan-bound implementation, adversarial review, resumable testing, project opt-out, and total-cost routing.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Quality-gated delegation with total-cost routing.",
-    "longDescription": "Sol Advisor makes bounded delegation globally eligible unless the current workspace opts out, without requiring a child or route record. Task accuracy and first-pass completion are hard gates; among routes that preserve them, it minimizes expected total workflow cost across primary work, child work, result intake, verification, and retry risk. Spark handles compact frozen local production; GPT-5.6 roles handle investigation, synthesis, repeated mechanical transformations, resumable test-plan execution, risk-selected verification, and genuine adjudication. Context isolation remains a quality and cost mechanism, while the primary session owns direct tool lookups, design-dependent implementation, bounded evidence checks, fallback, and final integration.",
+    "longDescription": "Sol Advisor makes bounded delegation globally eligible unless the current workspace opts out, without requiring a child or route record. Task accuracy and first-pass completion are hard gates; among routes that preserve them, it minimizes expected total workflow cost across primary work, child work, result intake, verification, and retry risk. Spark handles compact frozen local production; GPT-5.6 roles handle investigation, synthesis, frozen detailed implementation plans, resumable test execution, implementation verification, and decision-level adversarial review. Context isolation remains a quality and cost mechanism, while the primary session owns direct tool lookups, unresolved design decisions, user finding disposition, bounded evidence checks, fallback, and final integration.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -31,8 +31,8 @@
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
       "Preserve task accuracy and first-pass completion as hard gates before considering delegation.",
-      "Consider a bounded child when expected total workflow cost falls or isolation or independent verification improves quality.",
-      "Use zero children when tools suffice. Keep design work primary; use one native final result per turn; resume tests after repair."
+      "Consider a bounded child when expected total workflow cost falls, a plan is frozen, or adversarial review improves quality.",
+      "Use zero children when tools suffice. Present review findings to the user; use one native final result per turn."
     ]
   }
 }

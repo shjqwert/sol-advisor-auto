@@ -5,11 +5,11 @@ orchestration. Task accuracy and first-pass completion are hard gates. Among rou
 that preserve them, Sol Advisor minimizes expected total workflow cost before reducing
 context pollution or latency.
 
-The primary session owns requirements, architecture, design-dependent or iterative
-implementation, cross-module behavioral changes, final verification, integration, and
-release decisions. Children handle only bounded investigation, identified-source
-analysis, focused local production, repeated mechanical transformations, resumable
-test-plan execution, independent verification, or evidence adjudication.
+The primary session owns requirements, architecture, unresolved design decisions,
+iterative debugging, final verification, integration, user finding disposition, and
+release decisions. Children handle bounded investigation, identified-source analysis,
+focused local production, frozen detailed implementation plans, resumable test-plan
+execution, independent verification, or adversarial review.
 
 ## Roles
 
@@ -18,15 +18,17 @@ test-plan execution, independent verification, or evidence adjudication.
 | `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused serial `PRODUCE` |
 | `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
-| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | large, fully determined repetitive edits | bounded serial edit |
+| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound serial implementation |
 | `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
-| `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | routine through high-risk implementation review | read-only verification |
-| `sol_advisor_final_adjudicator` | Sol/xHigh or Max | genuine evidence conflict or critical decision | read-only adjudication |
+| `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | concrete implementation or release-sign-off claim | read-only verification |
+| `sol_advisor_final_adjudicator` | Sol / primary-selected supported effort | decision-level solution or supplied conflict | read-only adversarial review |
 
 Context Analyst and Local Code Verifier deliberately do not pin a base model in their
 TOML profiles. The primary must pass both the selected model and effort at spawn.
-Pinned roles, including Test Executor on Luna, receive only an effort override. Spark
-effort is selected before spawn; there is no literal automatic effort value. This
+Pinned roles, including Test Executor on Luna and Final Adjudicator on Sol, receive
+only an effort override. The primary automatically selects Final Adjudicator effort
+from the review consequence and uncertainty; no fixed default or literal `auto` value
+is passed. Spark effort is also selected before spawn. This
 follows the inheritance and override behavior documented in
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
@@ -41,8 +43,8 @@ Implicit route evaluation is globally allowed when the plugin is installed and
 enabled. Delegation still requires all of the following:
 
 - the current project has not opted out;
-- one role owns a bounded question, focused local production goal, repeated exact
-  transformation, or frozen ordered test plan;
+- one role owns a bounded question, focused local production goal, frozen detailed
+  implementation plan, frozen ordered test plan, or independent adversarial review;
 - the selected model and effort are adequate for the risk;
 - scope, completion, stopping, and verification criteria are explicit;
 - first-pass accuracy and completion reliability are not expected to decline; and
@@ -60,12 +62,11 @@ After deciding to delegate, use one child by default.
 Use at most two concurrent children, only for read-only work with mutually exclusive
 decisions, source scopes, and failure classes.
 
-Do not delegate implementation that requires architecture or design judgment,
-cross-module behavior changes, public-interface or dependency changes, repeated
-debugging, safety-critical implementation, or final integration. Spark and Mechanical
-Editor write only after the primary freezes their respective production goal or
-transformation, ownership, preservation rules, completion criteria, and mechanical
-check.
+Do not delegate implementation that still requires architecture, product, or design
+judgment, public-interface or dependency decisions, repeated debugging,
+safety-critical judgment, or final integration. Spark and Mechanical Editor write
+only after the primary freezes their respective production goal or detailed plan,
+ownership, preservation rules, completion criteria, and mechanical checks.
 
 ## Optional context preflight
 
@@ -144,7 +145,10 @@ flowchart TD
     C --> S2{Correction usable?}
     S2 -->|Yes| V
     S2 -->|No| P
-    V --> E{Edit role?}
+    V --> ADF{Decision-changing adversarial finding?}
+    ADF -->|Yes| U[Present findings and wait for user decision]
+    ADF -->|No| E{Edit role?}
+    U --> E
     E -->|Yes| X[Inspect full diff and rerun exact check]
     E -->|No| I[Primary integrates]
     X --> I
@@ -191,14 +195,16 @@ fields:
 - Investigator: `ANSWER`, `EVIDENCE`; optional `FINDINGS`, `UNKNOWNS`.
 - Context Analyst: `SYNTHESIS`, `SOURCE_LOCATORS`; optional `CONSTRAINTS`, `CONFLICTS`,
   `UNCERTAINTY`.
-- Mechanical Editor: `CHANGED_FILES`, `CHECK`; optional `RESULT`, `DEVIATIONS`.
+- Mechanical Editor: `CHANGED_FILES`, `CHECKS`; optional `RESULT`, `DEVIATIONS`,
+  `UNVERIFIED`.
 - Test Executor: `PLAN_RESULT`, `EVIDENCE`, `COVERAGE`, `TARGET_STATE`; when blocked,
   `NEXT_ACTION`, `BLOCKER`; only for `REPAIR_RESUME`, `RESUME_POINT`,
   `REMAINING_TESTS`; optional `FINDINGS`, `OUTPUT_ARTIFACTS`.
 - Local Code Verifier: `VERDICT`, `EVIDENCE`, `COVERAGE`; optional `FINDINGS`,
   `TEST_GAPS`.
-- Final Adjudicator: `VERDICT`, `DECISIVE_EVIDENCE`, `REJECTED_ASSUMPTIONS`,
-  `REQUIRED_ACTION`.
+- Final Adjudicator: `VERDICT`, `FINDINGS`, `DECISIVE_EVIDENCE`; optional
+  `UNSUPPORTED_ASSUMPTIONS`, `MISSING_USER_STATE`, `USER_DECISIONS_REQUIRED`,
+  `RESIDUAL_RISKS`, `RECOMMENDATION`.
 - Spark `PRODUCE`: `CHANGED_FILES`, `CHECK`; optional `DEVIATIONS`, `UNVERIFIED`.
 
 The common lifecycle and role index are in
@@ -249,23 +255,34 @@ It does not require a particular index or deny other inherited capabilities.
 - Investigator: unknown evidence locations or current official-source reconciliation.
 - Context Analyst: already identified long sources; Luna/High for extraction,
   Terra/xHigh or Max for synthesis.
-- Mechanical Editor: one fully determined transformation repeated across known
-  locations; not one focused local behavior-production goal.
+- Mechanical Editor: one frozen detailed implementation plan whose behavior, named
+  files, acceptance, and checks are already decided; different plan-specified edits
+  are allowed across those files. Spark remains the route for one compact local goal.
 - Test Executor: one primary-authored ordered plan with stable test IDs, dependencies,
   pass/fail criteria, authorized side effects, evidence output, and stop conditions;
   findings are recorded but implementation is never repaired.
-- Local Code Verifier: one implementation or verification claim attacked from one
-  failure class; it never owns a whole ordered plan or its repair-resume state. Use
-  Luna for routine through difficult bounded review and Sol only for high-risk or
-  irreversible verification.
-- Final Adjudicator: genuine evidence conflict or critical decision only.
+- Local Code Verifier: one concrete code, test, implementation-correctness,
+  verification, or release-sign-off claim attacked from one failure class; it never
+  owns a whole ordered plan or its repair-resume state. Use Luna for routine through
+  difficult bounded review and Sol only for high-risk or irreversible verification.
+- Final Adjudicator: independent adversarial review of a decision-level solution or
+  supplied conflict. It may inspect supplied implementation artifacts as decision
+  evidence but does not replace implementation verification. The primary selects a
+  supported Sol effort from consequence and uncertainty, verifies decisive evidence,
+  and presents decision-changing findings to the user before repair or acceptance.
 
 Investigator and Context Analyst are alternative discovery lanes. Spark `PRODUCE` and
 Mechanical Editor are mutually exclusive by work type and never share the same batch.
 Test Executor and Local Code Verifier are mutually exclusive for one assignment.
 Children do not communicate directly; the primary reviews and transfers dependent
 results. An edit does not automatically trigger a verifier, and Final Adjudicator is
-not a routine closing step.
+used only for a bounded solution or conflict review where an independent attack can
+materially improve the decision.
+
+Local Code Verifier and Final Adjudicator are also mutually exclusive for one
+assignment. Concrete implementation correctness and release sign-off route to Local
+Code Verifier, even when adversarial. Goals, constraints, tradeoffs, assumptions,
+scope, accepted risk, and supplied evidence conflicts route to Final Adjudicator.
 
 ## Installation
 
@@ -294,8 +311,9 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
 Managed upgrade recognizes only exact shipped template hashes, including the managed
-0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, and the 0.10.2 Local
-Code Verifier. It stages all seven files and rolls back the batch on failure. Any
+0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, the 0.10.2 Local Code
+Verifier, the 0.11.0 Mechanical Editor and Final Adjudicator, and the 0.12.0 Final
+Adjudicator. It stages all seven files and rolls back the batch on failure. Any
 user-modified or unknown file aborts before mutation. Normal installation still
 refuses every differing file.
 

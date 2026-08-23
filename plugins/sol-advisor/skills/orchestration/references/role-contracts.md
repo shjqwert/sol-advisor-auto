@@ -27,6 +27,16 @@ Every child:
 - uses `STATUS: COMPLETE | INCOMPLETE | BLOCKED`; and
 - omits empty optional fields, raw logs, tool narration, progress, and repetition.
 
+An adversarial-review finding is advisory. The primary verifies decisive evidence and
+presents any finding that could change the agreed solution, scope, accepted risk, or
+implementation to the user before repair or acceptance. Missing user state remains
+unknown; a child never converts it into an assumption or authorization.
+
+Local Code Verifier owns concrete code, test, implementation-correctness, verification,
+and release-sign-off claims. Final Adjudicator owns decision-level proposed solutions
+and supplied conflicts; it may use implementation artifacts as evidence but does not
+replace implementation verification.
+
 Test Executor is the only resumable role. After a blocking final with
 `NEXT_ACTION: REPAIR_RESUME`, the primary may repair the implementation and reactivate
 the same native child with the repair-resume packet from its selected contract. A

@@ -46,8 +46,12 @@ case "$role:$provider:$model:$effort" in
   sol_advisor_local_code_verifier:openai:gpt-5.6-luna:max | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-sol:xhigh | \
   sol_advisor_local_code_verifier:openai:gpt-5.6-sol:max | \
+  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:low | \
+  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:medium | \
+  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:high | \
   sol_advisor_final_adjudicator:openai:gpt-5.6-sol:xhigh | \
-  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:max)
+  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:max | \
+  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:ultra)
     printf '%s\n' "VALID ROUTE: $role $provider $model $effort"
     ;;
   *)
