@@ -241,7 +241,8 @@ keeps source and configuration read-only, writes evidence only to its declared o
 and performs only plan-authorized target-state changes. Mechanical Editor and Spark
 `PRODUCE` may modify only their assigned files.
 
-The plugin continues to bundle optional Context7, Exa, and MarkItDown MCP companions.
+The plugin bundles only the optional Context7 MCP companion for developer documentation.
+Exa and MarkItDown are not bundled; use available web and local document tools when needed.
 It does not require a particular index or deny other inherited capabilities.
 
 ## Route boundaries
@@ -311,7 +312,7 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
 Managed upgrade recognizes only exact shipped template hashes, including the managed
-0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, the 0.10.2 Local Code
+pre-0.7 templates from commit `293266924b`, the 0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, the 0.10.2 Local Code
 Verifier, the 0.11.0 Mechanical Editor and Final Adjudicator, and the 0.12.0 Final
 Adjudicator. It stages all seven files and rolls back the batch on failure. Any
 user-modified or unknown file aborts before mutation. Normal installation still
@@ -335,6 +336,17 @@ rediscovered. If a new task still advertises an older cache path, reload Codex D
 before creating another task.
 
 ## Optional diagnostics
+
+After plugin and agent installation, run the read-only combined check:
+
+```sh
+python scripts/check-installation.py
+```
+
+Run it from the plugin directory. It checks Codex registration, the cached plugin files
+and all seven native templates, and reports differences without reinstalling or
+overwriting customizations. `--cache PATH` supports offline checks and explicitly does
+not verify Codex registration.
 
 These development diagnostics do not gate normal dispatch:
 

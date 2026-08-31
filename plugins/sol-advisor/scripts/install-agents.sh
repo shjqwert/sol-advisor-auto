@@ -109,7 +109,10 @@ agent_files = (
 # Accept exact LF and CRLF byte forms of recognized managed templates. A differing or
 # user-modified file is never treated as managed merely because its TOML is similar.
 legacy_hashes = {
+    # Exact templates from repository commit 293266924b, in LF and CRLF forms.
     "sol-advisor-investigator.toml": {
+        "d00452d78240116576dc296db5042b072265593c72c639a4ac20cf1b02566b4b",
+        "51105fca90b99eea537dea154f35f4a6f08198bdcdb87c7373e2049b588da91c",
         "a15210121b38d954c67633281d4294884dab2244507d5585ae274b610cf54060",
         "4c0b41770beea1d8092193bdaaea4af50ca09ed5174386a9be547d26be0609a3",
         "e215f19fc9239d737084819f1106e82f6d981ea9d7c41a8a284943030fb6af1f",
@@ -117,6 +120,8 @@ legacy_hashes = {
         "5e32f293a1f1947d404b29524edc5c53352ea749fcb86a6418eb2529215ed8c1",
     },
     "sol-advisor-context-analyst.toml": {
+        "1f8749ba64e85abc4e6cea902f748391e19eec281bfa2b88480da9f24d3666cf",
+        "bfd2f630806ab0615812de651dbad114a92c34a877dcd4fcabe5999ee6ca8023",
         "5ef4f96f1952d87ff90c33aa7293f32af2df1034961aff0c9f5e29123cc13d16",
         "3a038345e1f4ded02c1c13685195cf0251c5005abad88d97b8e288636cb97913",
         "16b00933fb6b02b9163f14309432e58246c26f7aa92341997adb88f3fca3d278",
@@ -124,6 +129,8 @@ legacy_hashes = {
         "be9a21c8722c4967b582a667108f45c23cba650a18157b7262609ae6e5b2f79e",
     },
     "sol-advisor-mechanical-editor.toml": {
+        "b3deac0da749c53fdcf50db5acd3175f2c1f78eb14c1cbb45783fc3862a27649",
+        "e70cb65715129b7c408ab26a9ba47e2cac9139e07d954be79654c20df8c3a6ba",
         "6a6cfa03653344fbc4de7971e529e63b52e7aba7b8edef8342b1410869381475",
         "b2281ec27766dcfd32ea9dda6032da069c37da3f0ab7590936b07804869d0826",
         "ab4cb064cbc71d578e8352d6ee42b4f0153795e47e99a7530a1e30a8aebefc0f",
@@ -135,6 +142,8 @@ legacy_hashes = {
         "d789215b7e53a09c66ab832eabf156b449043dfccf3f2dd054712baefa624e99",
     },
     "sol-advisor-local-code-verifier.toml": {
+        "e4f8a5a7364e1e9eadd0974fd21d9242956f161cfaa769cd7f686370ced92671",
+        "2ea57feb5af143c2f597f69b0b253ca2db6f27d44a506b0775b1db2fab13950e",
         "234fb934016ff4ccf16db0c841e0cec4d92370a282b4f37961118e947cfae93b",
         "7fecc3d56c0ab4fa9e64ea72f80ed41678d7fcf97bf5043ade696d580b7b2fcc",
         "b4468d367ece3eb151c45c422e21feba719dc69f8029c209af50e34218c0e201",
@@ -144,6 +153,8 @@ legacy_hashes = {
         "9115147d2b04c3a8e844e93360872874396d6b2dc0b8f63d0aa29f24b160e3ab",
     },
     "sol-advisor-final-adjudicator.toml": {
+        "ba2ee3bb3a0ec6b6776ab77cc3bca6f3da47cb0b713e073ae3a45e9cca902916",
+        "a6328ada966d35521df92f9afc4075f676b90256f6008d66fb3301e39e874fe8",
         "e4fac299bb1d4780d5ee81e5f740056aa2db744e81668322670a10347d2342ce",
         "32d8478957cba7b7e254f0745b2ff70ee01cfcc2349b353852240bfb1228265d",
         "3997f5233c87512e4bb5e753af26243de443c36814f7fd8743ff5ead7bab4876",

@@ -87,8 +87,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.12.1+"):
-    raise SystemExit("manifest version was not advanced to 0.12.1")
+if not manifest.get("version", "").startswith("0.12.2+"):
+    raise SystemExit("manifest version was not advanced to 0.12.2")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -117,7 +117,7 @@ for required in ("consider a bounded child", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, three-prompt interface limits, and 0.12.1 routing metadata"
+pass "plugin manifest version, ownership, three-prompt interface limits, and 0.12.2 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -127,19 +127,15 @@ import sys
 servers = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("mcpServers", {})
 expected = {
     "context7": ("http", "https://mcp.context7.com/mcp"),
-    "exa": ("http", "https://mcp.exa.ai/mcp"),
 }
 for name, (kind, url) in expected.items():
     value = servers.get(name, {})
     if value.get("type") != kind or value.get("url") != url:
         raise SystemExit(f"unexpected {name} MCP endpoint")
-markitdown = servers.get("markitdown", {})
-if markitdown.get("command") != "uvx" or markitdown.get("args") != ["markitdown-mcp"]:
-    raise SystemExit("unexpected MarkItDown MCP command")
-if set(servers) != {"context7", "exa", "markitdown"}:
+if set(servers) != {"context7"}:
     raise SystemExit("unexpected MCP set")
 PY
-pass "existing Context7, Exa, and MarkItDown MCP configuration"
+pass "Context7-only MCP configuration; Exa and MarkItDown are not bundled"
 
 sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" "$current_templates" "$latest_templates" <<'PY'
 from pathlib import Path
@@ -245,6 +241,9 @@ for path in latest_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
 PY
 pass "seven role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
+
+sh "$python_runner" "$script_dir/test_installation.py"
+pass "combined installation diagnosis and exact 293266924b upgrade/rollback coverage"
 
 valid_routes='sol_advisor_spark_worker openai gpt-5.3-codex-spark low
 sol_advisor_spark_worker openai gpt-5.3-codex-spark medium
@@ -720,4 +719,4 @@ index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.12.1 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 0.12.2 no-cost checks completed in $tmp_dir"

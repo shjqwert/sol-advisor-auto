@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "0.12.1+codex.20260821165609",
+  "version": "0.12.2+codex.20260831083501",
   "description": "Quality-gated Codex workflow with plan-bound implementation, adversarial review, resumable testing, project opt-out, and total-cost routing.",
   "author": {
     "name": "shjqwert",
