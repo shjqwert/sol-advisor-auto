@@ -32,6 +32,7 @@ latest_templates=$script_dir/fixtures/agents-0.12.0
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
+routing=$plugin_dir/skills/orchestration/references/routing.md
 contracts=$plugin_dir/skills/orchestration/references/role-contracts.md
 contract_dir=$plugin_dir/skills/orchestration/references/roles
 investigator_contract=$contract_dir/investigator.md
@@ -64,7 +65,7 @@ trap cleanup 0 HUP INT TERM
 tmp_dir=$(mktemp -d "$tmp_base/sol-advisor-verify.XXXXXX") || fail "could not create disposable verification directory"
 case "$tmp_dir" in "$tmp_base"/sol-advisor-verify.*) ;; *) fail "unexpected temporary directory: $tmp_dir" ;; esac
 
-for required in "$installer" "$route_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$contracts" $role_contract_files "$metadata" "$readme" "$gitattributes"; do
+for required in "$installer" "$route_validator" "$runtime_inspector" "$python_runner" "$search_preflight" "$manifest" "$mcp_config" "$skill" "$routing" "$contracts" $role_contract_files "$metadata" "$readme" "$gitattributes"; do
   test -f "$required" || fail "required file missing: $required"
 done
 test -d "$legacy_templates" || fail "legacy managed-upgrade fixtures are missing"
@@ -87,8 +88,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if not manifest.get("version", "").startswith("0.12.2+"):
-    raise SystemExit("manifest version was not advanced to 0.12.2")
+if manifest.get("version") != "1.0.0":
+    raise SystemExit("manifest version was not advanced to 1.0.0")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -110,14 +111,14 @@ for index, prompt in enumerate(interface.get("defaultPrompt", [])):
 prompts = " ".join(interface.get("defaultPrompt", [])).lower()
 for required in ("accuracy", "first-pass completion", "expected total workflow cost", "one native final result"):
     if required not in prompts:
-        raise SystemExit(f"manifest prompts do not describe the 0.9 routing goals: {required}")
-for required in ("consider a bounded child", "use zero children"):
+        raise SystemExit(f"manifest prompts do not describe the current routing goals: {required}")
+for required in ("delegate clear bounded role matches", "use zero children"):
     if required not in prompts:
         raise SystemExit(f"manifest prompts do not describe optional delegation: {required}")
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, three-prompt interface limits, and 0.12.2 routing metadata"
+pass "plugin manifest version, ownership, three-prompt interface limits, and 1.0.0 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -488,7 +489,7 @@ if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$mixed_model_id" 
 fi
 pass "stable multi-turn configuration and mixed model/effort rejection without prompt leakage"
 
-for document in "$skill" "$contracts" "$readme"; do
+for document in "$skill" "$routing" "$contracts" "$readme"; do
   for role in sol_advisor_investigator sol_advisor_context_analyst sol_advisor_mechanical_editor sol_advisor_test_executor sol_advisor_local_code_verifier sol_advisor_final_adjudicator sol_advisor_spark_worker; do
     grep -Fq "$role" "$document" || fail "missing role $role in $document"
   done
@@ -498,36 +499,39 @@ for document in "$skill" "$contracts" "$readme"; do
   grep -Fqi 'parent-interaction' "$document" || fail "missing interaction-message prohibition: $document"
 done
 
-grep -Fq 'fork_turns: "none"' "$skill" || fail "missing isolated child spawn rule"
-grep -Fq 'Pass both the exact `model`' "$skill" || fail "missing explicit dynamic model and effort rule"
-grep -Fq 'expected total workflow cost' "$skill" || fail "missing complete-workflow cost objective"
-grep -Fq 'task accuracy and first-pass completion as hard gates' "$skill" || fail "missing quality hard gate"
-grep -Fq 'Do not infer ChatGPT subscription credit multipliers' "$skill" || fail "missing subscription-pricing evidence boundary"
-grep -Fq 'available capacity, not a target to fill' "$skill" || fail "missing large-context capacity boundary"
-grep -Fq 'Keep unresolved implementation primary' "$skill" || fail "missing unresolved implementation boundary"
-grep -Fq 'Development-time static validation' "$skill" || fail "missing static Python-validation allowance"
+grep -Fq 'fork_turns: "none"' "$routing" || fail "missing isolated child spawn rule"
+grep -Fq 'Pass both the exact `model`' "$routing" || fail "missing explicit dynamic model and effort rule"
+grep -Fq 'expected total workflow cost' "$routing" || fail "missing complete-workflow cost objective"
+grep -Fq 'task accuracy and first-pass completion as hard gates' "$routing" || fail "missing quality hard gate"
+grep -Fq 'Do not infer ChatGPT subscription credit multipliers' "$routing" || fail "missing subscription-pricing evidence boundary"
+grep -Fq 'available capacity, not a target to fill' "$routing" || fail "missing large-context capacity boundary"
+grep -Fq 'Keep unresolved implementation primary' "$routing" || fail "missing unresolved implementation boundary"
+grep -Fq 'Development-time static validation' "$routing" || fail "missing static Python-validation allowance"
 grep -Fq 'allow_implicit_invocation: true' "$metadata" || fail "automatic invocation policy missing"
-grep -Fq 'globally allowed' "$skill" || fail "missing global implicit route-evaluation default"
-grep -Fq 'Do not require a project `.agent` directory' "$skill" || fail "missing no-project-bootstrap rule"
-grep -Fq 'empty folders' "$skill" || fail "missing empty-folder automatic-evaluation scope"
-grep -Fq 'non-Git directories' "$skill" || fail "missing non-Git automatic-evaluation scope"
-grep -Fq 'from-scratch' "$skill" || fail "missing from-scratch automatic-evaluation scope"
-grep -Fq 'authorizations.solAdvisor.implicitDelegation` exactly `false`' "$skill" || fail "missing project opt-out value"
-grep -Fq 'Exact `true`, a missing file,' "$skill" || fail "missing default-allow compatibility rule"
-grep -Fq 'or a missing key leaves the global default enabled' "$skill" || fail "missing default-allow compatibility rule"
-grep -Fq 'agents.enabled = false' "$skill" || fail "missing Codex multi-agent hard-disable rule"
-grep -Fq 'invalid or unreadable' "$skill" || fail "missing invalid-override fail-safe rule"
-if grep -Fq 'spawn no child unless both signals are present' "$skill"; then fail "retired dual authorization gate remains"; fi
-if grep -Fq 'matching `## Subagent Orchestration` authorization instruction' "$skill"; then fail "retired managed AGENTS authorization gate remains"; fi
-grep -Fq 'instruction not to' "$skill" || fail "missing explicit no-delegation override"
-grep -Fq 'Use zero children' "$skill" || fail "missing zero-child fast path"
-grep -Fq 'at most two concurrent children' "$skill" || fail "missing two-child read-only cap"
-grep -Fq 'Do not add a' "$skill" || fail "missing fixed-chain prevention"
-grep -Fq 'PRESENT -> USER_DECIDE' "$skill" || fail "missing adversarial user-disposition gate"
-grep -Fq 'frozen ordered test plan' "$skill" || fail "quality gate lacks the Test Executor work type"
-grep -Fq 'Test Executor and Local Code Verifier are mutually exclusive' "$skill" || fail "missing Test Executor and verifier role boundary"
-grep -Fq 'Test Executor has one role-specific lifecycle exception' "$skill" || fail "missing Test Executor resume exception"
-grep -Fq 'repair-resume turns do not consume the one corrective follow-up' "$skill" || fail "Test Executor resume consumes the corrective retry"
+grep -Fq 'globally allowed' "$routing" || fail "missing global implicit route-evaluation default"
+grep -Fq 'Do not require a project `.agent` directory' "$routing" || fail "missing no-project-bootstrap rule"
+grep -Fq 'empty folders' "$routing" || fail "missing empty-folder automatic-evaluation scope"
+grep -Fq 'non-Git directories' "$routing" || fail "missing non-Git automatic-evaluation scope"
+grep -Fq 'from-scratch' "$routing" || fail "missing from-scratch automatic-evaluation scope"
+grep -Fq 'authorizations.solAdvisor.implicitDelegation` exactly `false`' "$routing" || fail "missing project opt-out value"
+grep -Fq 'Exact `true`, a missing file,' "$routing" || fail "missing default-allow compatibility rule"
+grep -Fq 'or a missing key leaves the global default enabled' "$routing" || fail "missing default-allow compatibility rule"
+grep -Fq 'agents.enabled = false' "$routing" || fail "missing Codex multi-agent hard-disable rule"
+grep -Fq 'invalid or unreadable' "$routing" || fail "missing invalid-override fail-safe rule"
+if grep -Fq 'spawn no child unless both signals are present' "$routing"; then fail "retired dual authorization gate remains"; fi
+if grep -Fq 'matching `## Subagent Orchestration` authorization instruction' "$routing"; then fail "retired managed AGENTS authorization gate remains"; fi
+grep -Fq 'instruction not to' "$routing" || fail "missing explicit no-delegation override"
+grep -Fq 'Use zero children' "$routing" || fail "missing zero-child fast path"
+grep -Fq 'Do not impose a fixed child-count default or cap' "$routing" || fail "missing dependency-based concurrency rule"
+if grep -Eq 'use one child by default|at most two concurrent children|Keep all writes serial' "$skill" "$routing"; then
+  fail "retired fixed child-count or global write-serialization rule remains"
+fi
+grep -Fq 'Do not add a' "$routing" || fail "missing fixed-chain prevention"
+grep -Fq 'PRESENT -> USER_DECIDE' "$routing" || fail "missing adversarial user-disposition gate"
+grep -Fq 'frozen ordered test plan' "$routing" || fail "quality gate lacks the Test Executor work type"
+grep -Fq 'Test Executor and Local Code Verifier are mutually exclusive' "$routing" || fail "missing Test Executor and verifier role boundary"
+grep -Fq 'Test Executor has one role-specific lifecycle exception' "$routing" || fail "missing Test Executor resume exception"
+grep -Fq 'repair-resume turns do not consume the one corrective follow-up' "$routing" || fail "Test Executor resume consumes the corrective retry"
 grep -Fq 'Test Executor is the only resumable role' "$contracts" || fail "common contract lacks the resumable-role boundary"
 grep -Fq 'A new full run or material plan/scope change requires a new child' "$contracts" || fail "common contract lacks the new-run boundary"
 grep -Fq '`NEXT_ACTION` must be exactly `REPAIR_RESUME`, `NEW_CHILD`, or `PRIMARY_DECISION`' "$test_executor_contract" || fail "Test Executor contract lacks the blocked-action discriminant"
@@ -559,23 +563,23 @@ for contract in "$investigator_contract" "$context_contract" "$mechanical_contra
 done
 if grep -Fq 'install-global-trigger.sh' "$readme"; then fail "README still installs a global AGENTS.md writer"; fi
 grep -Fq 'never writes user- or project-level `AGENTS.md`' "$readme" || fail "README lacks the AGENTS.md ownership boundary"
-grep -Fq 'Never create, modify, or remove a user-' "$skill" || fail "Skill lacks the no-AGENTS-writer boundary"
-grep -Fq 'Global eligibility permits automatic' "$skill" || fail "missing eligibility-not-obligation rule"
-grep -Fq 'optional context hygiene, not a fixed' "$skill" || fail "missing optional-preflight boundary"
-grep -Fq 'Do not require the primary to report or persist' "$skill" || fail "missing no-route-record rule"
-grep -Fq 'Children do not communicate directly' "$skill" || fail "missing child-communication boundary"
-grep -Fq 'Do not route such bounded direct lookups' "$skill" || fail "missing primary direct-tool boundary"
+grep -Fq 'Never create, modify, or remove a user-' "$routing" || fail "Skill lacks the no-AGENTS-writer boundary"
+grep -Fq 'Global eligibility permits automatic' "$routing" || fail "missing eligibility-not-obligation rule"
+grep -Fq 'optional context hygiene, not a fixed' "$routing" || fail "missing optional-preflight boundary"
+grep -Fq 'require a no-delegation report' "$routing" || fail "missing no-route-record rule"
+grep -Fq 'Children do not communicate directly' "$routing" || fail "missing child-communication boundary"
+grep -Fq 'Do not route such bounded direct lookups' "$routing" || fail "missing primary direct-tool boundary"
 grep -Fq 'Optional context preflight' "$readme" || fail "README lacks optional preflight guidance"
-grep -Fq 'Use $orchestration for engineering work' "$metadata" || fail "Skill metadata lacks engineering-work invocation wording"
-grep -Fq 'otherwise use zero children' "$metadata" || fail "Skill metadata lacks zero-child default"
+grep -Fq 'delegate clear bounded role matches' "$metadata" || fail "Skill metadata lacks positive role triggers"
+grep -Fq 'no repeated child work' "$metadata" || fail "Skill metadata lacks result-integration ownership"
 if grep -Fq 'cheap hard prerequisites before loading phase-specific' "$metadata"; then fail "Skill metadata still mandates phase preflight"; fi
 
-for active in "$skill" "$contracts" $role_contract_files "$readme" "$templates/sol-advisor-spark-worker.toml" "$templates/sol-advisor-mechanical-editor.toml"; do
+for active in "$skill" "$routing" "$contracts" $role_contract_files "$readme" "$templates/sol-advisor-spark-worker.toml" "$templates/sol-advisor-mechanical-editor.toml"; do
   for retired_route in 'MODE: SCOUT' 'MODE: EDIT' EDIT_POINT_COUNT 'at most three files' nineteen 'at least four files' 'twenty same-type'; do
     if grep -Fq "$retired_route" "$active"; then fail "retired count-based Spark or Mechanical route remains in $active: $retired_route"; fi
   done
 done
-grep -Fq 'MODE: PRODUCE' "$skill" || fail "Skill lacks Spark PRODUCE route"
+grep -Fq 'MODE: PRODUCE' "$routing" || fail "Skill lacks Spark PRODUCE route"
 grep -Fq 'MODE: PRODUCE' "$spark_contract" || fail "Spark contract lacks PRODUCE mode"
 grep -Fq 'MODE: PRODUCE' "$templates/sol-advisor-spark-worker.toml" || fail "Spark prompt lacks PRODUCE mode"
 grep -Fq 'IMPLEMENTATION_PLAN' "$mechanical_contract" || fail "Mechanical Editor contract lacks frozen plan input"
@@ -585,7 +589,7 @@ grep -Fq 'MODE: CONFLICT_REVIEW' "$adjudicator_contract" || fail "Final Adjudica
 grep -Fq 'USER_DECISIONS_REQUIRED' "$adjudicator_contract" || fail "Final Adjudicator contract lacks user-decision boundary"
 grep -Fq 'accept the supported reasoning effort selected by' "$templates/sol-advisor-final-adjudicator.toml" || fail "Final Adjudicator prompt fixes its effort"
 
-sh "$python_runner" - "$skill" "$contracts" "$verifier_contract" "$adjudicator_contract" "$templates/sol-advisor-final-adjudicator.toml" <<'PY'
+sh "$python_runner" - "$routing" "$contracts" "$verifier_contract" "$adjudicator_contract" "$templates/sol-advisor-final-adjudicator.toml" <<'PY'
 from pathlib import Path
 import sys
 
@@ -652,9 +656,8 @@ for phrase in (
     "focused production",
     "frozen plans",
     "independent adversarial review",
-    "decide whether bounded delegation",
-    "preserves quality",
-    "lowers total workflow cost",
+    "delegate clear bounded role matches",
+    "quality first",
     "zero children is valid",
 ):
     if phrase not in front:
@@ -673,7 +676,7 @@ for phrase in (
         raise SystemExit(f"frontmatter contains a forced or scenario-specific trigger: {phrase}")
 PY
 
-for document in "$skill" "$contracts" $role_contract_files "$readme"; do
+for document in "$skill" "$routing" "$contracts" $role_contract_files "$readme"; do
   for retired_field in RETURN_MODE TASK_UNDERSTANDING 'ANSWER/VERDICT' 'DECISION-CHANGING FINDINGS'; do
     if grep -Fq "$retired_field" "$document"; then fail "retired universal field remains in $document: $retired_field"; fi
   done
@@ -714,9 +717,9 @@ for shell_file in "$installer" "$route_validator" "$runtime_inspector" "$python_
   if grep -q "$(printf '\r')" "$shell_file"; then fail "CRLF remains in shell script: $shell_file"; fi
 done
 grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforce LF for shell scripts"
-[ "$(wc -l < "$skill")" -lt 500 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
+[ "$(wc -l < "$skill")" -lt 100 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
 index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 0.12.2 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 1.0.0 no-cost checks completed in $tmp_dir"

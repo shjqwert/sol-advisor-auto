@@ -2,8 +2,9 @@
 
 Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
 orchestration. Task accuracy and first-pass completion are hard gates. Among routes
-that preserve them, Sol Advisor minimizes expected total workflow cost before reducing
-context pollution or latency.
+that preserve them, end-to-end time comes next; quota and context savings remain
+secondary. Version `1.0.0` is a development delivery: source/design inspection only.
+Actual tests, installation, main merge, tags, packaging and release are pending.
 
 The primary session owns requirements, architecture, unresolved design decisions,
 iterative debugging, final verification, integration, user finding disposition, and
@@ -15,10 +16,10 @@ execution, independent verification, or adversarial review.
 
 | Native agent type | Allowed model / effort | Scenario | Responsibility |
 |---|---|---|---|
-| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused serial `PRODUCE` |
+| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused owned `PRODUCE` |
 | `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
-| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound serial implementation |
+| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound owned implementation |
 | `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
 | `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | concrete implementation or release-sign-off claim | read-only verification |
 | `sol_advisor_final_adjudicator` | Sol / primary-selected supported effort | decision-level solution or supplied conflict | read-only adversarial review |
@@ -37,30 +38,23 @@ focused production that remains within its quality boundary; OpenAI describes it
 separate, faster, less-capable model with its own usage limits in
 [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
-## Quality and total-cost gates
+## Positive role triggers
 
-Implicit route evaluation is globally allowed when the plugin is installed and
-enabled. Delegation still requires all of the following:
+After project policy and quality constraints are satisfied, a bounded task that
+clearly fits a role is eligible for delegation. Do not apply a general cost veto
+to these clear matches. An upstream requirement for independent review selects
+the reviewer without repeating its admission decision.
 
-- the current project has not opted out;
-- one role owns a bounded question, focused local production goal, frozen detailed
-  implementation plan, frozen ordered test plan, or independent adversarial review;
-- the selected model and effort are adequate for the risk;
-- scope, completion, stopping, and verification criteria are explicit;
-- first-pass accuracy and completion reliability are not expected to decline; and
-- expected total workflow cost is lower, evidence isolation is likely to prevent a
-  quality loss, or independent verification materially improves decision quality.
+Use expected total workflow cost only for borderline cases, including dispatch,
+child work, intake and corrections. A RAG query returns directly to the primary;
+retrieval alone never creates an Advisor stage. Use zero children for sufficient
+direct tools, unresolved design, overlapping scope or unavailable adequate routes.
 
-Total workflow cost includes primary work avoided and added, child model and tool work,
-result intake, bounded verification, and likely correction or escalation. A cheaper
-child model does not by itself establish a cheaper workflow.
-
-Use zero children when the primary already has bounded evidence, direct tools are
-sufficient, expected total cost is not lower and there is no material quality benefit,
-dispatch would duplicate work, or implementation needs continuing design judgment.
-After deciding to delegate, use one child by default.
-Use at most two concurrent children, only for read-only work with mutually exclusive
-decisions, source scopes, and failure classes.
+There is no fixed default child count or maximum of one/two. Independent work can
+run in parallel within native runtime limits. Conflicting files, shared build
+output, dependent tasks and devices require serial ownership. Name each task's
+owner and the primary's disjoint work before dispatch. Read a child's final once,
+verify decisive evidence and integrate; do not redo the entire task.
 
 Do not delegate implementation that still requires architecture, product, or design
 judgment, public-interface or dependency decisions, repeated debugging,
@@ -118,6 +112,19 @@ management, use Codex Project Context: it owns those project surfaces and emits 
 minimal integration section that Sol Advisor only reads. The two plugins remain
 independently usable.
 
+## Rule sources and intake
+
+Applicable AGENTS.md supplies project constraints, Agent TOML supplies role/model
+boundaries, and dispatch supplies the local assignment. Preserve nested project
+rules without repeating full AGENTS content in every packet. The lightweight
+Skill selects a task; detailed policy and model routing load from
+`references/routing.md` only before delegation.
+
+If the result has one concrete omission, use the existing one corrective
+follow-up. Otherwise end the child's ownership before primary takeover.
+Reported checks need repeating only for missing or invalidated evidence within
+current authorization. Hardware has one named operator across primary/children.
+
 ## Native orchestration flow
 
 ```mermaid
@@ -126,7 +133,9 @@ flowchart TD
     B -->|Yes| P[Primary executes]
     B -->|No| Q{Quality gate passes?}
     Q -->|No| P
-    Q -->|Yes| G{Lower total cost or material quality benefit?}
+    Q -->|Yes| M{Clear bounded role match?}
+    M -->|Yes| R
+    M -->|No| G{Borderline task benefits from delegation?}
     G -->|No| P
     G -->|Yes| R[Select one allowed role and stable model/effort]
     R --> D[Dispatch one specialized packet with fork_turns none]
