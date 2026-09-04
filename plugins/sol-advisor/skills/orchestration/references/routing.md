@@ -41,9 +41,9 @@ unavailable role, model, or effort.
 
 ## Apply positive role triggers
 
-Treat task accuracy and first-pass completion as hard gates. A bounded task that
-clearly matches a role is eligible for delegation when scope, adequate model/effort,
-completion, ownership and stopping conditions are known. For these clear matches,
+Treat task accuracy and first-pass completion as hard gates. When a bounded task clearly matches a positive role trigger and no applicable
+exclusion applies, delegate it with known scope, adequate model/effort, completion,
+ownership and stopping conditions. For these clear matches,
 do not apply a second general cost veto. When an upstream Embedded Skill has
 already required independent review, select its reviewer without re-deciding
 whether the review is worth doing.

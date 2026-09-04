@@ -35,7 +35,7 @@ Before the first spawn, read [routing.md](references/routing.md) for policy,
 model/effort selection and ownership. Then read the common
 [contract index](references/role-contracts.md) and load exactly one selected file
 under `references/roles/`. Respect opt-outs and unavailable native capabilities.
-Use zero children when direct tools suffice or the required route is unavailable.
+Use zero children for a bounded direct lookup or when the required route is unavailable.
 
 Applicable AGENTS.md supplies project rules, Agent TOML supplies role boundaries,
 and dispatch supplies task-local scope. Keep these layers distinct and preserve
