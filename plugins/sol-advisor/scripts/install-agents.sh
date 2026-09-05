@@ -189,6 +189,10 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def regular_file(path: Path) -> bool:
     try:
         value = path.lstat()
@@ -212,11 +216,17 @@ if actual_templates != set(agent_files):
     fail(f"unexpected shipped agent template set: {sorted(actual_templates ^ set(agent_files))}")
 
 template_hashes: dict[str, str] = {}
+template_line_ending_hashes: dict[str, set[str]] = {}
 for name in agent_files:
     path = template_dir / name
     if not regular_file(path):
         fail(f"shipped template is missing or not a regular file: {path}")
     template_hashes[name] = sha256(path)
+    normalized = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    template_line_ending_hashes[name] = {
+        sha256_bytes(normalized),
+        sha256_bytes(normalized.replace(b"\n", b"\r\n")),
+    }
 
 target_existed = target_dir.exists()
 if target_existed and (not target_dir.is_dir() or target_dir.is_symlink()):
@@ -238,7 +248,9 @@ for name in agent_files:
     existing_hash = sha256(destination)
     if existing_hash == template_hashes[name]:
         actions.append((name, "current", existing_hash))
-    elif mode == "upgrade-managed" and existing_hash in legacy_hashes.get(name, set()):
+    elif mode == "upgrade-managed" and existing_hash in (
+        legacy_hashes.get(name, set()) | template_line_ending_hashes[name]
+    ):
         actions.append((name, "replace", existing_hash))
     else:
         errors.append(f"destination differs from a current or recognized managed template: {destination}")

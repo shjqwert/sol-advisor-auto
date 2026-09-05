@@ -365,6 +365,27 @@ if sh "$installer" --target-dir "$conflict_target" >/dev/null 2>&1; then fail "i
 test ! -e "$conflict_target/sol-advisor-spark-worker.toml" || fail "conflict caused a partial install"
 pass "clean seven-role install, exact check, idempotence, and conflict refusal"
 
+line_ending_upgrade=$tmp_dir/current-crlf-upgrade
+mkdir "$line_ending_upgrade"
+sh "$python_runner" - "$templates" "$line_ending_upgrade" <<'PY'
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+for path in source.glob("*.toml"):
+    data = path.read_bytes()
+    if b"\r" in data:
+        raise SystemExit(f"source template is not LF-only: {path}")
+    (target / path.name).write_bytes(data.replace(b"\n", b"\r\n"))
+PY
+sh "$installer" --target-dir "$line_ending_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$line_ending_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$line_ending_upgrade/$agent_file" || fail "CRLF managed upgrade differs: $agent_file"
+done
+pass "current CRLF managed templates upgrade to exact LF release bytes"
+
 upgrade_target=$tmp_dir/managed-upgrade
 mkdir "$upgrade_target"
 for agent_file in $legacy_agent_files; do cp "$legacy_templates/$agent_file" "$upgrade_target/$agent_file"; done
