@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
   short_description: "Quality-first bounded delegation"
-  default_prompt: "Use $orchestration to delegate clear bounded role matches with quality first, explicit ownership, and no repeated child work."
+  default_prompt: "Use $orchestration to consider clear bounded role matches with quality first, explicit ownership, and no repeated child work."
 
 policy:
   allow_implicit_invocation: true

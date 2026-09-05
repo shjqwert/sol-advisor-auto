@@ -4,9 +4,6 @@ Read this reference only after a bounded role match is identified. Apply policy,
 quality, ownership and runtime constraints before spawning. Then read the common
 [contract index](role-contracts.md) and exactly one selected role contract.
 
-Test Executor requires an authorized, primary-authored frozen ordered test plan;
-the role match itself does not authorize running tests or builds.
-
 ## Apply the global default and project opt-out
 
 When this plugin is installed and enabled, implicit Sol Advisor route evaluation is
@@ -41,14 +38,12 @@ unavailable role, model, or effort.
 
 ## Apply positive role triggers
 
-Treat task accuracy and first-pass completion as hard gates. When a bounded task clearly matches a positive role trigger and no applicable
-exclusion applies, delegate it with known scope, adequate model/effort, completion,
-ownership and stopping conditions. For these clear matches,
-do not apply a second general cost veto. When an upstream Embedded Skill has
-already required independent review, select its reviewer without re-deciding
-whether the review is worth doing.
+Treat task accuracy and first-pass completion as hard gates. A clear role match
+permits but never requires delegation. Compare expected benefit with dispatch,
+intake and verification overhead. When an upstream Embedded Skill already requires
+independent review, select its reviewer without repeating that admission decision.
 
-For borderline tasks, estimate expected total workflow cost, including dispatch,
+For every candidate, estimate expected total workflow cost, including dispatch,
 child work, intake, decisive checks and likely correction. Quality comes first,
 then end-to-end time; quota and context savings must preserve required quality.
 Use zero children for a bounded direct lookup, overlapping ownership, unavailable
@@ -68,8 +63,8 @@ missing, truncated, or invalidated items.
 ## Select one route
 
 Treat Spark and the larger review models as separate quota pools. Among routes that
-pass the quality gate, start with the lowest adequate model and effort: Spark for
-eligible light work, then Luna, Terra for cross-module synthesis, Sol for complex or
+pass the quality gate, select the lowest adequate model and effort: Luna for
+bounded work, Terra for cross-module synthesis, Sol for complex or
 high-risk verification and routine adjudication, and Astra only for critical review.
 Escalate only when scope, risk, or evidence requires it. Higher effort does not
 compensate for incomplete task facts or an ambiguous packet.
@@ -77,12 +72,10 @@ compensate for incomplete task facts or an ambiguous packet.
 | Scenario | Agent | Allowed route | Responsibility |
 |---|---|---|---|
 | Exact symbol, relationship, configuration, or log lookup already covered by an available tool | primary session | inherited MCP, index, or exact read | bounded direct lookup |
-| Frozen local production goal with compact named inputs and mechanical acceptance | `sol_advisor_spark_worker` | Spark/low, medium, or high; `MODE: PRODUCE` | focused local creation or patch |
-| Unknown-location workspace evidence or current official research | `sol_advisor_investigator` | Luna/medium, high, xhigh, or max | read-only investigation |
+| Explicit Spark request or concrete low-latency benefit with compact frozen inputs | `sol_advisor_spark_worker` | Spark/low, medium, or high; `MODE: PRODUCE` | focused local creation or patch |
 | Identified long-source extraction or limited summary | `sol_advisor_context_analyst` | Luna/medium or high | read-only extraction |
 | Cross-module synthesis or conflicting constraints | `sol_advisor_context_analyst` | Terra/high, xhigh, or max | read-only synthesis |
 | Frozen detailed implementation plan with named files, decided behavior, and mechanical checks | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | plan-bound implementation |
-| Primary-authored ordered test plan with bounded evidence output | `sol_advisor_test_executor` | Luna/xhigh or max | resumable test execution without fixes |
 | Concrete code, test, implementation-correctness, or verification claim | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only implementation verification |
 | Complex cross-module or high-risk implementation/release claim | `sol_advisor_local_code_verifier` | Sol/high by default; xhigh for difficult cross-module risk; max for rare system sign-off | read-only high-risk verification |
 | Critical implementation risk or conflicting implementation evidence within one verification claim | `sol_advisor_local_code_verifier` | Astra/high by default; xhigh across difficult boundaries; max for rare unresolved critical sign-off | read-only critical verification |
@@ -90,7 +83,7 @@ compensate for incomplete task facts or an ambiguous packet.
 | Key architecture, complex long-running task decision, or contested adjudication | `sol_advisor_final_adjudicator` | Astra/high by default; xhigh across difficult boundaries; max only when a rare critical decision cannot converge | read-only critical decision review |
 
 Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, every Context
-Analyst Astra route, Mechanical Luna/medium, Test Executor Luna/low, medium, or high,
+Analyst Astra route, Mechanical Luna/medium,
 Verifier Sol or Astra below high, and any undocumented Final Adjudicator model or
 effort. If no allowed route fits, keep the work primary.
 
@@ -99,25 +92,18 @@ Use observed Codex usage when available and otherwise compare relative route cos
 Treat a large context window as available capacity, not a target to fill.
 
 Use an available MCP, index, or exact read in the primary session for bounded symbol,
-relationship, configuration, or log lookup. Investigator and Context Analyst are
-alternative discovery lanes for the same decision. Spark PRODUCE and Mechanical Editor
-are mutually exclusive: use Spark for one compact frozen local goal and Mechanical
-Editor for an approved detailed implementation plan across named files. Do not add a
+relationship, configuration, or log lookup. Unknown-location discovery stays primary.
+Spark PRODUCE and Mechanical Editor are mutually exclusive for one implementation.
+Spark requires an explicit request or concrete low-latency benefit; ordinary small
+edits do not default to Spark. Mechanical Editor fits frozen batched implementation,
+not a default claim of cost savings. Context Analyst fits identified long sources;
+the primary prioritizes unresolved items and contradictions over routine spot checks.
+If Spark quota is exhausted or unavailable, end its ownership, inspect any existing
+diff and continue in the primary without quota waiting or repeated spawn attempts.
+A different role requires an explicit new route and actual-model suffix, never impersonation. Do not add a
 verifier or Final Adjudicator merely because another child participated. Use Final
 Adjudicator only when a proposed solution or supplied conflict has a bounded review
 object and an independent adversarial attack can materially improve the decision.
-
-Use Test Executor only after the primary freezes an ordered plan with stable test IDs,
-dependencies, authorized side effects, pass/fail criteria, evidence output, and stop
-conditions. It may record non-blocking findings and continue independent tests, but it
-never repairs implementation, changes the plan, or owns final high-risk or release
-sign-off.
-
-Test Executor and Local Code Verifier are mutually exclusive for one assignment. Test
-Executor owns a frozen primary-authored ordered plan, authorized side effects,
-evidence output, and repair-resume state. Local Code Verifier attacks one implementation
-or verification claim from one failure class; it must not execute the whole ordered
-plan or manage `PLAN_ID` or `RESUME_POINT` state.
 
 Local Code Verifier and Final Adjudicator are mutually exclusive for one assignment.
 Route concrete code, test, implementation-correctness, verification, and release-sign-off
@@ -151,11 +137,10 @@ Use one sequence for every child:
    only for a concrete gap or invalidated result, within current authorization.
 6. **ACT:** integrate, issue one bounded correction, or fall back to the primary.
 
-For adversarial-review findings that could change the solution, scope, accepted risk,
-or implementation, insert `PRESENT -> USER_DECIDE` between VERIFY and ACT. A child
-finding is a claim, not repair authorization. The primary presents verified findings
-and options; only user-accepted findings may change the agreed solution or authorize
-repair.
+For findings requiring a change to agreed scope, solution, accepted risk or side
+effects, insert `PRESENT -> USER_DECIDE` between VERIFY and ACT. Verified defects
+within existing repair authorization may be fixed directly; do not ask again merely
+because an independent reviewer found them. Missing authorization remains unknown.
 
 Parallelism follows task dependencies and exclusive ownership, not a fixed count.
 Independent read-only work and edits to disjoint files may run concurrently when
@@ -178,7 +163,7 @@ message, and `fork_turns: "none"`. Name each new child
 `<task_summary>__<actual_model_identifier>`; normalize dots and hyphens in the model
 to underscores, for example `lock_review__gpt_6_astra`.
 
-- Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Test Executor/Luna, and
+- Pinned roles: Mechanical Editor/Luna and
   Spark Worker/Spark. Pass `reasoning_effort`; omit redundant model overrides.
 - Dynamic roles: Context Analyst, Local Code Verifier, and Final Adjudicator. Pass both
   the exact `model` and `reasoning_effort` selected from the route table. Context
@@ -199,16 +184,6 @@ same child with the same configuration. State only the correction, missing evide
 and prior work to preserve. If stronger capability is required, end the current child
 as INCOMPLETE or BLOCKED, then let the primary take over or create at most one new
 stronger child and accept the new cold start.
-
-Test Executor has one role-specific lifecycle exception. When it returns `BLOCKED`
-with `NEXT_ACTION: REPAIR_RESUME`, the primary may repair the implementation and send
-the selected contract's repair-resume packet to the same native child. Keep `PLAN_ID`,
-model, effort, and material scope unchanged; rerun the blocking test and invalidated
-prerequisites before continuing. Repeat only within that same plan. A new full run,
-material plan/scope change, route change, or unusable target state returns
-`NEXT_ACTION: NEW_CHILD`.
-These repair-resume turns do not consume the one corrective follow-up, and the child
-never remains running while the primary repairs.
 
 ## Use inherited capabilities safely
 
@@ -240,19 +215,12 @@ layout. Treat the result as a claim:
 - `COMPLETE` and usable: verify decisive evidence and integrate it.
 - `INCOMPLETE` and correctable: send one same-child correction without changing model
   or effort.
-- Test Executor `BLOCKED` with `NEXT_ACTION: REPAIR_RESUME`: repair in the primary or
-  an authorized repair child, then reactivate the same Test Executor with the
-  repair-resume packet.
-- Test Executor `BLOCKED` with `NEXT_ACTION: NEW_CHILD`: freeze the replacement packet
-  and start a new child.
-- Test Executor `BLOCKED` with `NEXT_ACTION: PRIMARY_DECISION`, other `BLOCKED`,
-  unusable, or still incomplete after correction: take over immediately or report the
-  genuine blocker.
+- `BLOCKED`, unusable, or still incomplete after correction: end child ownership and
+  take over immediately or report the genuine blocker.
 
 Every child activation returns only one ordinary final response and ends immediately.
 It must neither send progress, status, or results through parent-interaction messaging
-nor remain active. Test Executor may be reactivated after a primary repair but never
-waits through that repair. Inspect detailed child history only for a concrete
+nor remain active. Inspect detailed child history only for a concrete
 unusable-final or lifecycle diagnosis.
 
 Do not create a dispatch plan, run directory, `state.json`, pending record, response
@@ -266,8 +234,7 @@ is allowed and does not participate in dispatch.
 
 - Do not impose a fixed child-count default or cap. Use the independent task
   decomposition, shared-resource conflicts and native runtime limits.
-- Allow at most one corrective follow-up per child. Test Executor repair-resume
-  turns remain a role-scoped exception for the same frozen plan.
+- Allow at most one corrective follow-up per child.
 - Inspect complete edited diffs and honor each file's exclusive owner.
 - Do not let children spawn descendants.
 - Keep unresolved implementation decisions, final verification, integration and

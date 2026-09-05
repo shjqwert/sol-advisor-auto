@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Quality-first delegation with positive role triggers, explicit ownership, progressive routing, and bounded result integration.",
   "author": {
     "name": "shjqwert",
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Quality-first delegation with clear task ownership.",
-    "longDescription": "Delegate clear bounded role matches after policy and quality checks. Completion quality comes first, then end-to-end time; use total workflow cost for borderline routing. Load detailed model and role contracts only when needed, choose parallelism from dependencies and exclusive resources, and keep project AGENTS, role TOML and task dispatch distinct. The primary integrates decisive evidence without repeating child-owned work. RAG results return directly to the primary; hardware uses one named operator.",
+    "longDescription": "Consider clear bounded role matches after policy, quality and total workflow benefit checks; delegation is optional. Spark requires an explicit request or concrete low-latency benefit and never blocks work on quota. Load model and role contracts only when needed. Keep project AGENTS, role TOML and task dispatch distinct. Integrate decisive evidence without repeating child-owned work. RAG results return to the primary unless identified long sources need extraction; hardware uses one named operator.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -31,7 +31,7 @@
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
       "Preserve task accuracy and first-pass completion; quality first, then end-to-end time.",
-      "Delegate clear bounded role matches; weigh expected total workflow cost only for borderline tasks.",
+      "Consider clear bounded role matches; weigh expected total workflow cost for every candidate.",
       "Use zero children when tools suffice. Integrate one native final result without repeating the owned task."
     ]
   }

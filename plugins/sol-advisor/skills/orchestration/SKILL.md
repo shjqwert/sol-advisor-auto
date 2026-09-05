@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: "Use for engineering work: long sources, unknown search, focused production, frozen plans, or independent adversarial review. Delegate clear bounded role matches with quality first; zero children is valid."
+description: "Use for engineering work: long sources, focused production, frozen plans, or independent adversarial review. Consider clear bounded role matches with quality first; zero children is valid."
 ---
 
 # Sol Advisor Orchestration
@@ -11,17 +11,17 @@ unresolved design, integration and the final user response in the primary.
 
 ## Recognize a bounded task
 
-A clear role match positively selects delegation when its scope, owner, adequate
-model and completion condition are known. A quick exact lookup stays local.
+A clear role match permits delegation when its scope, owner, adequate
+model, completion condition and expected benefit are known. It never requires a child.
+A quick exact lookup stays local. Spark is optional only for an explicit request
+or concrete low-latency benefit, not a default for ordinary small edits.
 Do not load every role contract to decide whether a task can be delegated.
 
 | Task | Role |
 |---|---|
 | Compact frozen local production | `sol_advisor_spark_worker` |
-| Unknown-location investigation | `sol_advisor_investigator` |
 | Identified long sources or cross-module synthesis | `sol_advisor_context_analyst` |
 | Frozen detailed implementation in named files | `sol_advisor_mechanical_editor` |
-| Authorized frozen ordered test plan | `sol_advisor_test_executor` |
 | Concrete implementation or verification claim | `sol_advisor_local_code_verifier` |
 | Decision-level independent review or conflict | `sol_advisor_final_adjudicator` |
 

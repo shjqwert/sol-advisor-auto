@@ -8,7 +8,7 @@ conflict to Final Adjudicator.
 
 ~~~text
 DECISION: <one decision this synthesis can change>
-QUESTION: <one identified-source question>
+QUESTION: <original identified-source question, preserving every subquestion>
 SOURCES: <exclusive files, logs, documents, modules, and sections>
 SYNTHESIS_REQUIRED: <extraction, limited summary, or cross-source comparison>
 CONFLICT_RULE: <how to report or escalate conflicting evidence>
@@ -21,4 +21,8 @@ Required final fields: `STATUS`, `SYNTHESIS`, `SOURCE_LOCATORS`.
 Optional when nonempty: `CONSTRAINTS`, `CONFLICTS`, `UNCERTAINTY`.
 
 Soft budget: 900-2200 characters. Remain read-only and distinguish evidence from
-inference.
+inference. Preserve applicability scope, exceptions and unresolved items alongside
+each material conclusion. Missing required facts or contradictions prevent COMPLETE.
+The primary prioritizes unresolved items and contradictions before spot checks.
+Preserve each original question explicitly in the answer; a fluent summary is not
+coverage. Any required fact left unanswered or undetermined requires INCOMPLETE.

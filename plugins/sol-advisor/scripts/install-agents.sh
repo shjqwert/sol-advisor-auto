@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage: install-agents.sh [--target-dir <path>] [--check | --upgrade-managed]
 
-Install the seven routed Sol Advisor custom-agent templates into the target directory.
+Install the five routed Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents". Normal installation never overwrites a
 differing file.
@@ -97,10 +97,8 @@ target_dir = Path(sys.argv[2]).resolve(strict=False)
 mode = sys.argv[3]
 
 agent_files = (
-    "sol-advisor-investigator.toml",
     "sol-advisor-context-analyst.toml",
     "sol-advisor-mechanical-editor.toml",
-    "sol-advisor-test-executor.toml",
     "sol-advisor-local-code-verifier.toml",
     "sol-advisor-final-adjudicator.toml",
     "sol-advisor-spark-worker.toml",
@@ -175,6 +173,20 @@ legacy_hashes = {
         "b9fdecbb1ba7b7072c759ca65546b108d69d7ad8f6a44321c4a25a46af8bb873",
     },
 }
+
+
+# Exact prior seven-role release, including both supported newline forms.
+legacy_hashes.setdefault("sol-advisor-context-analyst.toml", set()).update(["c121da5fc937fa4a207990fbf8f9da2990279109610c9dc079a8f85e1eb867e6","9169c0e6766ba596684689e73f0e603aa59cc6820e6951e564b7d0cd23983d24"])
+legacy_hashes.setdefault("sol-advisor-final-adjudicator.toml", set()).update(["fd978cb12f7fd3b2fbe1e695b2b6bc3583bb8736fd30033852ebcf1887e107ec","aa72b40add413846bb1b172c4f0fa898e73f741e90c6bebb53c5e0a92e1b87c4"])
+legacy_hashes.setdefault("sol-advisor-investigator.toml", set()).update(["97a0881272315c37c4f279bd8a48f13a798734d03bd76c8599cedd0ea85abd2e","7787a072413a64ee8fa6354269fa9c0903043aa6d42085c3c568209e402a632e"])
+legacy_hashes.setdefault("sol-advisor-local-code-verifier.toml", set()).update(["18910d6adc3e1a22b45daabc204484010bf410d4fe286ed9e9635784c3ba4eff","bcd0a9926297be4e484d0300b87c666dc2caac08746b3137ce0f0f4e08323769"])
+legacy_hashes.setdefault("sol-advisor-mechanical-editor.toml", set()).update(["4d2a5a11e6677f0be83aa29464a0d6c91b4308471842c52faa328deb54073f07","51fff7da52f49c7e9c8f9c7ba2204befbfc871cb6160cdbce6e06a38983004e5"])
+legacy_hashes.setdefault("sol-advisor-spark-worker.toml", set()).update(["afd61bc86e9721c40ff3951953202ac2b2348e2b58aefdb7d1093aae855668e6","b9fdecbb1ba7b7072c759ca65546b108d69d7ad8f6a44321c4a25a46af8bb873"])
+legacy_hashes.setdefault("sol-advisor-test-executor.toml", set()).update(["7a9cc89bfb254f4ba881adc19fd5c384befbda96f5b9bd6fb6570d4db1a02cac","3b783e4a604e66fa6585d1e2322583fb3cecef281723554e01b0f420812dee9d"])
+# Exact first five-role candidate, before the observed A/B coverage correction.
+legacy_hashes.setdefault("sol-advisor-spark-worker.toml", set()).update(["c3d890994ba648ef4c92c935f675bf98983c3ae920737746e1bfd30534dd775b","9b59f0c075bbb4cefcb3d849b99c21e6715e19dcf70e436176c082026d9fc3c1"])
+legacy_hashes.setdefault("sol-advisor-context-analyst.toml", set()).update(["b796c78132038b2968fb262859c39946a990d37b5295aa2d611fa82c2caa7f55","056e92bfaeea36a4fa0297ac9d9e19cc5b87846b4d563c9e8f78dd2b406662d6"])
+retired_files = ("sol-advisor-investigator.toml", "sol-advisor-test-executor.toml")
 
 
 def fail(message: str) -> None:
@@ -255,6 +267,17 @@ for name in agent_files:
     else:
         errors.append(f"destination differs from a current or recognized managed template: {destination}")
 
+for name in retired_files:
+    destination = target_dir / name
+    if not destination.exists() and not destination.is_symlink():
+        continue
+    if mode != "upgrade-managed" or not regular_file(destination):
+        errors.append(f"retired agent requires managed upgrade: {destination}")
+    elif sha256(destination) not in legacy_hashes.get(name, set()):
+        errors.append(f"retired agent is user-modified and will be preserved: {destination}")
+    else:
+        actions.append((name, "remove", sha256(destination)))
+
 if errors:
     for message in errors:
         print(f"ERROR: {message}", file=sys.stderr)
@@ -287,7 +310,7 @@ try:
         staged[name] = staged_path
 
     for name, action, expected_hash in actions:
-        if action != "replace":
+        if action not in {"replace", "remove"}:
             continue
         destination = target_dir / name
         if not regular_file(destination) or sha256(destination) != expected_hash:
@@ -323,6 +346,12 @@ try:
             os.replace(staged[name], destination)
             applied.append((name, action))
             messages.append(f"UPGRADED MANAGED: {destination}")
+        elif action == "remove":
+            if not regular_file(destination) or sha256(destination) != expected_hash:
+                fail(f"retired destination changed after preflight: {destination}")
+            destination.unlink()
+            applied.append((name, action))
+            messages.append(f"REMOVED RETIRED MANAGED: {destination}")
         else:
             fail(f"unknown planned installer action: {action}")
 
@@ -344,6 +373,11 @@ except Exception as error:
                     destination.unlink()
                 else:
                     rollback_errors.append(f"added destination changed and was preserved: {destination}")
+            elif action == "remove":
+                if destination.exists() or destination.is_symlink():
+                    rollback_errors.append(f"retired destination reappeared and was preserved: {destination}")
+                else:
+                    os.replace(backups[name], destination)
             elif action == "replace":
                 backup = transaction_dir / f"old-{name}" if transaction_dir else None
                 if backup is None or not regular_file(backup):
