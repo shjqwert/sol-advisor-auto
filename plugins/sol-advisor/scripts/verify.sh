@@ -29,6 +29,7 @@ previous_templates=$script_dir/fixtures/agents-0.9.4
 immediate_templates=$script_dir/fixtures/agents-0.10.2
 current_templates=$script_dir/fixtures/agents-0.11.0
 latest_templates=$script_dir/fixtures/agents-0.12.0
+pre_astra_templates=$script_dir/fixtures/agents-1.0.0-pre-astra
 manifest=$plugin_dir/.codex-plugin/plugin.json
 mcp_config=$plugin_dir/.mcp.json
 skill=$plugin_dir/skills/orchestration/SKILL.md
@@ -71,6 +72,7 @@ done
 test -d "$legacy_templates" || fail "legacy managed-upgrade fixtures are missing"
 test -d "$previous_templates" || fail "previous managed-upgrade fixtures are missing"
 test -d "$latest_templates" || fail "latest managed-upgrade fixtures are missing"
+test -d "$pre_astra_templates" || fail "pre-Astra 1.0.0 managed-upgrade fixtures are missing"
 
 for retired in "$script_dir/validate-dispatch-plan.py" "$script_dir/validate-agent-result.py" "$script_dir/sol_advisor_paths.py"; do
   test ! -e "$retired" || fail "retired runtime protocol file remains: $retired"
@@ -138,7 +140,7 @@ if set(servers) != {"context7"}:
 PY
 pass "Context7-only MCP configuration; Exa and MarkItDown are not bundled"
 
-sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" "$current_templates" "$latest_templates" <<'PY'
+sh "$python_runner" - "$templates" "$legacy_templates" "$previous_templates" "$immediate_templates" "$current_templates" "$latest_templates" "$pre_astra_templates" <<'PY'
 from pathlib import Path
 import sys
 import tomllib
@@ -149,13 +151,14 @@ previous_templates = Path(sys.argv[3])
 immediate_templates = Path(sys.argv[4])
 current_templates = Path(sys.argv[5])
 latest_templates = Path(sys.argv[6])
+pre_astra_templates = Path(sys.argv[7])
 roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
     "sol-advisor-mechanical-editor.toml": ("sol_advisor_mechanical_editor", "gpt-5.6-luna"),
     "sol-advisor-test-executor.toml": ("sol_advisor_test_executor", "gpt-5.6-luna"),
     "sol-advisor-local-code-verifier.toml": ("sol_advisor_local_code_verifier", None),
-    "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", "gpt-5.6-sol"),
+    "sol-advisor-final-adjudicator.toml": ("sol_advisor_final_adjudicator", None),
     "sol-advisor-spark-worker.toml": ("sol_advisor_spark_worker", "gpt-5.3-codex-spark"),
 }
 actual = {path.name for path in templates.glob("*.toml")}
@@ -184,8 +187,8 @@ role_required = {
     "sol-advisor-context-analyst.toml": ("sources", "synthesis_required", "source_locators", "medium for straightforward", "terra at high", "900-2200"),
     "sol-advisor-mechanical-editor.toml": ("implementation_plan", "owned_files", "reference_locators", "acceptance", "high for routine", "boundary-heavy", "changed_files", "checks", "600-1400"),
     "sol-advisor-test-executor.toml": ("plan_id", "authorized_side_effects", "evidence_output", "xhigh for a difficult", "max only", "next_action", "repair_resume", "new_child", "primary_decision", "resume_point", "900-2200"),
-    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "ordered test plan", "plan_id", "resume_point", "medium for routine", "high for multiple", "gpt-5.6-sol", "test_gaps", "700-1800"),
-    "sol-advisor-final-adjudicator.toml": ("solution_review", "conflict_review", "user_confirmed_baseline", "attack_angles", "conflicting_claims", "evidence_locators", "missing_user_state", "user_decisions_required", "no_material_gap_found", "material_concerns", "insufficient_evidence", "900-2200"),
+    "sol-advisor-local-code-verifier.toml": ("attack_angle", "pass_fail_criteria", "ordered test plan", "plan_id", "resume_point", "medium for routine", "gpt-5.6-sol at high", "gpt-6-astra at high", "test_gaps", "700-1800"),
+    "sol-advisor-final-adjudicator.toml": ("solution_review", "conflict_review", "user_confirmed_baseline", "attack_angles", "conflicting_claims", "evidence_locators", "gpt-5.6-sol at high", "gpt-6-astra at high", "missing_user_state", "user_decisions_required", "no_material_gap_found", "material_concerns", "insufficient_evidence", "900-2200"),
     "sol-advisor-spark-worker.toml": ("mode: produce", "goal", "owned_files", "input_facts", "reference_locators", "acceptance", "preserve", "check", "done_when", "stop", "unverified", "400-900"),
 }
 
@@ -240,6 +243,11 @@ if latest != {"sol-advisor-final-adjudicator.toml"}:
     raise SystemExit("0.12.0 managed-upgrade fixture set is incomplete")
 for path in latest_templates.glob("*.toml"):
     tomllib.loads(path.read_text(encoding="utf-8"))
+pre_astra = {path.name for path in pre_astra_templates.glob("*.toml")}
+if pre_astra != {"sol-advisor-local-code-verifier.toml", "sol-advisor-final-adjudicator.toml"}:
+    raise SystemExit("pre-Astra 1.0.0 managed-upgrade fixture set is incomplete")
+for path in pre_astra_templates.glob("*.toml"):
+    tomllib.loads(path.read_text(encoding="utf-8"))
 PY
 pass "seven role configurations, cost-aware effort profiles, specialized prompts, and managed fixtures"
 
@@ -267,14 +275,18 @@ sol_advisor_local_code_verifier openai gpt-5.6-luna medium
 sol_advisor_local_code_verifier openai gpt-5.6-luna high
 sol_advisor_local_code_verifier openai gpt-5.6-luna xhigh
 sol_advisor_local_code_verifier openai gpt-5.6-luna max
+sol_advisor_local_code_verifier openai gpt-5.6-sol high
 sol_advisor_local_code_verifier openai gpt-5.6-sol xhigh
 sol_advisor_local_code_verifier openai gpt-5.6-sol max
-sol_advisor_final_adjudicator openai gpt-5.6-sol low
-sol_advisor_final_adjudicator openai gpt-5.6-sol medium
+sol_advisor_local_code_verifier openai gpt-6-astra high
+sol_advisor_local_code_verifier openai gpt-6-astra xhigh
+sol_advisor_local_code_verifier openai gpt-6-astra max
 sol_advisor_final_adjudicator openai gpt-5.6-sol high
 sol_advisor_final_adjudicator openai gpt-5.6-sol xhigh
 sol_advisor_final_adjudicator openai gpt-5.6-sol max
-sol_advisor_final_adjudicator openai gpt-5.6-sol ultra'
+sol_advisor_final_adjudicator openai gpt-6-astra high
+sol_advisor_final_adjudicator openai gpt-6-astra xhigh
+sol_advisor_final_adjudicator openai gpt-6-astra max'
 printf '%s\n' "$valid_routes" | while read -r role provider model effort; do
   [ -n "$role" ] || continue
   sh "$route_validator" "$role" "$provider" "$model" "$effort" >/dev/null || fail "documented route rejected: $role $provider $model $effort"
@@ -285,13 +297,19 @@ sol_advisor_investigator openai gpt-5.6-luna low
 sol_advisor_context_analyst openai gpt-5.6-luna xhigh
 sol_advisor_context_analyst openai gpt-5.6-luna max
 sol_advisor_context_analyst openai gpt-5.6-terra medium
+sol_advisor_context_analyst openai gpt-6-astra high
 sol_advisor_mechanical_editor openai gpt-5.6-luna medium
 sol_advisor_mechanical_editor openai gpt-5.6-terra max
 sol_advisor_test_executor openai gpt-5.6-luna high
 sol_advisor_test_executor openai gpt-5.6-sol max
 sol_advisor_local_code_verifier openai gpt-5.6-sol medium
-sol_advisor_local_code_verifier openai gpt-5.6-sol high
+sol_advisor_local_code_verifier openai gpt-6-astra medium
+sol_advisor_local_code_verifier openai gpt-6-astra ultra
 sol_advisor_local_code_verifier openai gpt-5.6-terra max
+sol_advisor_final_adjudicator openai gpt-5.6-sol medium
+sol_advisor_final_adjudicator openai gpt-5.6-sol ultra
+sol_advisor_final_adjudicator openai gpt-6-astra medium
+sol_advisor_final_adjudicator openai gpt-6-astra ultra
 sol_advisor_final_adjudicator openai gpt-5.6-terra max
 sol_advisor_final_adjudicator openai gpt-5.6-luna xhigh'
 printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
@@ -300,7 +318,15 @@ printf '%s\n' "$invalid_routes" | while read -r role provider model effort; do
     fail "undocumented route accepted: $role $provider $model $effort"
   fi
 done
-pass "quality-gated cost-aware route matrix and invalid-route rejection"
+sh "$route_validator" sol_advisor_local_code_verifier openai gpt-6-astra high lock_review__gpt_6_astra >/dev/null
+sh "$route_validator" sol_advisor_final_adjudicator openai gpt-5.6-sol high decision_review__gpt_5_6_sol >/dev/null
+if sh "$route_validator" sol_advisor_final_adjudicator openai gpt-6-astra high decision_review__gpt_5_6_sol >/dev/null 2>&1; then
+  fail "route validator accepted a task name with the wrong model suffix"
+fi
+if sh "$route_validator" sol_advisor_final_adjudicator openai gpt-6-astra high 'Bad-Name__gpt_6_astra' >/dev/null 2>&1; then
+  fail "route validator accepted an invalid task-name alphabet"
+fi
+pass "quality-gated Sol/Astra route matrix, model-suffixed names, and invalid-route rejection"
 
 clean_target=$tmp_dir/clean-install
 sh "$installer" --target-dir "$clean_target" >/dev/null
@@ -408,6 +434,17 @@ for agent_file in $agent_files; do
 done
 pass "0.12.0 managed Final Adjudicator upgrade"
 
+pre_astra_upgrade=$tmp_dir/managed-upgrade-1.0.0-pre-astra
+mkdir "$pre_astra_upgrade"
+cp "$pre_astra_templates/sol-advisor-local-code-verifier.toml" "$pre_astra_upgrade/sol-advisor-local-code-verifier.toml"
+cp "$pre_astra_templates/sol-advisor-final-adjudicator.toml" "$pre_astra_upgrade/sol-advisor-final-adjudicator.toml"
+sh "$installer" --target-dir "$pre_astra_upgrade" --upgrade-managed >/dev/null
+sh "$installer" --target-dir "$pre_astra_upgrade" --check >/dev/null
+for agent_file in $agent_files; do
+  cmp -s "$templates/$agent_file" "$pre_astra_upgrade/$agent_file" || fail "pre-Astra 1.0.0 managed upgrade differs: $agent_file"
+done
+pass "pre-Astra 1.0.0 Local Code Verifier and Final Adjudicator managed upgrade"
+
 index_target=$tmp_dir/index-plan
 mkdir "$index_target"
 git -C "$index_target" init -q
@@ -437,7 +474,74 @@ if not data.get("valid") or not data.get("applied"):
 if any(item.get("status") != "skipped" for item in data.get("operations", [])):
     raise SystemExit("never-index policy planned an operation")
 PY
-pass "portable Python runner and repository index preflight"
+sh "$python_runner" - "$search_preflight" "$index_target" <<'PY'
+import os
+from pathlib import Path
+import runpy
+import sys
+import tempfile
+from unittest.mock import patch
+
+module = runpy.run_path(sys.argv[1])
+snapshot = module["workspace_change_snapshot"]
+snapshot_error = module["SnapshotError"]
+detect_workspace_kind = module["detect_workspace_kind"]
+root = Path(sys.argv[2])
+
+paths, first = snapshot(root, "git")
+if "example.py" not in paths:
+    raise SystemExit("Git snapshot omitted an untracked protected file")
+metadata = (root / "example.py").stat()
+(root / "example.py").write_text("def example(): return 2\n", encoding="utf-8")
+os.utime(root / "example.py", ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+_, second = snapshot(root, "git")
+if first == second:
+    raise SystemExit("Git snapshot missed a same-size content change")
+
+(root / "new.txt").write_text("new", encoding="utf-8")
+paths, third = snapshot(root, "git")
+if "new.txt" not in paths or third == second:
+    raise SystemExit("Git snapshot missed an untracked creation")
+(root / "new.txt").unlink()
+_, fourth = snapshot(root, "git")
+if fourth == third:
+    raise SystemExit("Git snapshot missed an untracked deletion")
+
+(root / ".codegraph").mkdir()
+(root / ".codegraph" / "generated.db").write_text("ignored", encoding="utf-8")
+paths, _ = snapshot(root, "git")
+if any(value.startswith(".codegraph/") for value in paths):
+    raise SystemExit("Git snapshot included an explicitly generated directory")
+
+import subprocess
+
+with patch.dict(
+    detect_workspace_kind.__globals__,
+    {"run": lambda command, **kwargs: subprocess.CompletedProcess(command, 127, "", "git unavailable")},
+):
+    if detect_workspace_kind(root) != "git":
+        raise SystemExit("a failed Git check was silently reclassified as a plain directory")
+
+with patch.dict(
+    snapshot.__globals__,
+    {"run": lambda command, **kwargs: subprocess.CompletedProcess(command, 2, "", "denied")},
+):
+    try:
+        snapshot(root, "git")
+    except snapshot_error:
+        pass
+    else:
+        raise SystemExit("Git enumeration failure was treated as an unchanged workspace")
+
+try:
+    with patch.object(Path, "open", side_effect=PermissionError("denied")):
+        snapshot(root, "git")
+except snapshot_error:
+    pass
+else:
+    raise SystemExit("protected-file read failure was treated as unchanged")
+PY
+pass "portable Python runner, repository index preflight, and content-based read-only snapshot"
 
 runtime_sessions=$tmp_dir/runtime-sessions
 runtime_day=$runtime_sessions/2026/08/16
@@ -500,7 +604,9 @@ for document in "$skill" "$routing" "$contracts" "$readme"; do
 done
 
 grep -Fq 'fork_turns: "none"' "$routing" || fail "missing isolated child spawn rule"
-grep -Fq 'Pass both the exact `model`' "$routing" || fail "missing explicit dynamic model and effort rule"
+grep -Fq 'the exact `model` and `reasoning_effort`' "$routing" || fail "missing explicit dynamic model and effort rule"
+grep -Fq '<task_summary>__<actual_model_identifier>' "$routing" || fail "missing model-suffixed child naming rule"
+grep -Fq 'Analyst rejects Astra' "$routing" || fail "missing Context Analyst Astra rejection"
 grep -Fq 'expected total workflow cost' "$routing" || fail "missing complete-workflow cost objective"
 grep -Fq 'task accuracy and first-pass completion as hard gates' "$routing" || fail "missing quality hard gate"
 grep -Fq 'Do not infer ChatGPT subscription credit multipliers' "$routing" || fail "missing subscription-pricing evidence boundary"
@@ -568,6 +674,7 @@ grep -Fq 'Global eligibility permits automatic' "$routing" || fail "missing elig
 grep -Fq 'optional context hygiene, not a fixed' "$routing" || fail "missing optional-preflight boundary"
 grep -Fq 'require a no-delegation report' "$routing" || fail "missing no-route-record rule"
 grep -Fq 'Children do not communicate directly' "$routing" || fail "missing child-communication boundary"
+grep -Fq 'active capture or unfinished control operation' "$routing" || fail "missing J-Link operation ownership lifecycle"
 grep -Fq 'Do not route such bounded direct lookups' "$routing" || fail "missing primary direct-tool boundary"
 grep -Fq 'Optional context preflight' "$readme" || fail "README lacks optional preflight guidance"
 grep -Fq 'delegate clear bounded role matches' "$metadata" || fail "Skill metadata lacks positive role triggers"
@@ -587,7 +694,7 @@ grep -Fq 'IMPLEMENTATION_PLAN' "$templates/sol-advisor-mechanical-editor.toml" |
 grep -Fq 'MODE: SOLUTION_REVIEW' "$adjudicator_contract" || fail "Final Adjudicator contract lacks solution review mode"
 grep -Fq 'MODE: CONFLICT_REVIEW' "$adjudicator_contract" || fail "Final Adjudicator contract lacks conflict review mode"
 grep -Fq 'USER_DECISIONS_REQUIRED' "$adjudicator_contract" || fail "Final Adjudicator contract lacks user-decision boundary"
-grep -Fq 'accept the supported reasoning effort selected by' "$templates/sol-advisor-final-adjudicator.toml" || fail "Final Adjudicator prompt fixes its effort"
+grep -Fq 'gpt-6-astra at high' "$templates/sol-advisor-final-adjudicator.toml" || fail "Final Adjudicator prompt lacks Astra routing"
 
 sh "$python_runner" - "$routing" "$contracts" "$verifier_contract" "$adjudicator_contract" "$templates/sol-advisor-final-adjudicator.toml" <<'PY'
 from pathlib import Path

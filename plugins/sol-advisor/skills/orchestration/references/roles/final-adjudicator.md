@@ -1,12 +1,15 @@
 # Final Adjudicator
 
-Use `sol_advisor_final_adjudicator` with its pinned Sol model for an independent
-adversarial review of a decision-level proposed solution or supplied conflict. The
-primary selects a supported reasoning effort for each review from its consequence and
-uncertainty; the role does not impose or change that selection. It may inspect supplied
-code or tests as evidence for the decision, but it does not verify concrete code,
-tests, implementation correctness, or release sign-off; route those claims to Local
-Code Verifier.
+Use `sol_advisor_final_adjudicator` with Sol/high for routine independent review,
+Sol/xhigh for a complex cross-module decision, and Sol/max only for rare unresolved
+high-consequence adjudication. Use Astra/high for key architecture, complex
+long-running task decisions, or contested adjudication, Astra/xhigh when those span
+difficult boundaries, and Astra/max only when a rare critical decision cannot
+otherwise converge. The primary passes the selected model and effort explicitly. It
+may inspect supplied code or tests as evidence for the decision, but it does not verify
+concrete code, tests, implementation correctness, or release sign-off; route those
+claims to Local Code Verifier. The review object must be a decision-level proposed
+solution or supplied conflict.
 
 For a proposed solution:
 

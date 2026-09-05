@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -79,40 +80,87 @@ def run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 127, "", str(exc))
 
 
-def git_changed_paths(root: Path) -> set[str]:
+class SnapshotError(RuntimeError):
+    """The workspace state could not be read reliably."""
+
+
+def snapshot_path_identity(path: Path) -> tuple[str, str]:
+    try:
+        metadata = path.lstat()
+        if stat.S_ISLNK(metadata.st_mode):
+            target = os.readlink(path)
+            return "symlink", hashlib.sha256(os.fsencode(target)).hexdigest()
+        if stat.S_ISREG(metadata.st_mode):
+            digest = hashlib.sha256()
+            with path.open("rb") as source:
+                for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            return "file", digest.hexdigest()
+        if stat.S_ISDIR(metadata.st_mode):
+            return "directory", ""
+        return "other", hashlib.sha256(str(metadata.st_mode).encode()).hexdigest()
+    except FileNotFoundError:
+        return "missing", ""
+    except OSError as exc:
+        raise SnapshotError(f"cannot read protected path {path}: {exc}") from exc
+
+
+def snapshot_paths(root: Path, relatives: list[str]) -> tuple[set[str], str]:
+    records: list[str] = []
+    protected: set[str] = set()
+    for raw in sorted(set(relatives)):
+        relative = raw.replace("\\", "/").strip("/")
+        candidate = Path(relative)
+        if not relative or candidate.is_absolute() or ".." in candidate.parts:
+            raise SnapshotError(f"invalid protected path from workspace enumeration: {raw!r}")
+        if is_generated_path(relative):
+            continue
+        kind, content_hash = snapshot_path_identity(root / candidate)
+        protected.add(relative)
+        records.append(f"{relative}|{kind}|{content_hash}")
+    return protected, hashlib.sha256("\n".join(records).encode()).hexdigest()
+
+
+def git_change_snapshot(root: Path) -> tuple[set[str], str]:
     result = run(
-        ["git", "-C", str(root), "diff", "--name-only", "--no-ext-diff", "HEAD", "--"],
+        ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"],
         cwd=root,
     )
     if result.returncode != 0:
-        return set()
-    return {line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()}
-
-
-def git_diff_fingerprint(root: Path) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(root), "diff", "--binary", "HEAD", "--"],
-        cwd=root,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return ""
-    return hashlib.sha256(result.stdout).hexdigest()
+        raise SnapshotError(f"cannot enumerate Git protected paths: {tail(result.stderr or result.stdout)}")
+    return snapshot_paths(root, [value for value in result.stdout.split("\0") if value])
 
 
 def same_path(left: Path, right: Path) -> bool:
     return os.path.normcase(os.path.abspath(left)) == os.path.normcase(os.path.abspath(right))
 
 
+def has_workspace_marker(root: Path, name: str) -> bool:
+    try:
+        (root / name).lstat()
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise SnapshotError(f"cannot inspect {name} workspace marker: {exc}") from exc
+
+
 def detect_workspace_kind(root: Path) -> str:
+    git_marker = has_workspace_marker(root, ".git")
     git_root = run(["git", "-C", str(root), "rev-parse", "--show-toplevel"], cwd=root)
     if git_root.returncode == 0 and git_root.stdout.strip():
         if not same_path(root, Path(git_root.stdout.strip()).resolve(strict=True)):
             raise ValueError("a Git workspace must be the exact worktree root")
         return "git"
+    if git_marker:
+        # Preserve the Git classification so the protected-path snapshot can
+        # report a failed VCS check instead of silently confirming a directory.
+        return "git"
+    svn_marker = has_workspace_marker(root, ".svn")
     svn_info = run(["svn", "info", "--show-item", "wc-root", str(root)], cwd=root)
-    return "svn" if svn_info.returncode == 0 else "directory"
+    if svn_info.returncode == 0:
+        return "svn"
+    return "svn" if svn_marker else "directory"
 
 
 def is_generated_path(relative: str) -> bool:
@@ -159,52 +207,41 @@ def workspace_files(root: Path, kind: str) -> list[str]:
     ]
 
 
+def snapshot_directory_files(root: Path) -> list[str]:
+    excluded = {".git", ".svn", ".codegraph", ".serena", "__pycache__", ".pytest_cache", ".mypy_cache"}
+    files: list[str] = []
+
+    def failed(error: OSError) -> None:
+        raise SnapshotError(f"cannot enumerate protected directory: {error}")
+
+    for current, directories, filenames in os.walk(root, onerror=failed):
+        directories[:] = [name for name in directories if name not in excluded]
+        current_path = Path(current)
+        for filename in filenames:
+            relative = (current_path / filename).relative_to(root).as_posix()
+            if not is_generated_path(relative):
+                files.append(relative)
+    return files
+
+
 def svn_change_snapshot(root: Path) -> tuple[set[str], str]:
     result = run(["svn", "status", "--xml", "--ignore-externals", str(root)], cwd=root)
     if result.returncode != 0:
-        return set(), ""
-    changes: list[str] = []
+        raise SnapshotError(f"cannot inspect SVN protected paths: {tail(result.stderr or result.stdout)}")
     try:
-        document = ET.fromstring(result.stdout)
-    except ET.ParseError:
-        return set(), ""
-    for entry in document.findall(".//entry"):
-        status = entry.find("wc-status")
-        if status is None:
-            continue
-        item = status.get("item", "")
-        properties = status.get("props", "")
-        if item in {"", "normal", "none", "unversioned", "ignored", "external"} and properties in {"", "normal", "none"}:
-            continue
-        path = entry.get("path", "").replace("\\", "/")
-        try:
-            candidate = Path(path)
-            resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
-            relative = resolved.relative_to(root).as_posix()
-        except (OSError, ValueError):
-            relative = path
-        if not is_generated_path(relative):
-            changes.append(f"{relative}|{item}|{properties}")
-    normalized = sorted(changes)
-    return {line.split("|", 1)[0] for line in normalized}, hashlib.sha256("\n".join(normalized).encode()).hexdigest()
+        ET.fromstring(result.stdout)
+    except ET.ParseError as exc:
+        raise SnapshotError("cannot parse SVN protected-path status") from exc
+    return snapshot_paths(root, snapshot_directory_files(root))
 
 
 def directory_change_snapshot(root: Path) -> tuple[set[str], str]:
-    records: list[str] = []
-    for relative in filesystem_files(root):
-        path = root / relative
-        try:
-            metadata = path.stat()
-        except OSError:
-            continue
-        records.append(f"{relative}|{metadata.st_size}|{metadata.st_mtime_ns}")
-    normalized = sorted(records)
-    return {line.split("|", 1)[0] for line in normalized}, hashlib.sha256("\n".join(normalized).encode()).hexdigest()
+    return snapshot_paths(root, snapshot_directory_files(root))
 
 
 def workspace_change_snapshot(root: Path, kind: str) -> tuple[set[str], str]:
     if kind == "git":
-        return git_changed_paths(root), git_diff_fingerprint(root)
+        return git_change_snapshot(root)
     if kind == "svn":
         return svn_change_snapshot(root)
     return directory_change_snapshot(root)
@@ -300,13 +337,23 @@ def main() -> int:
         parser.error("workspace must resolve to an existing directory")
     try:
         workspace_kind = detect_workspace_kind(root)
-    except ValueError as exc:
+    except (ValueError, SnapshotError) as exc:
         parser.error(str(exc))
 
     operations = plan_operations(root, args.indexing, workspace_kind)
-    changed_before, fingerprint_before = workspace_change_snapshot(root, workspace_kind)
     failed = False
-    if args.apply:
+    snapshot_errors: list[str] = []
+    snapshot_ready = False
+    changed_before: set[str] = set()
+    fingerprint_before = ""
+    try:
+        changed_before, fingerprint_before = workspace_change_snapshot(root, workspace_kind)
+        snapshot_ready = True
+    except SnapshotError as exc:
+        snapshot_errors.append(str(exc))
+        failed = True
+
+    if args.apply and snapshot_ready:
         for operation in operations:
             command = operation["command"]
             if not command:
@@ -318,16 +365,27 @@ def main() -> int:
             if result.returncode != 0:
                 operation["diagnostic"] = tail(result.stderr or result.stdout)
                 failed = True
+    elif args.apply:
+        for operation in operations:
+            operation["status"] = "blocked" if operation["command"] else "skipped"
     else:
         for operation in operations:
             operation["status"] = "planned" if operation["command"] else "skipped"
 
-    changed_after, fingerprint_after = workspace_change_snapshot(root, workspace_kind)
-    new_working_changes = sorted(changed_after - changed_before)
-    working_changes_modified = fingerprint_after != fingerprint_before
-    if new_working_changes or working_changes_modified:
-        failed = True
+    new_working_changes: list[str] = []
+    working_changes_modified: bool | None = None
+    if snapshot_ready:
+        try:
+            changed_after, fingerprint_after = workspace_change_snapshot(root, workspace_kind)
+            new_working_changes = sorted(changed_after - changed_before)
+            working_changes_modified = fingerprint_after != fingerprint_before
+            if new_working_changes or working_changes_modified:
+                failed = True
+        except SnapshotError as exc:
+            snapshot_errors.append(str(exc))
+            failed = True
 
+    read_only_state = "unconfirmed" if snapshot_errors else ("changed" if working_changes_modified else "confirmed_unchanged")
     output = {
         "valid": not failed,
         "repository": str(root),
@@ -337,6 +395,8 @@ def main() -> int:
         "operations": operations,
         "new_working_changes": new_working_changes,
         "working_changes_modified": working_changes_modified,
+        "read_only_state": read_only_state,
+        "snapshot_errors": snapshot_errors,
         "raw_search_exclusions": GENERATED_EXCLUSIONS,
         "fallback": "exact text search and targeted reads remain available when an index tool is unavailable",
     }

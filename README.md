@@ -21,15 +21,15 @@ execution, independent verification, or adversarial review.
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
 | `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound owned implementation |
 | `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
-| `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | concrete implementation or release-sign-off claim | read-only verification |
-| `sol_advisor_final_adjudicator` | Sol / primary-selected supported effort | decision-level solution or supplied conflict | read-only adversarial review |
+| `sol_advisor_local_code_verifier` | Luna/medium–Max; Sol/high–Max; Astra/high–Max | concrete implementation or release-sign-off claim | read-only verification |
+| `sol_advisor_final_adjudicator` | Sol/high–Max; Astra/high–Max | decision-level solution or supplied conflict | read-only adversarial review |
 
-Context Analyst and Local Code Verifier deliberately do not pin a base model in their
-TOML profiles. The primary must pass both the selected model and effort at spawn.
-Pinned roles, including Test Executor on Luna and Final Adjudicator on Sol, receive
-only an effort override. The primary automatically selects Final Adjudicator effort
-from the review consequence and uncertainty; no fixed default or literal `auto` value
-is passed. Spark effort is also selected before spawn. This
+Context Analyst, Local Code Verifier, and Final Adjudicator deliberately do not pin a
+base model in their TOML profiles. The primary passes both the selected model and
+effort at spawn; Context Analyst accepts Luna or Terra and rejects Astra. Sol is the
+default reviewer at high, while Astra is reserved for critical implementation risk,
+key architecture, complex long-running decisions, or contested adjudication. Spark
+effort is also selected before spawn. This
 follows the inheritance and override behavior documented in
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
@@ -123,7 +123,9 @@ Skill selects a task; detailed policy and model routing load from
 If the result has one concrete omission, use the existing one corrective
 follow-up. Otherwise end the child's ownership before primary takeover.
 Reported checks need repeating only for missing or invalidated evidence within
-current authorization. Hardware has one named operator across primary/children.
+current authorization. Hardware has one named operator across primary/children; an
+active capture or unfinished control operation stays with that operator until a known
+terminal state or an explicit handoff names the next operator and exact live state.
 
 ## Native orchestration flow
 
@@ -178,10 +180,13 @@ At spawn the primary commits to:
 
 `role + mode + model + effort + prompt version + tool/config prefix`
 
-Model and effort do not change during that child. One corrective follow-up reuses the
-same child and configuration. If stronger capability is required, the current child
-ends as `INCOMPLETE` or `BLOCKED`; the primary takes over or creates one new stronger
-child and accepts a new cold start.
+Name each new child `<task_summary>__<actual_model_identifier>`, replacing model dots
+and hyphens with underscores, for example `lock_review__gpt_6_astra`. Model and
+effort do not change during that child. One corrective follow-up reuses the same child,
+name, and configuration. A model change creates a new child with a new suffix. If
+stronger capability is required, the current child ends as `INCOMPLETE` or
+`BLOCKED`; the primary takes over or creates one new stronger child and accepts a new
+cold start.
 
 Test Executor adds a separate repair-resume follow-up. The same native child may be
 reactivated repeatedly only after `NEXT_ACTION: REPAIR_RESUME` and for the same

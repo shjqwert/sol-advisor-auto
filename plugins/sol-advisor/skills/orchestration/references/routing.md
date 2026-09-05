@@ -67,11 +67,12 @@ missing, truncated, or invalidated items.
 
 ## Select one route
 
-Treat Spark and GPT-5.6 as separate quota pools. Among routes that pass the quality
-gate, start with the lowest adequate model and effort: Spark for eligible light work,
-then Luna, Terra for cross-module synthesis, and Sol only for high-risk verification
-or genuine adjudication. Escalate only when scope, risk, or evidence requires it.
-Higher effort does not compensate for incomplete task facts or an ambiguous packet.
+Treat Spark and the larger review models as separate quota pools. Among routes that
+pass the quality gate, start with the lowest adequate model and effort: Spark for
+eligible light work, then Luna, Terra for cross-module synthesis, Sol for complex or
+high-risk verification and routine adjudication, and Astra only for critical review.
+Escalate only when scope, risk, or evidence requires it. Higher effort does not
+compensate for incomplete task facts or an ambiguous packet.
 
 | Scenario | Agent | Allowed route | Responsibility |
 |---|---|---|---|
@@ -83,12 +84,14 @@ Higher effort does not compensate for incomplete task facts or an ambiguous pack
 | Frozen detailed implementation plan with named files, decided behavior, and mechanical checks | `sol_advisor_mechanical_editor` | Luna/high, xhigh, or max | plan-bound implementation |
 | Primary-authored ordered test plan with bounded evidence output | `sol_advisor_test_executor` | Luna/xhigh or max | resumable test execution without fixes |
 | Concrete code, test, implementation-correctness, or verification claim | `sol_advisor_local_code_verifier` | Luna/medium, high, xhigh, or max | read-only implementation verification |
-| Security, authorization, concurrency, state, data, migration, public-API, or release-sign-off claim | `sol_advisor_local_code_verifier` | Sol/xhigh; max for irreversible sign-off | read-only high-risk verification |
-| Decision-level proposed solution or supplied conflict that benefits from an independent adversarial attack | `sol_advisor_final_adjudicator` | Sol with primary-selected supported effort | read-only decision review |
+| Complex cross-module or high-risk implementation/release claim | `sol_advisor_local_code_verifier` | Sol/high by default; xhigh for difficult cross-module risk; max for rare system sign-off | read-only high-risk verification |
+| Critical implementation risk or conflicting implementation evidence within one verification claim | `sol_advisor_local_code_verifier` | Astra/high by default; xhigh across difficult boundaries; max for rare unresolved critical sign-off | read-only critical verification |
+| Routine decision-level proposed solution or supplied conflict | `sol_advisor_final_adjudicator` | Sol/high by default; xhigh for complex cross-module decisions; max for rare unresolved high-consequence review | read-only decision review |
+| Key architecture, complex long-running task decision, or contested adjudication | `sol_advisor_final_adjudicator` | Astra/high by default; xhigh across difficult boundaries; max only when a rare critical decision cannot converge | read-only critical decision review |
 
-Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, Mechanical
-Luna/medium, Test Executor Luna/low, medium, or high, Verifier Sol/medium or high, and
-any Final Adjudicator route that does not use its pinned Sol model or a supported
+Reject Spark/xhigh, Context Luna/xhigh or max, Context Terra/medium, every Context
+Analyst Astra route, Mechanical Luna/medium, Test Executor Luna/low, medium, or high,
+Verifier Sol or Astra below high, and any undocumented Final Adjudicator model or
 effort. If no allowed route fits, keep the work primary.
 
 Do not infer ChatGPT subscription credit multipliers from API pricing thresholds.
@@ -171,17 +174,20 @@ result; it does not rerun the entire task.
 ## Spawn with a stable configuration
 
 Use native Desktop collaboration with a unique task name, a minimal self-contained
-message, and `fork_turns: "none"`.
+message, and `fork_turns: "none"`. Name each new child
+`<task_summary>__<actual_model_identifier>`; normalize dots and hyphens in the model
+to underscores, for example `lock_review__gpt_6_astra`.
 
-- Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Test Executor/Luna, Final
-  Adjudicator/Sol, and Spark Worker/Spark. Pass `reasoning_effort`; omit redundant
-  model overrides. For Final Adjudicator, the primary automatically selects any
-  supported Sol effort from the review consequence and uncertainty instead of using a
-  fixed default.
-- Dynamic roles: Context Analyst and Local Code Verifier. Pass both the exact `model`
-  and `reasoning_effort` selected from the route table.
+- Pinned roles: Investigator/Luna, Mechanical Editor/Luna, Test Executor/Luna, and
+  Spark Worker/Spark. Pass `reasoning_effort`; omit redundant model overrides.
+- Dynamic roles: Context Analyst, Local Code Verifier, and Final Adjudicator. Pass both
+  the exact `model` and `reasoning_effort` selected from the route table. Context
+  Analyst rejects Astra.
 - Spark has no literal automatic effort setting. The primary chooses low, medium, or
   high once before spawn.
+
+Changing model requires a new child with a new model suffix. A bounded follow-up on
+the same model reuses the existing child and keeps its name and configuration.
 
 At spawn, commit to `role + mode + model + effort + prompt/tool prefix`. Never change
 the model or effort inside that child. Keep fixed instructions and tool declarations
@@ -213,9 +219,10 @@ AGENTS.md supplies project rules, Agent TOML supplies role/model boundaries, and
 the dispatch prompt supplies task-local facts, scope and completion criteria. Do
 not copy the full AGENTS.md into TOML or dispatch; the child observes applicable
 nested AGENTS.md when entering its owned paths. Role instructions cannot weaken
-project rules. J-Link operations have one named device operator; a primary/child
-transfer must finish the previous operator's calls before the next begins.
-Never ask a child
+project rules. J-Link operations have one named device operator, including reads.
+An active capture or unfinished control operation remains with that operator until a
+known terminal state or an explicit handoff names the next operator and exact live
+state; primary and children make no overlapping device calls. Never ask a child
 to inventory, install, or reconfigure capabilities.
 
 For workspace relationships prefer Serena or CodeGraph when available; for exact
