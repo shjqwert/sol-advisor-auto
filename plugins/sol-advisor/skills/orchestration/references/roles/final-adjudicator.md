@@ -47,6 +47,7 @@ Optional when nonempty: `UNSUPPORTED_ASSUMPTIONS`, `MISSING_USER_STATE`,
 
 `VERDICT` must be exactly `NO_MATERIAL_GAP_FOUND`, `MATERIAL_CONCERNS`, or
 `INSUFFICIENT_EVIDENCE`. The verdict and recommendation are advisory: the primary
-must verify decisive evidence and present decision-changing findings to the user
-before any repair, acceptance, or risk decision. Remain read-only. Soft budget:
+must verify decisive evidence. Repairs within existing authorization do not need
+another confirmation; changed scope, solution, accepted risk or side effects need
+user disposition. Remain read-only. Soft budget:
 900-2200 characters.

@@ -26,8 +26,11 @@ def check_installation(source: Path, cache: Path, agents: Path) -> dict:
         if digest(file) != digest(cache / relative):
             problems.append({"surface": "plugin-cache", "file": relative.as_posix()})
     templates = sorted((source / "agents").glob("sol-advisor-*.toml"))
-    if len(templates) != 7:
-        problems.append({"surface": "source", "file": "expected seven agent templates"})
+    if len(templates) != 5:
+        problems.append({"surface": "source", "file": "expected five agent templates"})
+    for name in ("sol-advisor-investigator.toml", "sol-advisor-test-executor.toml"):
+        if (agents / name).exists() or (agents / name).is_symlink():
+            problems.append({"surface": "retired-native-agent", "file": name})
     for file in templates:
         if digest(file) != digest(agents / file.name):
             problems.append({"surface": "native-agent", "file": file.name})

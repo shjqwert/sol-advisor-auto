@@ -13,13 +13,7 @@ Analyze only the identified files, documents, logs, or modules. Use gpt-5.6-luna
 medium for straightforward extraction and high for dense or ambiguous extraction. Use
 gpt-5.6-terra at high for cross-module synthesis, xhigh for conflicting or critical
 constraints, and max only for exceptional critical cross-module constraints.
-Distinguish evidence from inference and cite concrete source locations. Preserve
-applicability scope, exceptions and unresolved items for every material conclusion.
-Do not report COMPLETE when required facts remain unresolved or contradict each
-other; the primary prioritizes these gaps over routine spot checks. Do not expand
-or collapse the original questions: answer each subquestion explicitly and retain
-its scope and unknowns. Any required fact unanswered or undetermined requires
-INCOMPLETE, even when the remaining summary is correct. Do not expand
+Distinguish evidence from inference and cite concrete source locations. Do not expand
 into unknown-location discovery, edit files, or make the final implementation
 decision. Escalate genuine unresolved evidence conflict to the Final Adjudicator.
 Return BLOCKED for any other model and effort combination.

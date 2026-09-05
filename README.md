@@ -1,28 +1,28 @@
 # Sol Advisor
 
+Version `1.0.1` keeps five bounded roles, optional Spark dispatch, coding-rule
+handoffs and question-by-question intake. It also protects submodule changes during
+index preparation and safely retires recognized old agent templates during upgrade.
+
 Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
 orchestration. Task accuracy and first-pass completion are hard gates. Among routes
 that preserve them, end-to-end time comes next; quota and context savings remain
-secondary. Release `1.0.0` passes the repository role, routing, installer,
-upgrade, rollback, snapshot and contract checks. Candidate installation verifies
-all seven native role templates; host rollout records confirm GPT-5.6-Sol/high
-Local Code Verifier and GPT-6-Astra/high Final Adjudicator execution.
+secondary. The current candidate defines five roles; repository checks and actual
+Codex execution are reported separately. Historical test results are not current
+candidate verification.
 
 The primary session owns requirements, architecture, unresolved design decisions,
 iterative debugging, final verification, integration, user finding disposition, and
-release decisions. Children handle bounded investigation, identified-source analysis,
-focused local production, frozen detailed implementation plans, resumable test-plan
-execution, independent verification, or adversarial review.
+release decisions. Children handle identified-source analysis, focused local production,
+frozen detailed implementation plans, independent verification, or adversarial review.
 
 ## Roles
 
 | Native agent type | Allowed model / effort | Scenario | Responsibility |
 |---|---|---|---|
 | `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused owned `PRODUCE` |
-| `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
 | `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound owned implementation |
-| `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
 | `sol_advisor_local_code_verifier` | Luna/medium–Max; Sol/high–Max; Astra/high–Max | concrete implementation or release-sign-off claim | read-only verification |
 | `sol_advisor_final_adjudicator` | Sol/high–Max; Astra/high–Max | decision-level solution or supplied conflict | read-only adversarial review |
 
@@ -36,18 +36,18 @@ follows the inheritance and override behavior documented in
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
 Spark and GPT-5.6 are treated as separate quota pools. Spark is reserved for compact,
-focused production that remains within its quality boundary; OpenAI describes it as a
+focused production only on explicit request or concrete low-latency benefit; OpenAI describes it as a
 separate, faster, less-capable model with its own usage limits in
 [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
 ## Positive role triggers
 
 After project policy and quality constraints are satisfied, a bounded task that
-clearly fits a role is eligible for delegation. Do not apply a general cost veto
-to these clear matches. An upstream requirement for independent review selects
+clearly fits a role is eligible, never required. Compare benefit with the complete
+cost of dispatch, child work, intake and verification. An upstream requirement for independent review selects
 the reviewer without repeating its admission decision.
 
-Use expected total workflow cost only for borderline cases, including dispatch,
+Use expected total workflow cost for every candidate, including dispatch,
 child work, intake and corrections. A RAG query returns directly to the primary;
 retrieval alone never creates an Advisor stage. Use zero children for sufficient
 direct tools, unresolved design, overlapping scope or unavailable adequate routes.
@@ -63,6 +63,12 @@ judgment, public-interface or dependency decisions, repeated debugging,
 safety-critical judgment, or final integration. Spark and Mechanical Editor write
 only after the primary freezes their respective production goal or detailed plan,
 ownership, preservation rules, completion criteria, and mechanical checks.
+
+Spark quota exhaustion or unavailability ends its ownership. The primary checks any
+existing diff and continues without quota waiting or repeated spawn attempts. Another
+role needs an explicit new route and actual-model name suffix. Context Analyst must
+preserve applicability, exceptions and unresolved facts; the primary prioritizes
+contradictions over routine spot checks. Small direct reads stay primary.
 
 ## Optional context preflight
 
@@ -138,8 +144,8 @@ flowchart TD
     B -->|No| Q{Quality gate passes?}
     Q -->|No| P
     Q -->|Yes| M{Clear bounded role match?}
-    M -->|Yes| R
-    M -->|No| G{Borderline task benefits from delegation?}
+    M -->|Yes| G{Task benefits from delegation?}
+    M -->|No| P
     G -->|No| P
     G -->|Yes| R[Select one allowed role and stable model/effort]
     R --> D[Dispatch one specialized packet with fork_turns none]
@@ -148,21 +154,15 @@ flowchart TD
     F --> S{Status}
     S -->|COMPLETE| V[Verify decisive evidence]
     S -->|INCOMPLETE| C[One same-child corrective follow-up]
-    S -->|BLOCKED| T{Test Executor NEXT_ACTION?}
-    T -->|REPAIR_RESUME| RPR[Primary repairs implementation]
-    T -->|NEW_CHILD| NC[Freeze packet and start new child]
-    T -->|PRIMARY_DECISION or other role| P
-    RPR --> RR[Resume same child and retest blocker]
-    RR --> S
-    NC --> W
+    S -->|BLOCKED| P
     C --> S2{Correction usable?}
     S2 -->|Yes| V
     S2 -->|No| P
-    V --> ADF{Decision-changing adversarial finding?}
+    V --> ADF{Changes scope or accepted risk?}
     ADF -->|Yes| U[Present findings and wait for user decision]
     ADF -->|No| E{Edit role?}
     U --> E
-    E -->|Yes| X[Inspect full diff and rerun exact check]
+    E -->|Yes| X[Inspect full diff and check evidence]
     E -->|No| I[Primary integrates]
     X --> I
     P --> I
@@ -171,9 +171,7 @@ flowchart TD
 
 Every child activation returns one ordinary final response and ends immediately. It
 does not send progress, status, or results through parent-interaction messaging or
-remain active. A blocked Test Executor may be reactivated after the primary repairs
-the implementation only when `NEXT_ACTION: REPAIR_RESUME`; it never waits during that
-repair. The primary reads each final once and uses detailed child history only to
+remain active. The primary reads each final once and uses detailed child history only to
 diagnose a concrete unusable-final or lifecycle failure.
 
 ## Stable configuration and prompt caching
@@ -190,13 +188,6 @@ stronger capability is required, the current child ends as `INCOMPLETE` or
 `BLOCKED`; the primary takes over or creates one new stronger child and accepts a new
 cold start.
 
-Test Executor adds a separate repair-resume follow-up. The same native child may be
-reactivated repeatedly only after `NEXT_ACTION: REPAIR_RESUME` and for the same
-`PLAN_ID`, model, effort, and material scope. Each resume receives the repair evidence,
-invalidated prerequisites, and prior resume point, then retests the blocker before
-continuing. `NEW_CHILD` starts a new frozen packet; `PRIMARY_DECISION` returns control
-to the primary. A new full run or material plan or scope change requires a new child.
-
 Stable instructions and tool definitions precede variable task data. This avoids
 configuration-driven cache misses but does not guarantee a hit; actual caching still
 depends on an exact eligible prefix. See
@@ -208,14 +199,10 @@ All roles use `STATUS: COMPLETE | INCOMPLETE | BLOCKED`, but no universal paragr
 layout is required. Each role returns only its required fields and nonempty optional
 fields:
 
-- Investigator: `ANSWER`, `EVIDENCE`; optional `FINDINGS`, `UNKNOWNS`.
 - Context Analyst: `SYNTHESIS`, `SOURCE_LOCATORS`; optional `CONSTRAINTS`, `CONFLICTS`,
   `UNCERTAINTY`.
 - Mechanical Editor: `CHANGED_FILES`, `CHECKS`; optional `RESULT`, `DEVIATIONS`,
   `UNVERIFIED`.
-- Test Executor: `PLAN_RESULT`, `EVIDENCE`, `COVERAGE`, `TARGET_STATE`; when blocked,
-  `NEXT_ACTION`, `BLOCKER`; only for `REPAIR_RESUME`, `RESUME_POINT`,
-  `REMAINING_TESTS`; optional `FINDINGS`, `OUTPUT_ARTIFACTS`.
 - Local Code Verifier: `VERDICT`, `EVIDENCE`, `COVERAGE`; optional `FINDINGS`,
   `TEST_GAPS`.
 - Final Adjudicator: `VERDICT`, `FINDINGS`, `DECISIVE_EVIDENCE`; optional
@@ -230,8 +217,6 @@ dispatch fields, stopping rules, and soft output budgets are split under
 
 Only one corrective follow-up is allowed. It identifies one exact omission, missing
 evidence, and correct prior work to preserve. Formatting alone never triggers a retry.
-Test Executor repair-resume turns are a role-scoped exception and do not consume that
-corrective follow-up.
 
 ## Native lifecycle and static validation boundary
 
@@ -251,11 +236,9 @@ parent task's active instructions, sandbox, permissions, and project rules. Agen
 files omit MCP, Skill, web, shell-environment, and sandbox overrides, so the runtime
 provides inherited capabilities.
 
-Role responsibility constrains behavior rather than tools. Investigator, Context
-Analyst, Local Code Verifier, and Final Adjudicator remain read-only. Test Executor
-keeps source and configuration read-only, writes evidence only to its declared output,
-and performs only plan-authorized target-state changes. Mechanical Editor and Spark
-`PRODUCE` may modify only their assigned files.
+Role responsibility constrains behavior rather than tools. Context Analyst,
+Local Code Verifier and Final Adjudicator remain read-only. Mechanical Editor and
+Spark `PRODUCE` modify only their assigned files.
 
 The plugin bundles only the optional Context7 MCP companion for developer documentation.
 Exa and MarkItDown are not bundled; use available web and local document tools when needed.
@@ -267,17 +250,14 @@ It does not require a particular index or deny other inherited capabilities.
   relationship, configuration, and log lookup; Spark does not scout.
 - Spark `PRODUCE`: one frozen local production goal with compact named inputs,
   explicitly owned files, mechanical acceptance, and no architecture, public-API,
-  dependency, security, authentication, concurrency, state, migration, cross-module,
-  search, or continuing-debugging requirement.
-- Investigator: unknown evidence locations or current official-source reconciliation.
+  dependency, security, concurrency, undecided state-machine, hardware-control,
+  cross-module decision, unknown search or continuing-debugging requirement.
+  Decided simple state updates and exact-file transformations are allowed.
 - Context Analyst: already identified long sources; Luna/High for extraction,
   Terra/xHigh or Max for synthesis.
 - Mechanical Editor: one frozen detailed implementation plan whose behavior, named
   files, acceptance, and checks are already decided; different plan-specified edits
-  are allowed across those files. Spark remains the route for one compact local goal.
-- Test Executor: one primary-authored ordered plan with stable test IDs, dependencies,
-  pass/fail criteria, authorized side effects, evidence output, and stop conditions;
-  findings are recorded but implementation is never repaired.
+  are allowed across those files. This is not a default cost-saving route.
 - Local Code Verifier: one concrete code, test, implementation-correctness,
   verification, or release-sign-off claim attacked from one failure class; it never
   owns a whole ordered plan or its repair-resume state. Use Luna for routine through
@@ -286,11 +266,11 @@ It does not require a particular index or deny other inherited capabilities.
   supplied conflict. It may inspect supplied implementation artifacts as decision
   evidence but does not replace implementation verification. The primary selects a
   supported Sol effort from consequence and uncertainty, verifies decisive evidence,
-  and presents decision-changing findings to the user before repair or acceptance.
+  and requests user disposition only for changed scope, solution, accepted risk or
+  side effects. Authorized defect repair does not require another confirmation.
 
-Investigator and Context Analyst are alternative discovery lanes. Spark `PRODUCE` and
+Unknown-location discovery and ordered test execution stay primary. Spark `PRODUCE` and
 Mechanical Editor are mutually exclusive by work type and never share the same batch.
-Test Executor and Local Code Verifier are mutually exclusive for one assignment.
 Children do not communicate directly; the primary reviews and transfers dependent
 results. An edit does not automatically trigger a verifier, and Final Adjudicator is
 used only for a bounded solution or conflict review where an independent attack can
@@ -311,7 +291,7 @@ codex plugin add sol-advisor@sol-advisor
 ```
 
 Plugin installation does not write user- or project-owned instructions or custom-agent
-files. Install the seven native templates separately:
+files. Install the five native templates separately:
 
 ```sh
 plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')"
@@ -330,7 +310,7 @@ sh "$plugin_dir/scripts/install-agents.sh" --check
 Managed upgrade recognizes only exact shipped template hashes, including the managed
 pre-0.7 templates from commit `293266924b`, the 0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, the 0.10.2 Local Code
 Verifier, the 0.11.0 Mechanical Editor and Final Adjudicator, and the 0.12.0 Final
-Adjudicator. It stages all seven files and rolls back the batch on failure. Any
+Adjudicator. It stages all five files and rolls back the batch on failure. Any
 user-modified or unknown file aborts before mutation. Normal installation still
 refuses every differing file.
 
@@ -360,7 +340,7 @@ python scripts/check-installation.py
 ```
 
 Run it from the plugin directory. It checks Codex registration, the cached plugin files
-and all seven native templates, and reports differences without reinstalling or
+and all five native templates, and reports differences without reinstalling or
 overwriting customizations. `--cache PATH` supports offline checks and explicitly does
 not verify Codex registration.
 
@@ -395,7 +375,7 @@ sh plugins/sol-advisor/scripts/verify.sh
 git diff --check
 ```
 
-The verifier checks the seven role configurations, specialized prompts, documented and
+The verifier checks the five role configurations, specialized prompts, documented and
 rejected routes, exact managed upgrades and rollback, runtime configuration stability,
 global-default and workspace-opt-out policy, the no-`AGENTS.md`-writer boundary,
 native lifecycle, static Python checks, and retired sidecar absence. It invokes no

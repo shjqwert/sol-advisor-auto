@@ -128,7 +128,37 @@ def git_change_snapshot(root: Path) -> tuple[set[str], str]:
     )
     if result.returncode != 0:
         raise SnapshotError(f"cannot enumerate Git protected paths: {tail(result.stderr or result.stdout)}")
-    return snapshot_paths(root, [value for value in result.stdout.split("\0") if value])
+    protected, fingerprint = snapshot_paths(root, [value for value in result.stdout.split("\0") if value])
+    staged = run(["git", "-C", str(root), "ls-files", "--stage", "-z", "--"], cwd=root)
+    if staged.returncode != 0:
+        raise SnapshotError(f"cannot enumerate Git index: {tail(staged.stderr or staged.stdout)}")
+    records = [fingerprint]
+    submodules: set[str] = set()
+    for entry in filter(None, staged.stdout.split("\0")):
+        try:
+            metadata, relative = entry.split("\t", 1)
+            mode, object_id, stage = metadata.split()
+        except ValueError as exc:
+            raise SnapshotError("cannot parse Git index entry") from exc
+        if mode != "160000" or is_generated_path(relative):
+            continue
+        candidate = Path(relative)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            raise SnapshotError(f"invalid submodule path: {relative!r}")
+        records.append(f"gitlink|{relative}|{object_id}|{stage}")
+        submodules.add(relative)
+    for relative in sorted(submodules):
+        child = root / relative
+        if child.is_symlink() or not has_workspace_marker(child, ".git"):
+            raise SnapshotError(f"cannot inspect uninitialized or redirected submodule: {relative}")
+        top = run(["git", "-C", str(child), "rev-parse", "--show-toplevel"], cwd=child)
+        head = run(["git", "-C", str(child), "rev-parse", "--verify", "HEAD"], cwd=child)
+        if top.returncode or head.returncode or not same_path(child, Path(top.stdout.strip())):
+            raise SnapshotError(f"cannot inspect submodule Git state: {relative}")
+        child_paths, child_fingerprint = git_change_snapshot(child)
+        protected.update(f"{relative}/{path}" for path in child_paths)
+        records.append(f"submodule|{relative}|{head.stdout.strip()}|{child_fingerprint}")
+    return protected, hashlib.sha256("\n".join(records).encode()).hexdigest()
 
 
 def same_path(left: Path, right: Path) -> bool:

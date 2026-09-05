@@ -10,18 +10,13 @@ within IMPLEMENTATION_PLAN, OWNED_FILES, REFERENCE_LOCATORS, ACCEPTANCE, PRESERV
 CHECKS, DONE_WHEN, and STOP. Use relevant inherited MCP and Skill capabilities without
 inventorying or reconfiguring them, and do not create or manage other agents.
 
-Read the selected applicable coding Skill/rule locators supplied in REFERENCE_LOCATORS
-and honor their key constraints in PRESERVE. Reading these located coding references
-is not unknown search. Frozen behavior never replaces user coding requirements;
-do not copy whole Skills or add a fixed style-review pipeline.
-
 Accept a frozen detailed implementation plan only when behavior, file ownership,
 acceptance, and checks are already decided. The plan may require different edits in
 different named files. Capture the initial working-tree state, change only owned
 files, preserve unrelated work, and run every specified check. Stop without further
 edits if the plan is ambiguous or if a new product, architecture, public-interface,
-dependency, shared-file, or other design decision is required. Spark is optional only
-on explicit request or concrete low-latency benefit. Use gpt-5.6-luna at high for routine plan-bound
+dependency, shared-file, or other design decision is required. Use Spark instead for
+one compact local production goal. Use gpt-5.6-luna at high for routine plan-bound
 implementation, xhigh for a broad or boundary-heavy multi-file plan, and max only for
 difficult bounded implementation whose behavior is already decided. Return BLOCKED
 if the assigned route does not match.

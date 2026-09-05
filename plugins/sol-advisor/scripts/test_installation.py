@@ -16,6 +16,36 @@ CHECK = runpy.run_path(str(SCRIPT / "check-installation.py"))["check_installatio
 
 
 class InstallationTests(unittest.TestCase):
+    def test_seven_role_upgrade_removal_and_rollback(self):
+        shell = shutil.which("sh")
+        if not shell:
+            self.skipTest("POSIX shell unavailable")
+        for ending in ("lf", "crlf"):
+            with self.subTest(ending=ending), tempfile.TemporaryDirectory(prefix="sol-seven-upgrade-") as tmp:
+                target = Path(tmp) / "agents"
+                shutil.copytree(SCRIPT / "fixtures/agents-1.0.0-seven", target)
+                if ending == "crlf":
+                    for file in target.glob("*.toml"):
+                        file.write_bytes(file.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+                command = [shell, str(SCRIPT / "install-agents.sh"), "--target-dir", str(target), "--upgrade-managed"]
+                retired = target / "sol-advisor-test-executor.toml"
+                original = retired.read_bytes()
+                retired.write_bytes(original + b"\n# user modification\n")
+                before = {p.name: p.read_bytes() for p in target.glob("*.toml")}
+                self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+                self.assertEqual(before, {p.name: p.read_bytes() for p in target.glob("*.toml")})
+                retired.write_bytes(original)
+                before = {p.name: p.read_bytes() for p in target.glob("*.toml")}
+                # Fail after the first retired role is removed, including prior upgrades.
+                changed = sum(before[p.name] != p.read_bytes() for p in (SOURCE / "agents").glob("*.toml"))
+                result = subprocess.run(command, capture_output=True, env={**os.environ,
+                    "SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER": str(changed + 1)})
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(before, {p.name: p.read_bytes() for p in target.glob("*.toml")})
+                result = subprocess.run(command, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                self.assertEqual({p.name for p in target.glob("*.toml")}, {p.name for p in (SOURCE / "agents").glob("*.toml")})
+
     def test_registration_uses_the_selected_codex_home(self):
         module = runpy.run_path(str(SCRIPT / "check-installation.py"))
         version = json.loads((SOURCE / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
@@ -75,7 +105,7 @@ class InstallationTests(unittest.TestCase):
                 self.assertEqual(before, {f.name: f.read_bytes() for f in target.glob("*.toml")})
                 result = subprocess.run(command, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
-                self.assertEqual(len(list(target.glob("*.toml"))), 7)
+                self.assertEqual(len(list(target.glob("*.toml"))), 5)
                 for file in (SOURCE / "agents").glob("*.toml"):
                     self.assertEqual(file.read_bytes(), (target / file.name).read_bytes())
 

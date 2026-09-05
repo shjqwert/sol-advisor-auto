@@ -7,11 +7,10 @@ conversation history, raw source contents, or primary reasoning when locators su
 
 ## Select one role contract
 
-- `sol_advisor_investigator`: [Investigator](roles/investigator.md)
 - `sol_advisor_context_analyst`: [Context Analyst](roles/context-analyst.md)
 - `sol_advisor_mechanical_editor`: [Mechanical Editor](roles/mechanical-editor.md)
 - `sol_advisor_local_code_verifier`: [Local Code Verifier](roles/local-code-verifier.md)
-- `sol_advisor_test_executor`: [Test Executor](roles/test-executor.md)
+
 - `sol_advisor_final_adjudicator`: [Final Adjudicator](roles/final-adjudicator.md)
 - `sol_advisor_spark_worker`: [Spark Worker](roles/spark-worker.md)
 
@@ -27,21 +26,20 @@ Every child:
 - uses `STATUS: COMPLETE | INCOMPLETE | BLOCKED`; and
 - omits empty optional fields, raw logs, tool narration, progress, and repetition.
 
-An adversarial-review finding is advisory. The primary verifies decisive evidence and
-presents any finding that could change the agreed solution, scope, accepted risk, or
-implementation to the user before repair or acceptance. Missing user state remains
-unknown; a child never converts it into an assumption or authorization.
+An adversarial-review finding is advisory. The primary verifies decisive evidence.
+Repairs inside existing authorization proceed without another confirmation. Changes
+to agreed solution, scope, accepted risk or side effects require user disposition.
+Missing user state remains unknown; a child never invents authorization.
+
+At intake, compare the result with every original question and acceptance item.
+Child STATUS is not completion evidence. Required facts left unanswered or
+undetermined remain INCOMPLETE until one bounded correction or the primary's
+minimal source check resolves them; preserve unresolved items explicitly.
 
 Local Code Verifier owns concrete code, test, implementation-correctness, verification,
 and release-sign-off claims. Final Adjudicator owns decision-level proposed solutions
 and supplied conflicts; it may use implementation artifacts as evidence but does not
 replace implementation verification.
-
-Test Executor is the only resumable role. After a blocking final with
-`NEXT_ACTION: REPAIR_RESUME`, the primary may repair the implementation and reactivate
-the same native child with the repair-resume packet from its selected contract. A
-`NEW_CHILD` or `PRIMARY_DECISION` result is not resumable. Each activation still
-returns one ordinary final and ends immediately; the child never waits for the repair.
 
 Do not require a response token, result path, sidecar, plugin-owned state, universal
 return mode, task-understanding paragraph, or fixed nine-heading result. Completeness
@@ -62,7 +60,3 @@ STOP: <condition requiring primary takeover or a new stronger child>
 
 Do not follow up for formatting alone, a wrong role, an unsafe route, or a task that
 must be decomposed again. After one unusable correction, the primary takes over.
-
-This corrective limit is separate from Test Executor `REPAIR_RESUME` turns. That role
-may be reactivated repeatedly only while `PLAN_ID`, model, effort, and material scope
-remain unchanged. A new full run or material plan/scope change requires a new child.
