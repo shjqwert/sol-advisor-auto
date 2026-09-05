@@ -4,7 +4,9 @@ Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
 orchestration. Task accuracy and first-pass completion are hard gates. Among routes
 that preserve them, end-to-end time comes next; quota and context savings remain
 secondary. Version `1.0.0` is a development delivery: source/design inspection only.
-Actual tests, installation, main merge, tags, packaging and release are pending.
+The repository verifier now passes its role, routing, installer, upgrade,
+rollback, snapshot and contract checks. Candidate installation, native-agent
+smoke tests, main merge, tags, packaging and release remain pending.
 
 The primary session owns requirements, architecture, unresolved design decisions,
 iterative debugging, final verification, integration, user finding disposition, and
