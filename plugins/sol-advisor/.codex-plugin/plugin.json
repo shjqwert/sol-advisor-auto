@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "0.12.2+codex.20260831083501",
-  "description": "Quality-gated Codex workflow with plan-bound implementation, adversarial review, resumable testing, project opt-out, and total-cost routing.",
+  "version": "1.0.0",
+  "description": "Quality-first delegation with positive role triggers, explicit ownership, progressive routing, and bounded result integration.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -20,8 +20,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Quality-gated delegation with total-cost routing.",
-    "longDescription": "Sol Advisor makes bounded delegation globally eligible unless the current workspace opts out, without requiring a child or route record. Task accuracy and first-pass completion are hard gates; among routes that preserve them, it minimizes expected total workflow cost across primary work, child work, result intake, verification, and retry risk. Spark handles compact frozen local production; GPT-5.6 roles handle investigation, synthesis, frozen detailed implementation plans, resumable test execution, implementation verification, and decision-level adversarial review. Context isolation remains a quality and cost mechanism, while the primary session owns direct tool lookups, unresolved design decisions, user finding disposition, bounded evidence checks, fallback, and final integration.",
+    "shortDescription": "Quality-first delegation with clear task ownership.",
+    "longDescription": "Delegate clear bounded role matches after policy and quality checks. Completion quality comes first, then end-to-end time; use total workflow cost for borderline routing. Load detailed model and role contracts only when needed, choose parallelism from dependencies and exclusive resources, and keep project AGENTS, role TOML and task dispatch distinct. The primary integrates decisive evidence without repeating child-owned work. RAG results return directly to the primary; hardware uses one named operator.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,9 +30,9 @@
     ],
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
-      "Preserve task accuracy and first-pass completion as hard gates before considering delegation.",
-      "Consider a bounded child when expected total workflow cost falls, a plan is frozen, or adversarial review improves quality.",
-      "Use zero children when tools suffice. Present review findings to the user; use one native final result per turn."
+      "Preserve task accuracy and first-pass completion; quality first, then end-to-end time.",
+      "Delegate clear bounded role matches; weigh expected total workflow cost only for borderline tasks.",
+      "Use zero children when tools suffice. Integrate one native final result without repeating the owned task."
     ]
   }
 }

@@ -142,6 +142,8 @@ legacy_hashes = {
         "d789215b7e53a09c66ab832eabf156b449043dfccf3f2dd054712baefa624e99",
     },
     "sol-advisor-local-code-verifier.toml": {
+        "c41da16c26ea6ded200699ee31d02e4680cc997d994370e4353ba5b96ae60ac8",
+        "9de27c0d181db0ddfd81d5bd82d6a789affbcd616fe91b7939104e46f1c6d025",
         "e4f8a5a7364e1e9eadd0974fd21d9242956f161cfaa769cd7f686370ced92671",
         "2ea57feb5af143c2f597f69b0b253ca2db6f27d44a506b0775b1db2fab13950e",
         "234fb934016ff4ccf16db0c841e0cec4d92370a282b4f37961118e947cfae93b",
@@ -153,6 +155,8 @@ legacy_hashes = {
         "9115147d2b04c3a8e844e93360872874396d6b2dc0b8f63d0aa29f24b160e3ab",
     },
     "sol-advisor-final-adjudicator.toml": {
+        "a9a758bd8228d97f56e87316a789857aa6714bc604e80d8387efd0556ad93dde",
+        "2b218115a97e15ce810b6112fc3e4a101fcd6a0454eda42241b302d8d4d40ae8",
         "ba2ee3bb3a0ec6b6776ab77cc3bca6f3da47cb0b713e073ae3a45e9cca902916",
         "a6328ada966d35521df92f9afc4075f676b90256f6008d66fb3301e39e874fe8",
         "e4fac299bb1d4780d5ee81e5f740056aa2db744e81668322670a10347d2342ce",

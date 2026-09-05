@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Quality-gated total-cost delegation"
-  default_prompt: "Use $orchestration for engineering work with long sources, unknown search, focused production, frozen implementation plans, or independent adversarial review to decide whether bounded delegation preserves quality and lowers total workflow cost; otherwise use zero children."
+  short_description: "Quality-first bounded delegation"
+  default_prompt: "Use $orchestration to delegate clear bounded role matches with quality first, explicit ownership, and no repeated child work."
 
 policy:
   allow_implicit_invocation: true

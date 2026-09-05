@@ -2,8 +2,11 @@
 
 Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
 orchestration. Task accuracy and first-pass completion are hard gates. Among routes
-that preserve them, Sol Advisor minimizes expected total workflow cost before reducing
-context pollution or latency.
+that preserve them, end-to-end time comes next; quota and context savings remain
+secondary. Version `1.0.0` is a development delivery: source/design inspection only.
+The repository verifier now passes its role, routing, installer, upgrade,
+rollback, snapshot and contract checks. Candidate installation, native-agent
+smoke tests, main merge, tags, packaging and release remain pending.
 
 The primary session owns requirements, architecture, unresolved design decisions,
 iterative debugging, final verification, integration, user finding disposition, and
@@ -15,20 +18,20 @@ execution, independent verification, or adversarial review.
 
 | Native agent type | Allowed model / effort | Scenario | Responsibility |
 |---|---|---|---|
-| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused serial `PRODUCE` |
+| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused owned `PRODUCE` |
 | `sol_advisor_investigator` | Luna/medium, high, xHigh, or Max | unknown-location search, relationship tracing, official research | read-only investigation |
 | `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
-| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound serial implementation |
+| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound owned implementation |
 | `sol_advisor_test_executor` | Luna/xHigh or Max | primary-authored ordered test plan | resumable test execution without fixes |
-| `sol_advisor_local_code_verifier` | Luna/medium, high, xHigh, or Max; Sol/xHigh or Max | concrete implementation or release-sign-off claim | read-only verification |
-| `sol_advisor_final_adjudicator` | Sol / primary-selected supported effort | decision-level solution or supplied conflict | read-only adversarial review |
+| `sol_advisor_local_code_verifier` | Luna/medium–Max; Sol/high–Max; Astra/high–Max | concrete implementation or release-sign-off claim | read-only verification |
+| `sol_advisor_final_adjudicator` | Sol/high–Max; Astra/high–Max | decision-level solution or supplied conflict | read-only adversarial review |
 
-Context Analyst and Local Code Verifier deliberately do not pin a base model in their
-TOML profiles. The primary must pass both the selected model and effort at spawn.
-Pinned roles, including Test Executor on Luna and Final Adjudicator on Sol, receive
-only an effort override. The primary automatically selects Final Adjudicator effort
-from the review consequence and uncertainty; no fixed default or literal `auto` value
-is passed. Spark effort is also selected before spawn. This
+Context Analyst, Local Code Verifier, and Final Adjudicator deliberately do not pin a
+base model in their TOML profiles. The primary passes both the selected model and
+effort at spawn; Context Analyst accepts Luna or Terra and rejects Astra. Sol is the
+default reviewer at high, while Astra is reserved for critical implementation risk,
+key architecture, complex long-running decisions, or contested adjudication. Spark
+effort is also selected before spawn. This
 follows the inheritance and override behavior documented in
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
@@ -37,30 +40,23 @@ focused production that remains within its quality boundary; OpenAI describes it
 separate, faster, less-capable model with its own usage limits in
 [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
-## Quality and total-cost gates
+## Positive role triggers
 
-Implicit route evaluation is globally allowed when the plugin is installed and
-enabled. Delegation still requires all of the following:
+After project policy and quality constraints are satisfied, a bounded task that
+clearly fits a role is eligible for delegation. Do not apply a general cost veto
+to these clear matches. An upstream requirement for independent review selects
+the reviewer without repeating its admission decision.
 
-- the current project has not opted out;
-- one role owns a bounded question, focused local production goal, frozen detailed
-  implementation plan, frozen ordered test plan, or independent adversarial review;
-- the selected model and effort are adequate for the risk;
-- scope, completion, stopping, and verification criteria are explicit;
-- first-pass accuracy and completion reliability are not expected to decline; and
-- expected total workflow cost is lower, evidence isolation is likely to prevent a
-  quality loss, or independent verification materially improves decision quality.
+Use expected total workflow cost only for borderline cases, including dispatch,
+child work, intake and corrections. A RAG query returns directly to the primary;
+retrieval alone never creates an Advisor stage. Use zero children for sufficient
+direct tools, unresolved design, overlapping scope or unavailable adequate routes.
 
-Total workflow cost includes primary work avoided and added, child model and tool work,
-result intake, bounded verification, and likely correction or escalation. A cheaper
-child model does not by itself establish a cheaper workflow.
-
-Use zero children when the primary already has bounded evidence, direct tools are
-sufficient, expected total cost is not lower and there is no material quality benefit,
-dispatch would duplicate work, or implementation needs continuing design judgment.
-After deciding to delegate, use one child by default.
-Use at most two concurrent children, only for read-only work with mutually exclusive
-decisions, source scopes, and failure classes.
+There is no fixed default child count or maximum of one/two. Independent work can
+run in parallel within native runtime limits. Conflicting files, shared build
+output, dependent tasks and devices require serial ownership. Name each task's
+owner and the primary's disjoint work before dispatch. Read a child's final once,
+verify decisive evidence and integrate; do not redo the entire task.
 
 Do not delegate implementation that still requires architecture, product, or design
 judgment, public-interface or dependency decisions, repeated debugging,
@@ -118,6 +114,21 @@ management, use Codex Project Context: it owns those project surfaces and emits 
 minimal integration section that Sol Advisor only reads. The two plugins remain
 independently usable.
 
+## Rule sources and intake
+
+Applicable AGENTS.md supplies project constraints, Agent TOML supplies role/model
+boundaries, and dispatch supplies the local assignment. Preserve nested project
+rules without repeating full AGENTS content in every packet. The lightweight
+Skill selects a task; detailed policy and model routing load from
+`references/routing.md` only before delegation.
+
+If the result has one concrete omission, use the existing one corrective
+follow-up. Otherwise end the child's ownership before primary takeover.
+Reported checks need repeating only for missing or invalidated evidence within
+current authorization. Hardware has one named operator across primary/children; an
+active capture or unfinished control operation stays with that operator until a known
+terminal state or an explicit handoff names the next operator and exact live state.
+
 ## Native orchestration flow
 
 ```mermaid
@@ -126,7 +137,9 @@ flowchart TD
     B -->|Yes| P[Primary executes]
     B -->|No| Q{Quality gate passes?}
     Q -->|No| P
-    Q -->|Yes| G{Lower total cost or material quality benefit?}
+    Q -->|Yes| M{Clear bounded role match?}
+    M -->|Yes| R
+    M -->|No| G{Borderline task benefits from delegation?}
     G -->|No| P
     G -->|Yes| R[Select one allowed role and stable model/effort]
     R --> D[Dispatch one specialized packet with fork_turns none]
@@ -169,10 +182,13 @@ At spawn the primary commits to:
 
 `role + mode + model + effort + prompt version + tool/config prefix`
 
-Model and effort do not change during that child. One corrective follow-up reuses the
-same child and configuration. If stronger capability is required, the current child
-ends as `INCOMPLETE` or `BLOCKED`; the primary takes over or creates one new stronger
-child and accepts a new cold start.
+Name each new child `<task_summary>__<actual_model_identifier>`, replacing model dots
+and hyphens with underscores, for example `lock_review__gpt_6_astra`. Model and
+effort do not change during that child. One corrective follow-up reuses the same child,
+name, and configuration. A model change creates a new child with a new suffix. If
+stronger capability is required, the current child ends as `INCOMPLETE` or
+`BLOCKED`; the primary takes over or creates one new stronger child and accepts a new
+cold start.
 
 Test Executor adds a separate repair-resume follow-up. The same native child may be
 reactivated repeatedly only after `NEXT_ACTION: REPAIR_RESUME` and for the same

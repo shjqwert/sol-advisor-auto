@@ -1,10 +1,13 @@
 # Local Code Verifier
 
-Use `sol_advisor_local_code_verifier` with Luna/medium for routine deterministic checks,
-Luna/high for multiple boundaries or edge cases, Luna/xhigh for difficult bounded
-uncertainty, and Luna/max only for exceptional non-critical uncertainty. Use Sol/xhigh
-for security, authorization, concurrency, state, data, migration, public-API, or
-release risk, and Sol/max only for irreversible or system-level sign-off.
+Use `sol_advisor_local_code_verifier` with Luna/medium for routine deterministic
+checks, Luna/high for multiple boundaries, Luna/xhigh for difficult bounded
+uncertainty, and Luna/max only for exceptional non-critical uncertainty. Use Sol/high
+by default for complex cross-module or high-risk implementation and release claims,
+Sol/xhigh for difficult cross-module risk, and Sol/max only for rare system sign-off.
+Use Astra/high for critical implementation risk or conflicting implementation
+evidence within one verification claim, Astra/xhigh across difficult boundaries, and
+Astra/max only for rare unresolved critical sign-off.
 
 This role owns one concrete code, test, implementation-correctness, verification, or
 release-sign-off claim from one failure class, including a proposed implementation when

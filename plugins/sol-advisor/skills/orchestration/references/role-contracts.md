@@ -50,7 +50,8 @@ overrides a selected role's soft output budget.
 ## One corrective follow-up
 
 Use one follow-up only when the result is directionally correct and one bounded
-omission prevents completion. Keep the same child, model, and effort.
+omission prevents completion. Keep the same child, model, effort, and model-suffixed
+task name. A model change starts a new child.
 
 ~~~text
 CORRECTION: <one exact misunderstanding or omission>
