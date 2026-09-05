@@ -152,6 +152,18 @@ immediate_templates = Path(sys.argv[4])
 current_templates = Path(sys.argv[5])
 latest_templates = Path(sys.argv[6])
 pre_astra_templates = Path(sys.argv[7])
+for template_root in (
+    templates,
+    legacy_templates,
+    previous_templates,
+    immediate_templates,
+    current_templates,
+    latest_templates,
+    pre_astra_templates,
+):
+    for path in template_root.glob("*.toml"):
+        if b"\r" in path.read_bytes():
+            raise SystemExit(f"{path}: agent templates must use LF line endings")
 roles = {
     "sol-advisor-investigator.toml": ("sol_advisor_investigator", "gpt-5.6-luna"),
     "sol-advisor-context-analyst.toml": ("sol_advisor_context_analyst", None),
