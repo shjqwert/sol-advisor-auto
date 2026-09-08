@@ -1,8 +1,8 @@
 # Sol Advisor
 
-Version `1.0.1` keeps five bounded roles, optional Spark dispatch, coding-rule
-handoffs and question-by-question intake. It also protects submodule changes during
-index preparation and safely retires recognized old agent templates during upgrade.
+Version `1.0.2` synchronizes task instruction priority, scoped pauses and verification
+reuse. It keeps five bounded roles, optional Spark dispatch, coding-rule handoffs
+and safe managed upgrades. Project-specific delegation restrictions remain effective.
 
 Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
 orchestration. Task accuracy and first-pass completion are hard gates. Among routes

@@ -88,8 +88,8 @@ from pathlib import Path
 import sys
 
 manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if manifest.get("version") != "1.0.1":
-    raise SystemExit("manifest version was not advanced to 1.0.1")
+if manifest.get("version") != "1.0.2":
+    raise SystemExit("manifest version was not advanced to 1.0.2")
 expected = {
     "author": {"name": "shjqwert", "url": "https://github.com/shjqwert"},
     "homepage": "https://github.com/shjqwert/sol-advisor-auto#readme",
@@ -118,7 +118,7 @@ for required in ("consider clear bounded role matches", "use zero children"):
 if "check cheap hard prerequisites" in prompts:
     raise SystemExit("manifest still mandates a phase preflight")
 PY
-pass "plugin manifest version, ownership, three-prompt interface limits, and 1.0.1 routing metadata"
+pass "plugin manifest version, ownership, three-prompt interface limits, and 1.0.2 routing metadata"
 
 sh "$python_runner" - "$mcp_config" <<'PY'
 import json
@@ -844,4 +844,4 @@ index_chars=$(wc -c < "$contracts")
 [ "$index_chars" -lt 4000 ] || fail "common contract index exceeds the progressive-disclosure budget"
 pass "static Python checks, shell syntax, LF policy, Skill budget, and contract-index budget"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 1.0.1 no-cost checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 1.0.2 no-cost checks completed in $tmp_dir"

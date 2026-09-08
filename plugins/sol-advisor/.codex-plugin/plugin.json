@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Quality-first delegation with positive role triggers, explicit ownership, progressive routing, and bounded result integration.",
   "author": {
     "name": "shjqwert",
