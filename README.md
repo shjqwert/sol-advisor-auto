@@ -1,86 +1,64 @@
 # Sol Advisor
 
-Version `1.0.2` synchronizes task instruction priority, scoped pauses and verification
-reuse. It keeps five bounded roles, optional Spark dispatch, coding-rule handoffs
-and safe managed upgrades. Project-specific delegation restrictions remain effective.
+Version `2.0.0` is a lightweight native-agent collaboration plugin: three
+responsibilities, four model-specific profiles, host-dependent teammate messaging, and an
+ordinary final response. Keep small tasks local; delegate substantial independent
+work when it improves quality or total completion time.
 
-Sol Advisor is a Codex plugin for quality-first, bounded functional-subagent
-orchestration. Task accuracy and first-pass completion are hard gates. Among routes
-that preserve them, end-to-end time comes next; quota and context savings remain
-secondary. The current candidate defines five roles; repository checks and actual
-Codex execution are reported separately. Historical test results are not current
-candidate verification.
+## Roles and models
 
-The primary session owns requirements, architecture, unresolved design decisions,
-iterative debugging, final verification, integration, user finding disposition, and
-release decisions. Children handle identified-source analysis, focused local production,
-frozen detailed implementation plans, independent verification, or adversarial review.
+| Native agent type | Model | Default effort |
+|---|---|---|
+| `sol_advisor_scout__gpt_5_6_luna` | GPT-5.6 Luna | high; xhigh for difficult tracing |
+| `sol_advisor_worker__gpt_5_6_sol` | GPT-5.6 Sol | medium; high for difficult implementation |
+| `sol_advisor_reviewer__gpt_5_6_sol` | GPT-5.6 Sol | high |
+| `sol_advisor_reviewer__gpt_6_astra` | GPT-6 Astra | xhigh for critical review |
 
-## Roles
+Scout investigates bounded code or source questions, including unknown file locations.
+Worker owns scoped implementation, local design, debugging and authorized checks.
+Reviewer independently examines implementation, design or conflicting evidence without
+implementing fixes. Review is optional, not a stage added to every edit.
 
-| Native agent type | Allowed model / effort | Scenario | Responsibility |
-|---|---|---|---|
-| `sol_advisor_spark_worker` | Spark/low, medium, or high | compact, frozen local production goal | focused owned `PRODUCE` |
-| `sol_advisor_context_analyst` | Luna/medium or High; Terra/high, xHigh, or Max | identified long-source extraction or cross-module synthesis | read-only context analysis |
-| `sol_advisor_mechanical_editor` | Luna/high, xHigh, or Max | frozen detailed implementation plan across named files | plan-bound owned implementation |
-| `sol_advisor_local_code_verifier` | Luna/medium–Max; Sol/high–Max; Astra/high–Max | concrete implementation or release-sign-off claim | read-only verification |
-| `sol_advisor_final_adjudicator` | Sol/high–Max; Astra/high–Max | decision-level solution or supplied conflict | read-only adversarial review |
+The current primary session remains coordinator and final owner. Astra medium is a
+recommended primary configuration, not an automatic model switch. Templates pin their
+named model; select effort at dispatch. Use instance names such as
+`trace_boot__gpt_5_6_luna`. A different model needs its matching profile.
 
-Context Analyst, Local Code Verifier, and Final Adjudicator deliberately do not pin a
-base model in their TOML profiles. The primary passes both the selected model and
-effort at spawn; Context Analyst accepts Luna or Terra and rejects Astra. Sol is the
-default reviewer at high, while Astra is reserved for critical implementation risk,
-key architecture, complex long-running decisions, or contested adjudication. Spark
-effort is also selected before spawn. This
-follows the inheritance and override behavior documented in
-[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+## Native collaboration
 
-Spark and GPT-5.6 are treated as separate quota pools. Spark is reserved for compact,
-focused production only on explicit request or concrete low-latency benefit; OpenAI describes it as a
-separate, faster, less-capable model with its own usage limits in
-[Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed).
+Give a short assignment with task, owned scope, completion condition and essential
+context/restrictions. Scout defaults to `fork_turns: "none"`; other narrow tasks
+also benefit from fresh context, while limited inheritance may suit shared decisions.
+Respect the host's context and model-override rules.
 
-## Positive role triggers
+Assignments specify the communication path. Where the host exposes native messaging,
+teammates send evidence and questions directly. Otherwise children return evidence
+in ordinary finals and the primary forwards it with source attribution in follow-ups.
+Codex app thread messaging is not a substitute for native agent messaging.
+No registered dependency graph or message schema is required. Children
+remain leaves: they do not spawn or manage other agents. Messages do not grant new
+authority or automatically reactivate an ended child.
 
-After project policy and quality constraints are satisfied, a bounded task that
-clearly fits a role is eligible, never required. Compare benefit with the complete
-cost of dispatch, child work, intake and verification. An upstream requirement for independent review selects
-the reviewer without repeating its admission decision.
+Use one writer per conflicting file/resource, preserve user changes, and avoid duplicate
+investigation. Shared test output and hardware also need exclusive ownership. The
+primary continues disjoint work, handles scope changes and confirms work has stopped
+before takeover. Continue a useful child while it makes progress; no fixed correction
+count is imposed.
 
-Use expected total workflow cost for every candidate, including dispatch,
-child work, intake and corrections. A RAG query returns directly to the primary;
-retrieval alone never creates an Advisor stage. Use zero children for sufficient
-direct tools, unresolved design, overlapping scope or unavailable adequate routes.
+Children return ordinary results, evidence and unfinished work. No STATUS/VERDICT
+enums, result sidecars or runtime scripts gate intake. The primary inspects actual
+changes and decisive evidence, reuses valid checks and performs necessary integration.
+Review covers the content actually inspected; changed inputs invalidate related
+evidence. Unrun checks must remain explicitly unverified.
 
-There is no fixed default child count or maximum of one/two. Independent work can
-run in parallel within native runtime limits. Conflicting files, shared build
-output, dependent tasks and devices require serial ownership. Name each task's
-owner and the primary's disjoint work before dispatch. Read a child's final once,
-verify decisive evidence and integrate; do not redo the entire task.
+All roles inherit the task's applicable rules and capabilities. Model profiles do not
+disable messaging or override permissions. Read-only and leaf responsibilities are
+behavioral instructions, not a claim of tool-level isolation. Builds, devices, merges
+and releases remain subject to the user's active authorization and project rules.
 
-Do not delegate implementation that still requires architecture, product, or design
-judgment, public-interface or dependency decisions, repeated debugging,
-safety-critical judgment, or final integration. Spark and Mechanical Editor write
-only after the primary freezes their respective production goal or detailed plan,
-ownership, preservation rules, completion criteria, and mechanical checks.
-
-Spark quota exhaustion or unavailability ends its ownership. The primary checks any
-existing diff and continues without quota waiting or repeated spawn attempts. Another
-role needs an explicit new route and actual-model name suffix. Context Analyst must
-preserve applicability, exceptions and unresolved facts; the primary prioritizes
-contradictions over routine spot checks. Small direct reads stay primary.
-
-## Optional context preflight
-
-When an obvious, cheap, read-only prerequisite could invalidate heavy retrieval or
-delegation, the primary may check it first. This is optional context hygiene, not a
-fixed phase, delegation trigger, or required order. When practical, complete items from
-a partial batch remain valid and only failed, missing, truncated, or invalidated items
-are retried.
-
-A large model context window is available capacity, not a target to fill. Sol Advisor
-does not infer ChatGPT subscription credit multipliers from API pricing thresholds; it
-uses observed Codex usage when available and otherwise compares relative route cost.
+The optional Context7 MCP companion remains available for documentation. Missing tools
+or profiles do not justify installation or reconfiguration: continue in the primary
+or relay evidence when direct messaging is unavailable.
 
 ## Global default and project opt-out
 
@@ -120,166 +98,12 @@ management, use Codex Project Context: it owns those project surfaces and emits 
 minimal integration section that Sol Advisor only reads. The two plugins remain
 independently usable.
 
-## Rule sources and intake
+The primary passes relevant context and current restrictions to fresh children,
+checks their ordinary results, and uses Project Context workflows when a durable
+plan transition or cross-task handoff is warranted. Child completion and messages
+alone do not create persistent records. Native communication or primary relay stays
+inside the current task; Project Context is not an agent mailbox or runtime state store.
 
-Applicable AGENTS.md supplies project constraints, Agent TOML supplies role/model
-boundaries, and dispatch supplies the local assignment. Preserve nested project
-rules without repeating full AGENTS content in every packet. The lightweight
-Skill selects a task; detailed policy and model routing load from
-`references/routing.md` only before delegation.
-
-If the result has one concrete omission, use the existing one corrective
-follow-up. Otherwise end the child's ownership before primary takeover.
-Reported checks need repeating only for missing or invalidated evidence within
-current authorization. Hardware has one named operator across primary/children; an
-active capture or unfinished control operation stays with that operator until a known
-terminal state or an explicit handoff names the next operator and exact live state.
-
-## Native orchestration flow
-
-```mermaid
-flowchart TD
-    A[User task] --> B{Project opted out?}
-    B -->|Yes| P[Primary executes]
-    B -->|No| Q{Quality gate passes?}
-    Q -->|No| P
-    Q -->|Yes| M{Clear bounded role match?}
-    M -->|Yes| G{Task benefits from delegation?}
-    M -->|No| P
-    G -->|No| P
-    G -->|Yes| R[Select one allowed role and stable model/effort]
-    R --> D[Dispatch one specialized packet with fork_turns none]
-    D --> W[Wait without duplicating child-owned scope]
-    W --> F[Read one native final result]
-    F --> S{Status}
-    S -->|COMPLETE| V[Verify decisive evidence]
-    S -->|INCOMPLETE| C[One same-child corrective follow-up]
-    S -->|BLOCKED| P
-    C --> S2{Correction usable?}
-    S2 -->|Yes| V
-    S2 -->|No| P
-    V --> ADF{Changes scope or accepted risk?}
-    ADF -->|Yes| U[Present findings and wait for user decision]
-    ADF -->|No| E{Edit role?}
-    U --> E
-    E -->|Yes| X[Inspect full diff and check evidence]
-    E -->|No| I[Primary integrates]
-    X --> I
-    P --> I
-    I --> O[Primary final response]
-```
-
-Every child activation returns one ordinary final response and ends immediately. It
-does not send progress, status, or results through parent-interaction messaging or
-remain active. The primary reads each final once and uses detailed child history only to
-diagnose a concrete unusable-final or lifecycle failure.
-
-## Stable configuration and prompt caching
-
-At spawn the primary commits to:
-
-`role + mode + model + effort + prompt version + tool/config prefix`
-
-Name each new child `<task_summary>__<actual_model_identifier>`, replacing model dots
-and hyphens with underscores, for example `lock_review__gpt_6_astra`. Model and
-effort do not change during that child. One corrective follow-up reuses the same child,
-name, and configuration. A model change creates a new child with a new suffix. If
-stronger capability is required, the current child ends as `INCOMPLETE` or
-`BLOCKED`; the primary takes over or creates one new stronger child and accepts a new
-cold start.
-
-Stable instructions and tool definitions precede variable task data. This avoids
-configuration-driven cache misses but does not guarantee a hit; actual caching still
-depends on an exact eligible prefix. See
-[OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching).
-
-## Specialized result contracts
-
-All roles use `STATUS: COMPLETE | INCOMPLETE | BLOCKED`, but no universal paragraph
-layout is required. Each role returns only its required fields and nonempty optional
-fields:
-
-- Context Analyst: `SYNTHESIS`, `SOURCE_LOCATORS`; optional `CONSTRAINTS`, `CONFLICTS`,
-  `UNCERTAINTY`.
-- Mechanical Editor: `CHANGED_FILES`, `CHECKS`; optional `RESULT`, `DEVIATIONS`,
-  `UNVERIFIED`.
-- Local Code Verifier: `VERDICT`, `EVIDENCE`, `COVERAGE`; optional `FINDINGS`,
-  `TEST_GAPS`.
-- Final Adjudicator: `VERDICT`, `FINDINGS`, `DECISIVE_EVIDENCE`; optional
-  `UNSUPPORTED_ASSUMPTIONS`, `MISSING_USER_STATE`, `USER_DECISIONS_REQUIRED`,
-  `RESIDUAL_RISKS`, `RECOMMENDATION`.
-- Spark `PRODUCE`: `CHANGED_FILES`, `CHECK`; optional `DEVIATIONS`, `UNVERIFIED`.
-
-The common lifecycle and role index are in
-`plugins/sol-advisor/skills/orchestration/references/role-contracts.md`. Detailed
-dispatch fields, stopping rules, and soft output budgets are split under
-`references/roles/`; only the selected role file is loaded.
-
-Only one corrective follow-up is allowed. It identifies one exact omission, missing
-evidence, and correct prior work to preserve. Formatting alone never triggers a retry.
-
-## Native lifecycle and static validation boundary
-
-Normal orchestration creates no dispatch plan, run directory, `state.json`, pending
-record, response token, result path, or result sidecar. No Python script accepts,
-rejects, or retries a child's natural-language final. Codex native child status and the
-ordinary final response are the runtime lifecycle source of truth.
-
-Development-time Python remains allowed for deterministic TOML, JSON, routing, prompt,
-installer, and fixture checks. Those checks never participate in child dispatch or
-result intake.
-
-## Capability inheritance
-
-Every child follows the `AGENTS.md` files applicable to its working directory and the
-parent task's active instructions, sandbox, permissions, and project rules. Agent TOML
-files omit MCP, Skill, web, shell-environment, and sandbox overrides, so the runtime
-provides inherited capabilities.
-
-Role responsibility constrains behavior rather than tools. Context Analyst,
-Local Code Verifier and Final Adjudicator remain read-only. Mechanical Editor and
-Spark `PRODUCE` modify only their assigned files.
-
-The plugin bundles only the optional Context7 MCP companion for developer documentation.
-Exa and MarkItDown are not bundled; use available web and local document tools when needed.
-It does not require a particular index or deny other inherited capabilities.
-
-## Route boundaries
-
-- Available MCP, index, or exact reads in the primary session handle bounded symbol,
-  relationship, configuration, and log lookup; Spark does not scout.
-- Spark `PRODUCE`: one frozen local production goal with compact named inputs,
-  explicitly owned files, mechanical acceptance, and no architecture, public-API,
-  dependency, security, concurrency, undecided state-machine, hardware-control,
-  cross-module decision, unknown search or continuing-debugging requirement.
-  Decided simple state updates and exact-file transformations are allowed.
-- Context Analyst: already identified long sources; Luna/High for extraction,
-  Terra/xHigh or Max for synthesis.
-- Mechanical Editor: one frozen detailed implementation plan whose behavior, named
-  files, acceptance, and checks are already decided; different plan-specified edits
-  are allowed across those files. This is not a default cost-saving route.
-- Local Code Verifier: one concrete code, test, implementation-correctness,
-  verification, or release-sign-off claim attacked from one failure class; it never
-  owns a whole ordered plan or its repair-resume state. Use Luna for routine through
-  difficult bounded review and Sol only for high-risk or irreversible verification.
-- Final Adjudicator: independent adversarial review of a decision-level solution or
-  supplied conflict. It may inspect supplied implementation artifacts as decision
-  evidence but does not replace implementation verification. The primary selects a
-  supported Sol effort from consequence and uncertainty, verifies decisive evidence,
-  and requests user disposition only for changed scope, solution, accepted risk or
-  side effects. Authorized defect repair does not require another confirmation.
-
-Unknown-location discovery and ordered test execution stay primary. Spark `PRODUCE` and
-Mechanical Editor are mutually exclusive by work type and never share the same batch.
-Children do not communicate directly; the primary reviews and transfers dependent
-results. An edit does not automatically trigger a verifier, and Final Adjudicator is
-used only for a bounded solution or conflict review where an independent attack can
-materially improve the decision.
-
-Local Code Verifier and Final Adjudicator are also mutually exclusive for one
-assignment. Concrete implementation correctness and release sign-off route to Local
-Code Verifier, even when adversarial. Goals, constraints, tradeoffs, assumptions,
-scope, accepted risk, and supplied evidence conflicts route to Final Adjudicator.
 
 ## Installation
 
@@ -291,7 +115,7 @@ codex plugin add sol-advisor@sol-advisor
 ```
 
 Plugin installation does not write user- or project-owned instructions or custom-agent
-files. Install the five native templates separately:
+files. Install the four model-specific native templates separately:
 
 ```sh
 plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')"
@@ -307,12 +131,11 @@ sh "$plugin_dir/scripts/install-agents.sh" --upgrade-managed
 sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
-Managed upgrade recognizes only exact shipped template hashes, including the managed
-pre-0.7 templates from commit `293266924b`, the 0.7 set, the changed 0.9.4 Spark and Mechanical Editor templates, the 0.10.2 Local Code
-Verifier, the 0.11.0 Mechanical Editor and Final Adjudicator, and the 0.12.0 Final
-Adjudicator. It stages all five files and rolls back the batch on failure. Any
-user-modified or unknown file aborts before mutation. Normal installation still
-refuses every differing file.
+Managed upgrade recognizes exact historical template hashes, including 1.0.2, in LF
+and CRLF forms. It creates the four new profiles and removes recognized retired
+profiles in one batch. Any modified or unknown target aborts before mutation;
+unrelated custom agents remain untouched. Failures roll back the batch. This is
+installation failure recovery, not a promise of arbitrary version downgrade.
 
 Windows PowerShell example:
 
@@ -321,10 +144,10 @@ $pluginDir = (codex plugin list --json | ConvertFrom-Json).installed |
   Where-Object pluginId -eq 'sol-advisor@sol-advisor' |
   Select-Object -ExpandProperty source |
   Select-Object -ExpandProperty path
-$pluginDirWsl = wsl wslpath -a -u ($pluginDir -replace '\\','/')
-$agentDirWsl = wsl wslpath -a -u (("$env:USERPROFILE\.codex\agents") -replace '\\','/')
-wsl sh "$pluginDirWsl/scripts/install-agents.sh" --target-dir $agentDirWsl --upgrade-managed
-wsl sh "$pluginDirWsl/scripts/install-agents.sh" --target-dir $agentDirWsl --check
+$agentDir = Join-Path $env:USERPROFILE '.codex/agents'
+# Git for Windows sh; use explicit native paths rather than assuming WSL.
+sh "$pluginDir/scripts/install-agents.sh" --target-dir $agentDir --upgrade-managed
+sh "$pluginDir/scripts/install-agents.sh" --target-dir $agentDir --check
 ```
 
 Start a new Codex task after installation so native roles and the bundled Skill are
@@ -340,7 +163,7 @@ python scripts/check-installation.py
 ```
 
 Run it from the plugin directory. It checks Codex registration, the cached plugin files
-and all five native templates, and reports differences without reinstalling or
+and all four model-specific templates, and reports differences without reinstalling or
 overwriting customizations. `--cache PATH` supports offline checks and explicitly does
 not verify Codex registration.
 
@@ -348,7 +171,7 @@ These development diagnostics do not gate normal dispatch:
 
 ```sh
 sh "$plugin_dir/scripts/validate-agent-route.sh" \
-  sol_advisor_context_analyst openai gpt-5.6-luna high
+  sol_advisor_scout__gpt_5_6_luna openai gpt-5.6-luna high trace_boot__gpt_5_6_luna
 
 sh "$plugin_dir/scripts/inspect-agent-runtime.sh" \
   <native-subagent-thread-id>
@@ -375,14 +198,22 @@ sh plugins/sol-advisor/scripts/verify.sh
 git diff --check
 ```
 
-The verifier checks the five role configurations, specialized prompts, documented and
-rejected routes, exact managed upgrades and rollback, runtime configuration stability,
-global-default and workspace-opt-out policy, the no-`AGENTS.md`-writer boundary,
-native lifecycle, static Python checks, and retired sidecar absence. It invokes no
-model or paid API.
+The verifier checks model/profile consistency, mismatched route rejection, managed
+installation and failure recovery, historical upgrades, workspace snapshots, runtime
+metadata diagnostics and shell syntax/LF. It invokes no model API or compilation.
+Static configuration checks cannot prove role behavior or permissions enforcement.
 
-Actual native-agent smoke tests can consume model quota and require separate user
-authorization.
+For workspace-local temporary files, create a disposable directory beneath the checkout
+and set TMPDIR (and TEMP/TMP on Windows) before running tests. Installation regression
+writes only to isolated targets and removes its own temporary contents.
+
+Native smoke tests should separately exercise discovery, direct evidence transfer,
+scoped implementation, leaf behavior and primary takeover in a disposable workspace.
+Use the newly loaded model-specific profiles and report the actual model/effort.
+Do not count old roles, simulated messages or static checks as those tests.
+
+See [architecture and rationale](docs/architecture-v2.md). Broad cost comparisons are
+separate from routine functional checks; no unmeasured speed or quota improvement is claimed.
 
 ## License
 

@@ -1,7 +1,7 @@
 {
   "name": "sol-advisor",
-  "version": "1.0.2",
-  "description": "Quality-first delegation with positive role triggers, explicit ownership, progressive routing, and bounded result integration.",
+  "version": "2.0.0",
+  "description": "Lightweight native collaboration with scouts, workers, optional reviewers and explicit task ownership.",
   "author": {
     "name": "shjqwert",
     "url": "https://github.com/shjqwert"
@@ -14,14 +14,14 @@
     "orchestration",
     "multi-agent",
     "gpt-5.6",
-    "codex-spark"
+    "gpt-6"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sol Advisor",
-    "shortDescription": "Quality-first delegation with clear task ownership.",
-    "longDescription": "Consider clear bounded role matches after policy, quality and total workflow benefit checks; delegation is optional. Spark requires an explicit request or concrete low-latency benefit and never blocks work on quota. Load model and role contracts only when needed. Keep project AGENTS, role TOML and task dispatch distinct. Integrate decisive evidence without repeating child-owned work. RAG results return to the primary unless identified long sources need extraction; hardware uses one named operator.",
+    "shortDescription": "Focused agents with direct collaboration and clear ownership.",
+    "longDescription": "Split substantial work among model-named scouts, workers and optional reviewers. Scout uses Luna high; Worker uses Sol medium or high. Share dependent evidence directly, preserve user changes and active authorization, and integrate ordinary results without duplicate work or fixed pipelines.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,9 +30,9 @@
     ],
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
-      "Preserve task accuracy and first-pass completion; quality first, then end-to-end time.",
-      "Consider clear bounded role matches; weigh expected total workflow cost for every candidate.",
-      "Use zero children when tools suffice. Integrate one native final result without repeating the owned task."
+      "Split useful work among focused scouts and workers; keep small tasks local.",
+      "Let teammates share dependent evidence directly while preserving task ownership and authorization.",
+      "Integrate actual changes and check evidence; use independent review only when it improves the outcome."
     ]
   }
 }

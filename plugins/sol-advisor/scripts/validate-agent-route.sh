@@ -23,36 +23,20 @@ model=$3
 effort=$4
 task_name=$5
 
-case "$role:$provider:$model:$effort" in
-  sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:low | \
-  sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:medium | \
-  sol_advisor_spark_worker:openai:gpt-5.3-codex-spark:high | \
-  sol_advisor_mechanical_editor:openai:gpt-5.6-luna:high | \
-  sol_advisor_mechanical_editor:openai:gpt-5.6-luna:xhigh | \
-  sol_advisor_mechanical_editor:openai:gpt-5.6-luna:max | \
-  sol_advisor_context_analyst:openai:gpt-5.6-luna:medium | \
-  sol_advisor_context_analyst:openai:gpt-5.6-luna:high | \
-  sol_advisor_context_analyst:openai:gpt-5.6-terra:high | \
-  sol_advisor_context_analyst:openai:gpt-5.6-terra:xhigh | \
-  sol_advisor_context_analyst:openai:gpt-5.6-terra:max | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-luna:medium | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-luna:high | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-luna:xhigh | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-luna:max | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-sol:high | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-sol:xhigh | \
-  sol_advisor_local_code_verifier:openai:gpt-5.6-sol:max | \
-  sol_advisor_local_code_verifier:openai:gpt-6-astra:high | \
-  sol_advisor_local_code_verifier:openai:gpt-6-astra:xhigh | \
-  sol_advisor_local_code_verifier:openai:gpt-6-astra:max | \
-  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:high | \
-  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:xhigh | \
-  sol_advisor_final_adjudicator:openai:gpt-5.6-sol:max | \
-  sol_advisor_final_adjudicator:openai:gpt-6-astra:high | \
-  sol_advisor_final_adjudicator:openai:gpt-6-astra:xhigh | \
-  sol_advisor_final_adjudicator:openai:gpt-6-astra:max)
+case "$role:$provider:$model" in
+  sol_advisor_scout__gpt_5_6_luna:openai:gpt-5.6-luna | \
+  sol_advisor_worker__gpt_5_6_sol:openai:gpt-5.6-sol | \
+  sol_advisor_reviewer__gpt_5_6_sol:openai:gpt-5.6-sol | \
+  sol_advisor_reviewer__gpt_6_astra:openai:gpt-6-astra)
     ;;
-  *) fail "$role $provider $model $effort" ;;
+  *) fail "$role $provider $model" ;;
+esac
+
+# The Skill recommends defaults, not a role-specific effort whitelist.
+# Actual host support remains authoritative.
+case "$effort" in
+  low|medium|high|xhigh|max|ultra) ;;
+  *) fail "unknown effort: $effort" ;;
 esac
 
 if [ -z "$task_name" ]; then fail "task name is required"; fi

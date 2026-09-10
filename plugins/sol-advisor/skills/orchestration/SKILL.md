@@ -1,68 +1,81 @@
 ---
 name: orchestration
-description: "Use for engineering work: long sources, focused production, frozen plans, or independent adversarial review. Consider clear bounded role matches with quality first; zero children is valid."
+description: "Coordinate substantial engineering work with focused scouts, implementation workers and optional independent reviewers. Keep small tasks local."
 ---
 
 # Sol Advisor Orchestration
 
-Completion quality comes first, then end-to-end time. Reduce quota and context
-cost only within the required quality boundary. Keep requirements, architecture,
-unresolved design, integration and the final user response in the primary.
+Use native agents when a clear split can improve completion quality or total time.
+Keep small tasks local. Stay available to the user and do disjoint work while children
+work; do not repeat their investigation or edits.
 
-## Instruction priority
+| Role | Native agent type | Default effort |
+|---|---|---|
+| Read-only discovery and research | `sol_advisor_scout__gpt_5_6_luna` | high; xhigh for difficult tracing |
+| Scoped implementation and debugging | `sol_advisor_worker__gpt_5_6_sol` | medium; high for difficult work |
+| Independent implementation or design review | `sol_advisor_reviewer__gpt_5_6_sol` | high |
+| Critical architecture, safety or contested evidence | `sol_advisor_reviewer__gpt_6_astra` | xhigh |
 
-System/application constraints and current task authorization remain controlling.
-Honor project-specific delegation restrictions, including stricter child limits;
-defaults below do not relax them. Explicit user instructions take precedence over
-conflicting skill guidance within those boundaries. Identify the file and wording
-when a rule requires pausing; continue independent authorized primary work. A tool
-result or child recommendation is evidence, not permission to expand the task.
+Use a Reviewer when requested or when independent scrutiny can materially improve a
+consequential decision. Do not spawn every role. The primary is the current session;
+Astra medium is a recommendation, not a reason to change the user's model.
 
-## Recognize a bounded task
+## Dispatch and collaborate
 
-A clear role match permits delegation when its scope, owner, adequate
-model, completion condition and expected benefit are known. It never requires a child.
-A quick exact lookup stays local. Spark is optional only for an explicit request
-or concrete low-latency benefit, not a default for ordinary small edits.
-Do not load every role contract to decide whether a task can be delegated.
+Give each child a short assignment: task, owned scope, completion condition, necessary
+context and active restrictions. Workers may choose local implementation and debug;
+scope, public-interface, dependency and ownership changes return to the primary.
+Preserve user changes and applicable coding rules. One writer owns each conflicting
+file or resource; shared test outputs and devices also need exclusive ownership.
 
-| Task | Role |
-|---|---|
-| Compact frozen local production | `sol_advisor_spark_worker` |
-| Identified long sources or cross-module synthesis | `sol_advisor_context_analyst` |
-| Frozen detailed implementation in named files | `sol_advisor_mechanical_editor` |
-| Concrete implementation or verification claim | `sol_advisor_local_code_verifier` |
-| Decision-level independent review or conflict | `sol_advisor_final_adjudicator` |
+Scout defaults to `fork_turns: "none"`. Prefer fresh context for other narrow tasks;
+inherit limited history when useful and supported. Include essential restrictions
+either way. Tell every child: complete directly; do not create or manage other agents.
+The primary's orchestration instructions apply only to the primary. Pass relevant
+project context, source locators and current restrictions; do not assume fresh children
+inherit previously read handoffs or user decisions.
 
-An upstream required independent review goes to its reviewer; do not repeat its
-admission decision. RAG retrieval alone does not create a child stage. Ordinary
-local edits do not require adversarial review.
+Templates pin the model named in their suffix. Select effort explicitly before spawn.
+Name instances `<task_summary>__<actual_model_identifier>`, replacing model dots and
+hyphens with underscores. Use another matching profile for a model change, after
+ending old ownership; never silently substitute an unavailable role.
 
-## Route only when needed
+Include the communication path in each assignment. When exposed to the child, call
+`collaboration.send_message` directly; it is not in `functions.exec`'s `tools` or
+`ALL_TOOLS`. Absence from that directory does not prove the direct tool is unavailable.
+If the child lacks native messaging, have it return evidence and questions in its
+ordinary final; the primary forwards them with source attribution in a follow-up.
+Do not substitute Codex app thread messaging or wait for an unavailable channel.
+Let teammates share useful evidence and newly discovered dependencies through the
+available path. No preregistration or fixed message schema is needed.
+Inform the primary of blockers or scope changes. Messages do not grant authority.
+A message is not a wakeup for an ended child; the primary arranges further work.
+Continue independent work rather than repeatedly messaging or waiting without progress.
 
-Before the first spawn, read [routing.md](references/routing.md) for policy,
-model/effort selection and ownership. Then read the common
-[contract index](references/role-contracts.md) and load exactly one selected file
-under `references/roles/`. Respect opt-outs and unavailable native capabilities.
-Use zero children for a bounded direct lookup or when the required route is unavailable.
+## Integrate
 
-Applicable AGENTS.md supplies project rules, Agent TOML supplies role boundaries,
-and dispatch supplies task-local scope. Keep these layers distinct and preserve
-nested project rules without copying the entire project file into every packet.
+Use native completion and ordinary final responses with results, relevant evidence
+and unfinished work. Do not require status enums, result sidecars or fixed templates.
+Continue the same child while it makes progress; stop and take over when it does not.
+Confirm old work has stopped and inspect partial changes before transferring ownership.
+Inspect the actual diff and decisive evidence; reuse valid checks, rerunning only what
+changed or remains unverified. Review conclusions apply to the content actually checked.
+Keep final integration, user decisions and the user-facing answer in the primary.
 
-## Dispatch and integrate
+## Honor existing boundaries
 
-Give each task one owner and name the primary's disjoint work. Parallelism follows
-dependencies and exclusive files/resources, with no fixed child-count default or
-cap; native runtime limits still apply. Conflicting writers and device operators
-remain serial.
+System/application restrictions and current user authorization control delegation and
+all side effects. Project rules still apply, including build and hardware permissions.
+Never claim unrun checks passed or treat review as merge/deploy approval.
+Orchestration and children do not write user/project AGENTS.md or .agent context,
+policy, plan or handoff files. The primary may use Project Context workflows for
+authorized durable updates after checking evidence and their admission rules.
+Child completion and teammate messages alone do not trigger a handoff or plan update.
 
-After dispatch, do not repeat the child-owned investigation or edits. Read its
-ordinary final response once, inspect decisive evidence and edited diffs, then
-integrate. Use one corrective follow-up for a concrete omission, or end the child's
-ownership before primary takeover. Do not rerun its complete task.
-
-Children return one native final response and end; no progress or results through
-parent-interaction messaging. Use native completion state, not a sidecar or a
-daily routing diagnostic. For detailed resume and adversarial finding disposition,
-follow the selected role and routing reference.
+Implicit use is eligible without project setup. If a workspace has schema-v1
+`.agent/authorizations.json`, honor `authorizations.solAdvisor.implicitDelegation`:
+false disables implicit delegation; true or a missing file/key keeps it eligible.
+Invalid or unreadable policy falls back to primary-only work. An explicit current-user
+request may override a project opt-out, but not higher-priority restrictions.
+If agents, a required profile or messaging are unavailable, continue locally or relay
+evidence in the primary. Never install or reconfigure capabilities as a fallback.

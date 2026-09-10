@@ -16,6 +16,42 @@ CHECK = runpy.run_path(str(SCRIPT / "check-installation.py"))["check_installatio
 
 
 class InstallationTests(unittest.TestCase):
+    def test_102_upgrade_protects_changes_and_rolls_back_each_action(self):
+        shell = shutil.which("sh")
+        if not shell:
+            self.skipTest("POSIX shell unavailable")
+        for ending in ("lf", "crlf"):
+            with self.subTest(ending=ending), tempfile.TemporaryDirectory(prefix="sol-102-upgrade-") as tmp:
+                target = Path(tmp) / "agents"
+                shutil.copytree(SCRIPT / "fixtures/agents-1.0.2", target)
+                if ending == "crlf":
+                    for file in target.glob("*.toml"):
+                        file.write_bytes(file.read_bytes().replace(b"\n", b"\r\n"))
+                # Unrelated custom agents must survive both success and rollback.
+                (target / "personal.toml").write_bytes(b"# user-owned\n")
+                before = {p.name: p.read_bytes() for p in target.iterdir()}
+                command = [shell, str(SCRIPT / "install-agents.sh"), "--target-dir", str(target), "--upgrade-managed"]
+                for file in target.glob("sol-advisor-*.toml"):
+                    original = file.read_bytes()
+                    file.write_bytes(original + b"\n# user modification\n")
+                    changed = {p.name: p.read_bytes() for p in target.iterdir()}
+                    self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+                    self.assertEqual(changed, {p.name: p.read_bytes() for p in target.iterdir()})
+                    file.write_bytes(original)
+                # Four creates plus five removals: every failure boundary must restore all bytes.
+                for after in range(1, 10):
+                    result = subprocess.run(command, capture_output=True, env={**os.environ,
+                        "SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER": str(after)})
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(before, {p.name: p.read_bytes() for p in target.iterdir()})
+                result = subprocess.run(command, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                expected = {p.name: p.read_bytes() for p in (SOURCE / "agents").glob("*.toml")}
+                expected["personal.toml"] = before["personal.toml"]
+                self.assertEqual(expected, {p.name: p.read_bytes() for p in target.iterdir()})
+                self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+                self.assertEqual(expected, {p.name: p.read_bytes() for p in target.iterdir()})
+
     def test_seven_role_upgrade_removal_and_rollback(self):
         shell = shutil.which("sh")
         if not shell:
@@ -37,7 +73,7 @@ class InstallationTests(unittest.TestCase):
                 retired.write_bytes(original)
                 before = {p.name: p.read_bytes() for p in target.glob("*.toml")}
                 # Fail after the first retired role is removed, including prior upgrades.
-                changed = sum(before[p.name] != p.read_bytes() for p in (SOURCE / "agents").glob("*.toml"))
+                changed = sum(before.get(p.name) != p.read_bytes() for p in (SOURCE / "agents").glob("*.toml"))
                 result = subprocess.run(command, capture_output=True, env={**os.environ,
                     "SOL_ADVISOR_INSTALL_TEST_FAIL_AFTER": str(changed + 1)})
                 self.assertNotEqual(result.returncode, 0)
@@ -70,7 +106,7 @@ class InstallationTests(unittest.TestCase):
             shutil.copytree(SOURCE, cache, ignore=shutil.ignore_patterns("__pycache__"))
             shutil.copytree(SOURCE / "agents", agents)
             self.assertTrue(CHECK(SOURCE, cache, agents)["ok"])
-            file = agents / "sol-advisor-context-analyst.toml"
+            file = agents / "sol-advisor-scout__gpt_5_6_luna.toml"
             file.write_text("user customization", encoding="utf-8")
             before = file.read_bytes()
             self.assertIn({"surface": "native-agent", "file": file.name}, CHECK(SOURCE, cache, agents)["differences"])
@@ -105,7 +141,7 @@ class InstallationTests(unittest.TestCase):
                 self.assertEqual(before, {f.name: f.read_bytes() for f in target.glob("*.toml")})
                 result = subprocess.run(command, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
-                self.assertEqual(len(list(target.glob("*.toml"))), 5)
+                self.assertEqual(len(list(target.glob("*.toml"))), 4)
                 for file in (SOURCE / "agents").glob("*.toml"):
                     self.assertEqual(file.read_bytes(), (target / file.name).read_bytes())
 

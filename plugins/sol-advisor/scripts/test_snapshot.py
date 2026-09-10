@@ -30,7 +30,8 @@ class SubmoduleSnapshotTests(unittest.TestCase):
             (source / "code.c").write_text("two")
             self.git(source, "commit", "-qam", "second")
             second = self.git(source, "rev-parse", "HEAD")
-            self.git(root, "-c", "protocol.file.allow=always", "submodule", "add", str(source), "module")
+            # Use file transport to avoid filesystem-specific local-clone hardlinks.
+            self.git(root, "-c", "protocol.file.allow=always", "submodule", "add", source.as_uri(), "module")
             self.git(root, "commit", "-qam", "add module")
             child = root / "module"
             before = SNAPSHOT(root)

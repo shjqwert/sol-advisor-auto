@@ -1,7 +1,7 @@
 interface:
   display_name: "Sol Advisor Orchestration"
-  short_description: "Quality-first bounded delegation"
-  default_prompt: "Use $orchestration to consider clear bounded role matches with quality first, explicit ownership, and no repeated child work."
+  short_description: "Focused native agent collaboration"
+  default_prompt: "Use $orchestration to split useful work among scouts and workers, share dependent evidence, and integrate verified results."
 
 policy:
   allow_implicit_invocation: true

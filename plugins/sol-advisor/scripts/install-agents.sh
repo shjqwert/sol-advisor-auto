@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage: install-agents.sh [--target-dir <path>] [--check | --upgrade-managed]
 
-Install the five routed Sol Advisor custom-agent templates into the target directory.
+Install four model-specific Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents". Normal installation never overwrites a
 differing file.
@@ -97,11 +97,10 @@ target_dir = Path(sys.argv[2]).resolve(strict=False)
 mode = sys.argv[3]
 
 agent_files = (
-    "sol-advisor-context-analyst.toml",
-    "sol-advisor-mechanical-editor.toml",
-    "sol-advisor-local-code-verifier.toml",
-    "sol-advisor-final-adjudicator.toml",
-    "sol-advisor-spark-worker.toml",
+    "sol-advisor-scout__gpt_5_6_luna.toml",
+    "sol-advisor-worker__gpt_5_6_sol.toml",
+    "sol-advisor-reviewer__gpt_5_6_sol.toml",
+    "sol-advisor-reviewer__gpt_6_astra.toml",
 )
 
 # Accept exact LF and CRLF byte forms of recognized managed templates. A differing or
@@ -186,7 +185,12 @@ legacy_hashes.setdefault("sol-advisor-test-executor.toml", set()).update(["7a9cc
 # Exact first five-role candidate, before the observed A/B coverage correction.
 legacy_hashes.setdefault("sol-advisor-spark-worker.toml", set()).update(["c3d890994ba648ef4c92c935f675bf98983c3ae920737746e1bfd30534dd775b","9b59f0c075bbb4cefcb3d849b99c21e6715e19dcf70e436176c082026d9fc3c1"])
 legacy_hashes.setdefault("sol-advisor-context-analyst.toml", set()).update(["b796c78132038b2968fb262859c39946a990d37b5295aa2d611fa82c2caa7f55","056e92bfaeea36a4fa0297ac9d9e19cc5b87846b4d563c9e8f78dd2b406662d6"])
-retired_files = ("sol-advisor-investigator.toml", "sol-advisor-test-executor.toml")
+# Exact 1.0.2 release, preserved in fixtures/agents-1.0.2.
+legacy_hashes.setdefault("sol-advisor-context-analyst.toml", set()).update(["a3d6d17e38d3763619e67148dab2af812f5d5895d8ab1a105a153b45b9cffd42","aee27e9b61401a7671452b8dc5bf88541a68c24be548803233b7da011dd0cf11"])
+legacy_hashes.setdefault("sol-advisor-local-code-verifier.toml", set()).update(["0a64cc220e14bb3c8f448a992d16f0dd23b30688fa8eccd06e0d1219eadbe5fa","6f7fecbe86db8edf7b48cd61365f9e742d672c272350167f3b632082b63bbcb4"])
+legacy_hashes.setdefault("sol-advisor-mechanical-editor.toml", set()).update(["249e274ec116adf290a60aafded081d1a5ab4cc1fad953ae038bf03de7521e92","9890e8b2df86e8e46c272e23d298a320c5e73316b76bfb4c22e956e35256896e"])
+legacy_hashes.setdefault("sol-advisor-spark-worker.toml", set()).update(["3348b964814319df930d38584a989b7b4e1c6c4887dd63acc1d56e37d3d1fa8b","69e4ccd991568bad70e634bc2b99210a42e9a576f60f0f0124bf07dcb6487b65"])
+retired_files = tuple(legacy_hashes)
 
 
 def fail(message: str) -> None:
