@@ -54,7 +54,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_plugin_metadata_and_local_links(self):
         manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "sol-advisor")
-        self.assertEqual(manifest["version"], "2.0.0")
+        self.assertEqual(manifest["version"], "2.0.1")
         self.assertTrue((ROOT / manifest["skills"]).is_dir())
         self.assertTrue((ROOT / manifest["mcpServers"]).is_file())
         prompts = manifest["interface"]["defaultPrompt"]

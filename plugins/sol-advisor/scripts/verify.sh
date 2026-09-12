@@ -384,4 +384,4 @@ grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforc
 [ "$(wc -l < "$skill")" -lt 100 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
 pass "static Python checks, shell syntax and LF policy"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 2.0.0 local checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 2.0.1 local checks completed in $tmp_dir"

@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Lightweight native collaboration with scouts, workers, optional reviewers and explicit task ownership.",
   "author": {
     "name": "shjqwert",

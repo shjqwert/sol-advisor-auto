@@ -1,6 +1,6 @@
 # Sol Advisor
 
-Version `2.0.0` is a lightweight native-agent collaboration plugin: three
+Version `2.0.1` is a lightweight native-agent collaboration plugin: three
 responsibilities, four model-specific profiles, host-dependent teammate messaging, and an
 ordinary final response. Keep small tasks local; delegate substantial independent
 work when it improves quality or total completion time.
