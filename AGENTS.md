@@ -22,7 +22,7 @@ Use current code, configuration, specifications, and observed test output as evi
 ## Project Overview
 
 - sol-advisor-auto 是独立的 Sol Advisor Codex 插件仓库;插件元数据与市场入口分别位于插件 manifest 和 .agents/plugins/marketplace.json。
-- 主要实现由 Markdown 编排技能与角色契约、七个 TOML 原生代理模板、Shell 安装及校验脚本和 Python 搜索预检组成。
+- 主要实现由 Markdown 编排技能、四个 TOML 原生代理配置（Scout、Worker、Reviewer 三类职责）、Shell 安装及校验脚本和 Python 搜索预检组成。
 - 编排以准确性和一次完成率为硬门槛,再比较全流程成本;主窗口拥有未决设计、验证和集成,子代理承接有界职责。
 - 当前运行期使用原生子代理状态与普通 final,不创建 dispatch/state/result sidecar;Python 仅用于开发期静态校验等辅助工作。
 - 搜索预检支持 Git、SVN 与普通目录;插件本身不拥有用户或项目的 AGENTS.md、.agent 上下文和授权文件。
@@ -37,15 +37,16 @@ Use current code, configuration, specifications, and observed test output as evi
 
 - 现有 .codegraph/ 用于优先定位代码及影响范围;无覆盖时,对 Markdown、TOML、JSON、Shell 文本作有界精确读取。
 - 已有 .serena/project.yml,符号和引用分析可使用 Serena;工具不可用时回退普通检索,不自动刷新或重建索引。
-- 角色或路由变更需对照编排 Skill、对应角色契约、TOML 模板、路由校验和回归夹具;Shell 文件保持 LF。
+- 角色或路由变更需对照编排 Skill、对应 TOML 代理配置、路由校验和回归夹具;Shell 文件保持 LF。
 
 ## Project References
 
 - documentation: `README.md` — 插件能力、职责边界、安装方式与运行生命周期。
-- documentation: `plugins/sol-advisor/skills/orchestration/references/role-contracts.md` — 角色契约索引;仅按具体任务继续读取对应角色。
+- documentation: `plugins/sol-advisor/skills/orchestration/SKILL.md` — 当前编排、职责选择与协作边界。
+- configuration: `plugins/sol-advisor/agents/` — 四个模型专用代理配置；按所需职责读取对应 TOML。
 - test: `plugins/sol-advisor/scripts/verify.sh` — 仓库静态、模板、路由与升级兼容性回归验证入口。
 
-- README 说明整体行为,角色契约约束单个职责,校验脚本证明已覆盖的静态边界;历史聊天仅作决策来源,冲突时核对当前实现。
+- README 说明整体行为,编排 Skill 与对应代理配置约束职责,校验脚本证明已覆盖的静态边界;历史聊天仅作决策来源,冲突时核对当前实现。
 
 
 ## 项目指导与决策依据
