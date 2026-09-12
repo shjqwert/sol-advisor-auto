@@ -68,8 +68,11 @@ System/application restrictions and current user authorization control delegatio
 all side effects. Project rules still apply, including build and hardware permissions.
 Never claim unrun checks passed or treat review as merge/deploy approval.
 Orchestration and children do not write user/project AGENTS.md or .agent context,
-policy, plan or handoff files. The primary may use Project Context workflows for
-authorized durable updates after checking evidence and their admission rules.
+policy, plan or handoff files. The primary records consequential decisions and
+their reasons in existing design documents, ADRs or authorized Issue workflows;
+reuse the owning record instead of creating a parallel plan or handoff register.
+Project guidance may be maintained through the independent project-setup skill
+when requested; neither that skill nor a context plugin is required for delegation.
 Child completion and teammate messages alone do not trigger a handoff or plan update.
 
 Implicit use is eligible without project setup. If a workspace has schema-v1

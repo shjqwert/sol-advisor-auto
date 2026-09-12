@@ -93,16 +93,15 @@ An explicit current-task request to use Sol Advisor or `$orchestration` bypasses
 project opt-out. An explicit current-task instruction not to delegate always wins.
 
 Sol Advisor never writes user- or project-level `AGENTS.md` files or `.agent` context,
-authorization, plan, and handoff files. For durable project initialization and policy
-management, use Codex Project Context: it owns those project surfaces and emits a
-minimal integration section that Sol Advisor only reads. The two plugins remain
-independently usable.
+authorization, plan, and handoff files. 按需建立或更新项目指导可使用独立的
+`project-setup` Skill；它不管理委派授权，不是 Sol Advisor 的依赖。
+上面的已有委派禁用设置仍然有效，不因停用上下文插件而失效。
 
 The primary passes relevant context and current restrictions to fresh children,
-checks their ordinary results, and uses Project Context workflows when a durable
-plan transition or cross-task handoff is warranted. Child completion and messages
-alone do not create persistent records. Native communication or primary relay stays
-inside the current task; Project Context is not an agent mailbox or runtime state store.
+checks their ordinary results. 重要决定及理由由主窗口在已授权范围内记录到已有
+设计文档、ADR 或 Issue，复用原记录，不建立第二套计划、交接或消息状态库。
+子代理完成不自动触发持久化；原生通信或主窗口转发仅用于当前任务。
+用户改变决定时只修订受影响的记录，测试通过不等于新目标获批。
 
 
 ## Installation

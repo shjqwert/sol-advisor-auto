@@ -48,11 +48,11 @@ Use current code, configuration, specifications, and observed test output as evi
 - README 说明整体行为,角色契约约束单个职责,校验脚本证明已覆盖的静态边界;历史聊天仅作决策来源,冲突时核对当前实现。
 
 
-## Project Context
+## 项目指导与决策依据
 
-- `.agent/context.json`: stable project metadata and context configuration.
-- `.agent/planMsg.md`: confirmed project-level plans and key decisions, created only when needed.
-- `.agent/handoff/`: cross-task handoff index and records.
+- 当前代码、配置、规范与实际验证结果提供项目事实；本文件提供稳定的工作入口。
+- 重要决定及理由沿用已有设计、ADR 或已授权的 Issue，不建立第二套计划或交接台账；已有历史状态不作为当前决策的必读前置。
+- 用户要求维护项目指导时可使用独立的 project-setup，不依赖旧 Project Context 插件，也不自动改动其遗留状态。
 
 ## Sol Advisor Integration
 
@@ -62,10 +62,9 @@ Use current code, configuration, specifications, and observed test output as evi
 - Sol Advisor may read this policy but must not modify `AGENTS.md` or any `.agent` context, authorization, plan, or handoff file.
 - If Sol Advisor or a required role is unavailable, continue in the primary session without substitution and without blocking ordinary project work.
 
-## Handoff Context
+## 按需恢复工作依据
 
-- Create a handoff only when coherent work must continue in another task; skip routine questions and one-off small changes.
-- 按插件能力、角色契约、代理模板、安装升级、静态验证和相关文件匹配交接;保留来源、验证范围及未完成事项。
-- If no reliable match exists, continue from the current project without forcing historical context or reading unrelated records.
-- Use handoffs only to restore the objective, confirmed progress, verification, remaining work, and risks; current code, configuration, references, and test evidence remain authoritative.
+- 各窗口分别推进自己的任务；需要参考其他任务时读取相关证据与现有文档，不因切换窗口自动生成交接文件。
+- 按插件能力、角色契约、代理模板、安装升级及相关文件定位工作依据，保留来源、验证范围及未完成事项。
+- 没有可靠历史匹配时从当前文件调查，不读取无关记录。历史记录只提供线索，不能替代当前实现、有效决定和实际验证结果。
 <!-- PROJECT_CONTEXT_END -->
