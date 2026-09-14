@@ -62,6 +62,18 @@ or relay evidence when direct messaging is unavailable.
 
 ## Global default and project opt-out
 
+### 自动分工判据
+
+跨模块调查、多项独立验证或重要结论争议，应先评估有界分工，无需用户点名代理。
+证据范围和停止条件清晰、可独立推进，且能并行推进其他必要工作、压缩大量调查上下文，
+或独立纠正具体重要争议时，按“质量收益或总耗时收益”判断，任一收益明确即可委派。
+简单任务默认由主会话完成；复杂度结合推理不确定性、证据量、依赖和错误后果判断。
+质量收益不要求同时提速；时间收益不要求额外提高质量，但仍须满足正确性和验收要求。
+时间估计须包含启动、上下文交接、等待、复核和集成开销，并行本身不等于提速。
+用户指定的期限、预算和授权仍须遵守，不额外给质量收益路线添加时间上限。
+“主会话能完成”本身不否定满足任一收益的分工；两者均无明确收益时留在主会话。
+数量受任务收益及宿主、项目上限约束，插件不固定最多一个，也不要求每个角色都运行。
+
 Installing and enabling Sol Advisor makes its implicit-capable orchestration Skill
 eligible in repositories, non-Git directories, empty folders, and from-scratch
 workspaces. Eligibility permits automatic consideration but does not require a route

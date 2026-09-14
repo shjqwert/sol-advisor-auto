@@ -1,13 +1,52 @@
 ---
 name: orchestration
-description: "Coordinate substantial engineering work with focused scouts, implementation workers and optional independent reviewers. Keep small tasks local."
+description: "Assess delegation for cross-module investigations, independent verification workstreams and consequential disputed conclusions; coordinate native scouts, workers and reviewers when a bounded split adds value. Use from the business task without requiring an agent mention. Keep trivial or tightly coupled work local."
 ---
 
 # Sol Advisor Orchestration
 
-Use native agents when a clear split can improve completion quality or total time.
-Keep small tasks local. Stay available to the user and do disjoint work while children
-work; do not repeat their investigation or edits.
+## Decide whether to delegate
+
+For cross-module investigations, multiple independent verification workstreams, or
+consequential disputed conclusions, assess a bounded split before consuming all of
+the evidence locally. Users need not mention this skill or agents. This is a
+conditional instruction to delegate, subject to the authorization rules below;
+eligibility alone does not require a child.
+
+Delegate a useful bounded question when its inputs, owned evidence scope and stopping
+condition are clear, it can proceed without continual primary guidance, the quality
+or elapsed-time benefit below is concrete, and the split provides one of these:
+
+- Parallel progress: the primary can advance a different necessary question while
+  the child investigates a disjoint source scope.
+- Context reduction: a substantial search or evidence set can be distilled into a
+  small answer with decisive source locators instead of loading it all in the primary.
+- Independent correction: a consequential claim has a specific disputed assumption
+  or plausible failure path that warrants a separate review.
+
+Keep simple tasks in the primary by default: single facts, short supplied examples
+and routine local edits usually offer neither benefit. Assess difficulty through unresolved reasoning,
+evidence volume, dependencies and consequences of error, not item count alone.
+Use an OR condition: a concrete expected quality improvement OR a reduction in
+end-to-end completion time is sufficient. A quality benefit does not also need a
+speed benefit; a speed benefit does not also need a quality improvement, but must
+still meet the task's correctness and acceptance requirements. User deadlines,
+budgets and authorization remain binding; do not invent an additional time ceiling
+for the quality route. Include startup, context transfer, waiting, verification and
+integration when estimating time savings; parallel activity alone does not prove
+a speed gain. Use available latency evidence without inventing precise timings or
+running a benchmark for every task. Being able to solve the task yourself is not
+sufficient to reject a split that meets either benefit. Keep tightly dependent work
+local when it cannot deliver either benefit. Do not invent extra work to
+justify agents. If a substantial candidate stays local, briefly identify the
+concrete obstacle or lack of benefit in an ordinary progress update, not a route file.
+
+Start with a bounded assignment, not a fixed role pipeline. Add children only for
+additional disjoint scopes with their own benefit and available host/project capacity;
+there is no plugin-level one-child cap. Stay available and do disjoint work while
+children work; independent review may instead require waiting. Do not repeat their
+investigation or edits. Give each child a specific question and a sufficient result,
+not an open-ended request to review the whole system.
 
 | Role | Native agent type | Default effort |
 |---|---|---|
