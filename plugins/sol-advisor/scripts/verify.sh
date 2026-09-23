@@ -74,6 +74,7 @@ done
 pass "Sol Advisor ships no user- or project-level AGENTS.md writer"
 
 sh "$python_runner" "$script_dir/test_configuration.py"
+sh "$python_runner" "$script_dir/test_runtime_unicode.py"
 sh "$python_runner" "$script_dir/test_installation.py"
 sh "$python_runner" "$script_dir/test_snapshot.py"
 pass "model-profile configuration, managed installation and snapshot regression"

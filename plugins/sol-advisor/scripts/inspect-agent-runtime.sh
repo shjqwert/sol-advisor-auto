@@ -106,7 +106,8 @@ import sys
 
 rollout = Path(sys.argv[1])
 expected_thread_id = sys.argv[2]
-items = [json.loads(line) for line in rollout.read_text(encoding="utf-8").splitlines() if line.strip()]
+# JSONL records use LF; Unicode separators may occur inside valid JSON strings.
+items = [json.loads(line) for line in rollout.read_text(encoding="utf-8").split("\n") if line.strip()]
 sessions = [item.get("payload", {}) for item in items if item.get("type") == "session_meta"]
 turns = [item.get("payload", {}) for item in items if item.get("type") == "turn_context"]
 if len(sessions) != 1 or not turns:
