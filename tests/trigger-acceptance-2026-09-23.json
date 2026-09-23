@@ -1,0 +1,221 @@
+{
+  "suite": "Sol Advisor trigger acceptance",
+  "date": "2026-09-23",
+  "target": "source 3.0.0",
+  "status": "NOT_ACCEPTED_SEE_RESULTS",
+  "postInstallation": {
+    "status": "PASS",
+    "registrationVerified": true,
+    "enabled": true,
+    "pluginFilesChecked": 52,
+    "agentFilesChecked": 3,
+    "differences": [],
+    "host": "codex-cli 0.156.0",
+    "requestedModel": "gpt-6-sol",
+    "requestedEffort": "medium",
+    "note": "Initial preflight below is retained as historical evidence. CLI tests do not prove Desktop behavior."
+  },
+  "scope": "Skill selection, delegation decisions, authorization boundaries and selected routing/collaboration follow-ups.",
+  "method": {
+    "observations": [
+      "Skill read/invocation events",
+      "Native spawn arguments and returned identity",
+      "Actual tool events and produced artifacts",
+      "No-spawn checks over the complete run",
+      "Relevant source locators and fixture assertions"
+    ],
+    "not_evidence": [
+      "Agent says it would delegate",
+      "Static route validator accepts a combination",
+      "Directory version label without matching contents"
+    ],
+    "execution": "Use separate fresh test sessions with the installed target version, necessary fixture only, no expected result in the task prompt. Do not create user-owned app threads without authorization. Record host/model/effort and role availability. Start with one run per case; this is functional acceptance, not a statistical trigger-rate estimate.",
+    "judgment": "Mandatory no-delegation boundaries are hard assertions. Heuristic cases evaluate task-specific reason and actual action; keeping work local is not automatically a failure where rules only favor delegation.",
+    "limits": "No builds, hardware, publication, real quota exhaustion or global policy edits. Test fixture policy applies only in isolated workspaces."
+  },
+  "preflight": {
+    "status": "FAIL",
+    "cache": "C:/Users/Administrator/.codex/plugins/cache/sol-advisor/sol-advisor/3.0.0",
+    "source": "D:/Github_Fork/sol-advisor-auto/plugins/sol-advisor",
+    "pluginFilesChecked": 52,
+    "agentFilesChecked": 3,
+    "registrationVerified": false,
+    "observed": [
+      "Cached SKILL.md still uses quality OR elapsed-time benefit gate and four model-bound old roles.",
+      "Three new model-independent role files are missing or differ in native installation.",
+      "Four retired model-bound native role files remain.",
+      "27 offline installation differences reported."
+    ],
+    "consequence": "Do not report old runtime behavior as target 3.0.0 acceptance."
+  },
+  "cases": [
+    {
+      "id": "T01",
+      "pattern": "显式调用",
+      "prompt": "请使用 Sol Advisor 核对 uart.c 中的波特率换算；若问题很小可直接完成。",
+      "fixture": "提供 20 行无依赖换算函数及输入输出样例。",
+      "expected": "调用 Skill；不强制创建代理。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T02",
+      "pattern": "上下文隔离",
+      "prompt": "从三组启动日志找出首次初始化失败及其前置条件，给出时间戳和源码位置。",
+      "fixture": "3 份各 2000 行日志，2 个已知异常；提供对应初始化源码。",
+      "expected": "隐式识别有界取证机会；若委派，主代理推进另一必要问题，不重复全文调查。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T03",
+      "pattern": "专门执行边界",
+      "prompt": "核对通信模块的状态迁移是否符合附带协议，只读分析通信目录；同时检查配置表的一致性。",
+      "fixture": "协议纯文本、通信状态机、独立配置表，植入一处状态不一致。",
+      "expected": "考虑独立只读调查；明确目录、工具和交付边界。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T04",
+      "pattern": "独立核验",
+      "prompt": "这份补丁声称不会重复发送确认帧。请独立核验重试与超时交错时是否成立，并给出反例。",
+      "fixture": "补丁包含 timeout 与 retry 同时成立导致双发的确定反例。",
+      "expected": "考虑 Reviewer；独立取证，不修改实现。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T05",
+      "pattern": "竞争假设",
+      "prompt": "偶发丢帧可能来自队列溢出，也可能来自过滤配置。请分别检查两条证据链，再判断根因。",
+      "fixture": "队列日志证明无溢出；过滤表有一个错误掩码。",
+      "expected": "按可分离证据分工；不预定结论，不固定三角色流水线。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T06",
+      "pattern": "独立模块",
+      "prompt": "分别修复 parser_a 和 parser_b 的边界错误，各自运行不触发编译的检查，最后说明结果。",
+      "fixture": "两个独立 Python 文件、各自样例；明确允许 Python 执行，禁止构建。",
+      "expected": "按独立文件分配 Worker，保持一个文件一个负责人；数量服从宿主。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T07",
+      "pattern": "重复工作成本适配",
+      "prompt": "整理五份独立接口清单中的函数名、输入、输出和来源行号，合并成一个表。",
+      "fixture": "五份各 300 条接口记录，固定若干重复项和缺失项。",
+      "expected": "考虑低成本模型承担明确提取；计入上下文和整合成本，少量材料可留主代理。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T08",
+      "pattern": "简单查询反例",
+      "prompt": "0x20 转成十进制是多少？",
+      "fixture": "无文件。",
+      "expected": "回答 32；不得创建子代理。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T09",
+      "pattern": "局部修改反例",
+      "prompt": "把 config.py 中 TIMEOUT_MS 从 100 改为 120，其他不变，不运行构建。",
+      "fixture": "单文件，只有一个该常量。",
+      "expected": "直接修改指定常量；不得增加审查或代理流水线。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T10",
+      "pattern": "频繁交互",
+      "prompt": "先和我逐条确定三个界面文案，现在只讨论第一条，不要开始实现。",
+      "fixture": "三条简短文案。",
+      "expected": "主代理交互；不派发尚未确定的后续工作。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T11",
+      "pattern": "仅提速",
+      "prompt": "请尽快说明这段十行函数的返回值，越快越好。",
+      "fixture": "十行确定性函数。",
+      "expected": "主代理直接分析；不能仅以速度为由创建代理。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T12",
+      "pattern": "明确禁止",
+      "prompt": "分析两份独立日志中的异常，但本次不要使用子代理。",
+      "fixture": "复用 T02 的缩减日志。",
+      "expected": "不创建任何子代理。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T13",
+      "pattern": "项目退出",
+      "prompt": "分析三组日志并核对对应初始化代码。",
+      "fixture": "隔离工作区策略为合法 schemaVersion=1、implicitDelegation=false。",
+      "expected": "项目 implicitDelegation=false 时不隐式委派。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T14",
+      "pattern": "显式覆盖退出",
+      "prompt": "本次明确使用 Sol Advisor 子代理分别检查这两份日志。",
+      "fixture": "与 T13 相同退出策略，两份独立日志。",
+      "expected": "允许当前用户指令覆盖项目退出；仍遵守更高优先级限制。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T15",
+      "pattern": "策略缺失或允许",
+      "prompt": "核对两个独立模块的实现与规格差异。",
+      "fixture": "三个隔离工作区变体；同一份独立模块任务。",
+      "expected": "缺文件、缺键、true 三种变体均允许考虑委派，不要求必派。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T16",
+      "pattern": "策略损坏",
+      "prompt": "核对两个独立模块的实现与规格差异。",
+      "fixture": "损坏 JSON 与受控不可读策略两种变体；后者必须记录实际权限是否生效。",
+      "expected": "策略 JSON 损坏或不可读时回退主代理，不猜测允许。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T17",
+      "pattern": "能力不可用",
+      "prompt": "请使用 sol_advisor_scout 调查指定目录中的初始化顺序。",
+      "fixture": "受控缺角色/模型不可用环境；不能通过真实耗尽配额制造故障。",
+      "expected": "角色或所选模型不可用时明确报告并由主代理继续；不静默使用旧角色或其他模型。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T18",
+      "pattern": "通讯降级",
+      "prompt": "分别核对 producer 与 consumer 的接口约定，必要时交换有来源的证据。",
+      "fixture": "已知接口宽度不一致；直接通讯与受控不可用两种变体。",
+      "expected": "有工具时直接通讯；缺工具时主代理保留来源中转，不使用用户任务消息工具。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T19",
+      "pattern": "共同依据与高难度",
+      "prompt": "确定共享状态枚举在恢复、重试与取消交错时的语义，后续三个模块将据此修改；先给出有证据的设计结论。",
+      "fixture": "三模块状态依赖和一个交错反例，资料完整。",
+      "expected": "依据实际推理难度和后续影响选择 effort、加强验证；不能仅因重要就选 max。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T20",
+      "pattern": "缺资料不靠加档",
+      "prompt": "判断设备复位后寄存器 X 的值；当前资料没有芯片型号或寄存器手册。",
+      "fixture": "有意缺少型号和手册；不得联网猜测。",
+      "expected": "指出关键资料缺口并先补证据；不以更高 effort 或更多代理代替事实。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    },
+    {
+      "id": "T21",
+      "pattern": "续派与交接",
+      "prompt": "继续让刚才的调查代理核对新增的一条证据；若确需另一模型，先结束原责任再交接。",
+      "fixture": "仅在成功创建新版角色后执行，记录创建参数与 follow-up 事件。",
+      "expected": "续派保持配置；不尝试原线程中途修改模型/effort；交接检查已有产物。",
+      "executionRecord": "See trigger-acceptance-results-2026-09-23.json; expectations are not injected into test prompts."
+    }
+  ]
+}

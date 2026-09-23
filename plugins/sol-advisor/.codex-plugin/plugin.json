@@ -1,6 +1,6 @@
 {
   "name": "sol-advisor",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Lightweight native collaboration with scouts, workers, optional reviewers and explicit task ownership.",
   "author": {
     "name": "shjqwert",
@@ -13,7 +13,6 @@
     "codex",
     "orchestration",
     "multi-agent",
-    "gpt-5.6",
     "gpt-6"
   ],
   "skills": "./skills/",
@@ -21,7 +20,7 @@
   "interface": {
     "displayName": "Sol Advisor",
     "shortDescription": "Focused agents with direct collaboration and clear ownership.",
-    "longDescription": "Split substantial work among model-named scouts, workers and optional reviewers. Scout uses Luna high; Worker uses Sol medium or high. Share dependent evidence directly, preserve user changes and active authorization, and integrate ordinary results without duplicate work or fixed pipelines.",
+    "longDescription": "Delegate by task pattern to scouts, workers and optional reviewers. Select a GPT-6 model and effort at spawn, with Luna high or above. Share evidence directly, preserve ownership and authorization, and integrate results with quality and total cost in mind. Existing agents keep their model and effort.",
     "developerName": "shjqwert",
     "category": "Productivity",
     "capabilities": [
@@ -30,7 +29,7 @@
     ],
     "websiteURL": "https://github.com/shjqwert/sol-advisor-auto",
     "defaultPrompt": [
-      "Split useful work among focused scouts and workers; keep small tasks local.",
+      "Match task patterns to native roles and explicitly select a GPT-6 model and effort at spawn.",
       "Let teammates share dependent evidence directly while preserving task ownership and authorization.",
       "Integrate actual changes and check evidence; use independent review only when it improves the outcome."
     ]

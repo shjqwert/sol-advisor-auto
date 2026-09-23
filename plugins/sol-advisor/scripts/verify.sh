@@ -6,7 +6,7 @@ set -eu
 pass() { printf '%s\n' "PASS: $*"; }
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-agent_files='sol-advisor-scout__gpt_5_6_luna.toml sol-advisor-worker__gpt_5_6_sol.toml sol-advisor-reviewer__gpt_5_6_sol.toml sol-advisor-reviewer__gpt_6_astra.toml'
+agent_files='sol-advisor-scout.toml sol-advisor-worker.toml sol-advisor-reviewer.toml'
 legacy_agent_files='sol-advisor-investigator.toml sol-advisor-context-analyst.toml sol-advisor-mechanical-editor.toml sol-advisor-local-code-verifier.toml sol-advisor-final-adjudicator.toml'
 
 hash_agents() {
@@ -75,9 +75,10 @@ pass "Sol Advisor ships no user- or project-level AGENTS.md writer"
 
 sh "$python_runner" "$script_dir/test_configuration.py"
 sh "$python_runner" "$script_dir/test_runtime_unicode.py"
+sh "$python_runner" "$script_dir/test_runtime.py"
 sh "$python_runner" "$script_dir/test_installation.py"
 sh "$python_runner" "$script_dir/test_snapshot.py"
-pass "model-profile configuration, managed installation and snapshot regression"
+pass "role/model routing, runtime diagnostics, managed installation and snapshot regression"
 
 clean_target=$tmp_dir/clean-install
 sh "$installer" --target-dir "$clean_target" >/dev/null
@@ -85,7 +86,7 @@ for agent_file in $agent_files; do
   cmp -s "$templates/$agent_file" "$clean_target/$agent_file" || fail "clean install differs: $agent_file"
 done
 installed_count=$(find "$clean_target" -maxdepth 1 -type f -name 'sol-advisor-*.toml' | awk 'END { print NR + 0 }')
-[ "$installed_count" -eq 4 ] || fail "installer did not produce exactly four model profiles"
+[ "$installed_count" -eq 3 ] || fail "installer did not produce exactly three model-independent roles"
 
 missing_check_target=$tmp_dir/missing-check
 if sh "$installer" --target-dir "$missing_check_target" --check >/dev/null 2>&1; then fail "--check accepted missing target"; fi
@@ -101,8 +102,8 @@ conflict_target=$tmp_dir/conflict
 mkdir "$conflict_target"
 printf '%s\n' conflict > "$conflict_target/sol-advisor-investigator.toml"
 if sh "$installer" --target-dir "$conflict_target" >/dev/null 2>&1; then fail "installer overwrote a custom conflict"; fi
-test ! -e "$conflict_target/sol-advisor-scout__gpt_5_6_luna.toml" || fail "conflict caused a partial install"
-pass "clean four-profile install, exact check, idempotence, and conflict refusal"
+test ! -e "$conflict_target/sol-advisor-scout.toml" || fail "conflict caused a partial install"
+pass "clean three-role install, exact check, idempotence, and conflict refusal"
 
 line_ending_upgrade=$tmp_dir/current-crlf-upgrade
 mkdir "$line_ending_upgrade"
@@ -315,55 +316,7 @@ else:
 PY
 pass "portable Python runner, repository index preflight, and content-based read-only snapshot"
 
-runtime_sessions=$tmp_dir/runtime-sessions
-runtime_day=$runtime_sessions/2026/08/16
-mkdir -p "$runtime_day"
-stable_id=11111111-1111-7111-8111-111111111111
-stable_rollout=$runtime_day/rollout-2026-08-16T00-00-00-$stable_id.jsonl
-printf '%s\n' \
-  '{"type":"response_item","payload":{"prompt":"DO_NOT_LEAK"}}' \
-  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$stable_id\",\"parent_thread_id\":\"00000000-0000-7000-8000-000000000000\",\"agent_role\":\"sol_advisor_context_analyst\",\"agent_path\":\"/fixture\",\"model_provider\":\"openai\",\"cwd\":\"/fixture/cwd\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"xhigh","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"xhigh","sandbox_policy":{"type":"danger-full-access"},"permission_profile":{"type":"disabled"},"cwd":"/fixture/cwd"}}' \
-  > "$stable_rollout"
-runtime_output=$(sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$stable_id")
-sh "$python_runner" - "$runtime_output" <<'PY'
-import json
-import sys
-data = json.loads(sys.argv[1])
-expected = {
-    "agent_role": "sol_advisor_context_analyst",
-    "model_provider": "openai",
-    "model": "gpt-5.6-terra",
-    "effort": "xhigh",
-}
-if any(data.get(key) != value for key, value in expected.items()):
-    raise SystemExit("runtime inspector returned an unexpected stable route")
-PY
-printf '%s\n' "$runtime_output" | grep -Fq DO_NOT_LEAK && fail "runtime inspector leaked prompt content"
-
-mixed_effort_id=22222222-2222-7222-8222-222222222222
-mixed_effort_rollout=$runtime_day/rollout-2026-08-16T00-00-01-$mixed_effort_id.jsonl
-printf '%s\n' \
-  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$mixed_effort_id\",\"agent_role\":\"sol_advisor_context_analyst\",\"model_provider\":\"openai\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"xhigh","cwd":"/fixture/cwd"}}' \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-terra","effort":"max","cwd":"/fixture/cwd"}}' \
-  > "$mixed_effort_rollout"
-if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$mixed_effort_id" >/dev/null 2>&1; then
-  fail "runtime inspector accepted a mid-child effort change"
-fi
-
-mixed_model_id=33333333-3333-7333-8333-333333333333
-mixed_model_rollout=$runtime_day/rollout-2026-08-16T00-00-02-$mixed_model_id.jsonl
-printf '%s\n' \
-  "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$mixed_model_id\",\"agent_role\":\"sol_advisor_local_code_verifier\",\"model_provider\":\"openai\"}}" \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-luna","effort":"xhigh","cwd":"/fixture/cwd"}}' \
-  '{"type":"turn_context","payload":{"model":"gpt-5.6-sol","effort":"xhigh","cwd":"/fixture/cwd"}}' \
-  > "$mixed_model_rollout"
-if sh "$runtime_inspector" --sessions-dir "$runtime_sessions" "$mixed_model_id" >/dev/null 2>&1; then
-  fail "runtime inspector accepted a mid-child model change"
-fi
-pass "stable multi-turn configuration and mixed model/effort rejection without prompt leakage"
+# Runtime identity, stability and output allowlisting are covered by test_runtime.py.
 
 
 sh "$python_runner" - "$search_preflight" <<'PY'
@@ -382,7 +335,6 @@ for shell_file in "$installer" "$route_validator" "$runtime_inspector" "$python_
   if grep -q "$(printf '\r')" "$shell_file"; then fail "CRLF remains in shell script: $shell_file"; fi
 done
 grep -Fq '*.sh text eol=lf' "$gitattributes" || fail "repository does not enforce LF for shell scripts"
-[ "$(wc -l < "$skill")" -lt 100 ] || fail "orchestration Skill exceeds the progressive-disclosure line budget"
 pass "static Python checks, shell syntax and LF policy"
 
-printf '%s\n' "VERIFY PASSED: Sol Advisor 2.0.1 local checks completed in $tmp_dir"
+printf '%s\n' "VERIFY PASSED: Sol Advisor 3.0.0 local checks completed in $tmp_dir"

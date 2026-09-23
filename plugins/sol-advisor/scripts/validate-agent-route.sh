@@ -23,20 +23,18 @@ model=$3
 effort=$4
 task_name=$5
 
-case "$role:$provider:$model" in
-  sol_advisor_scout__gpt_5_6_luna:openai:gpt-5.6-luna | \
-  sol_advisor_worker__gpt_5_6_sol:openai:gpt-5.6-sol | \
-  sol_advisor_reviewer__gpt_5_6_sol:openai:gpt-5.6-sol | \
-  sol_advisor_reviewer__gpt_6_astra:openai:gpt-6-astra)
-    ;;
-  *) fail "$role $provider $model" ;;
+case "$role" in
+  sol_advisor_scout|sol_advisor_worker|sol_advisor_reviewer) ;;
+  *) fail "unknown role: $role" ;;
 esac
 
-# The Skill recommends defaults, not a role-specific effort whitelist.
-# Actual host support remains authoritative.
-case "$effort" in
-  low|medium|high|xhigh|max|ultra) ;;
-  *) fail "unknown effort: $effort" ;;
+[ "$provider" = openai ] || fail "unsupported provider: $provider"
+# Roles do not restrict models. This is the v3 policy, not proof of host support.
+case "$model:$effort" in
+  gpt-6-luna:high|gpt-6-luna:xhigh|gpt-6-luna:max | \
+  gpt-6-sol:low|gpt-6-sol:medium|gpt-6-sol:high|gpt-6-sol:xhigh|gpt-6-sol:max | \
+  gpt-6-astra:low|gpt-6-astra:medium|gpt-6-astra:high|gpt-6-astra:xhigh|gpt-6-astra:max) ;;
+  *) fail "unsupported model/effort: $model $effort" ;;
 esac
 
 if [ -z "$task_name" ]; then fail "task name is required"; fi

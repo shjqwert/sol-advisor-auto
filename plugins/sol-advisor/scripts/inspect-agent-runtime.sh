@@ -114,8 +114,29 @@ if len(sessions) != 1 or not turns:
     raise SystemExit(1)
 
 session = sessions[0]
-if session.get("id") != expected_thread_id or not isinstance(session.get("agent_role"), str) or not session["agent_role"]:
+if session.get("id") != expected_thread_id:
     raise SystemExit(1)
+
+source = session.get("source")
+subagent = source.get("subagent") if isinstance(source, dict) else None
+spawn = subagent.get("thread_spawn") if isinstance(subagent, dict) else None
+if spawn is not None and not isinstance(spawn, dict):
+    raise SystemExit(1)
+spawn = spawn or {}
+
+def identity_value(key, required=False):
+    # Older rollouts used top-level identity; V2 uses source.subagent.thread_spawn.
+    # Null is absence. Never choose one conflicting identity over the other.
+    values = [item[key] for item in (session, spawn) if item.get(key) is not None]
+    if not values:
+        if required:
+            raise SystemExit(1)
+        return None
+    if any(not isinstance(value, str) or not value for value in values):
+        raise SystemExit(1)
+    if len(set(values)) != 1:
+        raise SystemExit(1)
+    return values[0]
 
 def one_required(values):
     if any(not isinstance(value, str) or not value for value in values):
@@ -136,9 +157,9 @@ def diagnostic_value(values):
 
 result = {
     "thread_id": session["id"],
-    "parent_thread_id": session.get("parent_thread_id") if isinstance(session.get("parent_thread_id"), str) else None,
-    "agent_role": session["agent_role"],
-    "agent_path": session.get("agent_path") if isinstance(session.get("agent_path"), str) else None,
+    "parent_thread_id": identity_value("parent_thread_id"),
+    "agent_role": identity_value("agent_role", required=True),
+    "agent_path": identity_value("agent_path"),
     "model_provider": session.get("model_provider") if isinstance(session.get("model_provider"), str) else None,
     "model": one_required([turn.get("model") for turn in turns]),
     "effort": one_required([turn.get("effort") for turn in turns]),

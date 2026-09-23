@@ -1,49 +1,74 @@
 # Sol Advisor
 
-Version `2.0.1` is a lightweight native-agent collaboration plugin: three
-responsibilities, four model-specific profiles, host-dependent teammate messaging, and an
-ordinary final response. Keep small tasks local; delegate substantial independent
-work when it improves quality or total completion time.
+Version `3.0.0` is a lightweight native-agent collaboration plugin: three
+model-independent role templates, explicit GPT-6 model and effort selection at spawn,
+native teammate messaging, and ordinary final responses. Keep small tasks local;
+delegate bounded work when a concrete task pattern fits and the result still meets the
+required quality within an acceptable total cost.
 
 ## Roles and models
 
-| Native agent type | Model | Default effort |
-|---|---|---|
-| `sol_advisor_scout__gpt_5_6_luna` | GPT-5.6 Luna | high; xhigh for difficult tracing |
-| `sol_advisor_worker__gpt_5_6_sol` | GPT-5.6 Sol | medium; high for difficult implementation |
-| `sol_advisor_reviewer__gpt_5_6_sol` | GPT-5.6 Sol | high |
-| `sol_advisor_reviewer__gpt_6_astra` | GPT-6 Astra | xhigh for critical review |
+| Native agent type | Responsibility |
+|---|---|
+| `sol_advisor_scout` | Read-only discovery, focused research and evidence synthesis |
+| `sol_advisor_worker` | Scoped implementation, local design, debugging and authorized checks |
+| `sol_advisor_reviewer` | Independent examination of artifacts, claims and counterexamples; no fixes |
 
 Scout investigates bounded code or source questions, including unknown file locations.
 Worker owns scoped implementation, local design, debugging and authorized checks.
 Reviewer independently examines implementation, design or conflicting evidence without
 implementing fixes. Review is optional, not a stage added to every edit.
 
-The current primary session remains coordinator and final owner. Astra medium is a
-recommended primary configuration, not an automatic model switch. Templates pin their
-named model; select effort at dispatch. Use instance names such as
-`trace_boot__gpt_5_6_luna`. A different model needs its matching profile.
+The current primary session remains coordinator and final owner. All three roles may
+use `gpt-6-luna`, `gpt-6-sol` or `gpt-6-astra`. The OpenAI templates set the provider
+but do not pin a model or reasoning effort; pass both explicitly in the native spawn
+call. Name instances `<task>__<model_id>`, for example `trace_boot__gpt_6_luna`.
+
+| Task | Starting choice | Harder work |
+|---|---|---|
+| Discovery and evidence organization | Luna high | Luna xhigh for difficult tracing; Sol for complex synthesis |
+| Implementation and local debugging | Sol medium | Sol high for multi-step dependencies and edge cases |
+| Independent review | Sol high | Sol xhigh for conflicting constraints or difficult counterexamples |
+| Particularly difficult synthesis | Compare high-effort Sol with Astra | Astra starts at low; adjust upward for actual difficulty |
+
+Luna supports high/xhigh/max in this policy. Sol and Astra support
+low/medium/high/xhigh/max. Version 3 excludes none and ultra. Use max only for a
+concrete hard reasoning obstacle, not merely because a role or result is important.
+These are starting points rather than model capability guarantees or a forced
+low-to-high trial ladder.
+
+Choose effort from the reasoning chain length, cross-dependencies, conflicting
+evidence and edge cases. Raise it when a conclusion feeds several later decisions and
+an error would be hard to detect promptly. Foundational public interfaces or state
+meanings can justify both higher effort and stronger independent verification.
 
 ## Native collaboration
 
-Give a short assignment with task, owned scope, completion condition and essential
-context/restrictions. Scout defaults to `fork_turns: "none"`; other narrow tasks
-also benefit from fresh context, while limited inheritance may suit shared decisions.
-Respect the host's context and model-override rules.
+Give a short assignment with goal, deliverable, owned scope, completion condition and
+essential context or restrictions. Prefer fresh context for narrow tasks and inherit
+only needed history where the host supports it. Respect host model, effort and fork
+override rules.
 
-Assignments specify the communication path. Where the host exposes native messaging,
-teammates send evidence and questions directly. Otherwise children return evidence
-in ordinary finals and the primary forwards it with source attribution in follow-ups.
-Codex app thread messaging is not a substitute for native agent messaging.
-No registered dependency graph or message schema is required. Children
-remain leaves: they do not spawn or manage other agents. Messages do not grant new
-authority or automatically reactivate an ended child.
+Call `collaboration.send_message` directly when the host exposes it; it is not inside
+`functions.exec` or its `ALL_TOOLS`. Otherwise children return evidence in ordinary
+finals and the primary relays it with source attribution in a follow-up. Codex app
+thread messaging is not a substitute for native agent messaging. A message does not
+grant authority, transfer ownership, or wake an ended agent; the primary must arrange
+the ended agent's follow-up. Children remain leaves and do not recursively spawn or
+manage other agents.
 
-Use one writer per conflicting file/resource, preserve user changes, and avoid duplicate
-investigation. Shared test output and hardware also need exclusive ownership. The
-primary continues disjoint work, handles scope changes and confirms work has stopped
-before takeover. Continue a useful child while it makes progress; no fixed correction
-count is imposed.
+Use one writer per conflicting file or resource, preserve user changes, and avoid
+duplicate investigation. Shared test output and hardware also need exclusive ownership.
+The primary continues disjoint work, handles scope changes and confirms execution has
+stopped before takeover. Continue a useful child while it makes progress; no fixed
+correction count or plugin-level agent count applies. Host concurrency and allowance
+limits still apply.
+
+Follow-ups keep the same child model and effort. Version 3 does not support switching
+either inside a running child and makes no prompt-cache promise. If another
+configuration is needed, end the old ownership before creating the new assignment, or
+have the primary take over after inspecting partial work and transferring useful
+evidence.
 
 Children return ordinary results, evidence and unfinished work. No STATUS/VERDICT
 enums, result sidecars or runtime scripts gate intake. The primary inspects actual
@@ -64,15 +89,15 @@ or relay evidence when direct messaging is unavailable.
 
 ### 自动分工判据
 
-跨模块调查、多项独立验证或重要结论争议，应先评估有界分工，无需用户点名代理。
-证据范围和停止条件清晰、可独立推进，且能并行推进其他必要工作、压缩大量调查上下文，
-或独立纠正具体重要争议时，按“质量收益或总耗时收益”判断，任一收益明确即可委派。
-简单任务默认由主会话完成；复杂度结合推理不确定性、证据量、依赖和错误后果判断。
-质量收益不要求同时提速；时间收益不要求额外提高质量，但仍须满足正确性和验收要求。
-时间估计须包含启动、上下文交接、等待、复核和集成开销，并行本身不等于提速。
-用户指定的期限、预算和授权仍须遵守，不额外给质量收益路线添加时间上限。
-“主会话能完成”本身不否定满足任一收益的分工；两者均无明确收益时留在主会话。
-数量受任务收益及宿主、项目上限约束，插件不固定最多一个，也不要求每个角色都运行。
+出现以下任一清晰、有界的模式时，可以考虑原生分工：把大量检索、日志或中间阅读与
+主上下文隔离；应用专门指令、工具或执行边界；独立核对重要结论或竞争假设；分配可分离
+模块、源码范围或调查维度；把清晰、重复的工作交给更低成本模型。简单任务通常由主会话
+完成，速度本身不构成默认触发条件，也不要求 Scout → Worker → Reviewer 固定流水线。
+
+质量要求与包含启动、上下文、通信、复核、整合和返工在内的总成本共同约束选择。
+不要求数值评分、成功概率、派发报告或预检脚本，也不能在执行前声称已证明质量或耗时
+收益。频繁交互、不可分割的共享上下文或高额交接成本通常更适合主会话。只有相互独立且
+有用的工作才增加代理；数量由任务收益和宿主限制决定，插件本身不设数量上限。
 
 Installing and enabling Sol Advisor makes its implicit-capable orchestration Skill
 eligible in repositories, non-Git directories, empty folders, and from-scratch
@@ -126,7 +151,7 @@ codex plugin add sol-advisor@sol-advisor
 ```
 
 Plugin installation does not write user- or project-owned instructions or custom-agent
-files. Install the four model-specific native templates separately:
+files. Install the three model-independent native templates separately:
 
 ```sh
 plugin_dir="$(codex plugin list --json | jq -r '.installed[] | select(.pluginId == "sol-advisor@sol-advisor") | .source.path')"
@@ -142,11 +167,12 @@ sh "$plugin_dir/scripts/install-agents.sh" --upgrade-managed
 sh "$plugin_dir/scripts/install-agents.sh" --check
 ```
 
-Managed upgrade recognizes exact historical template hashes, including 1.0.2, in LF
-and CRLF forms. It creates the four new profiles and removes recognized retired
-profiles in one batch. Any modified or unknown target aborts before mutation;
-unrelated custom agents remain untouched. Failures roll back the batch. This is
-installation failure recovery, not a promise of arbitrary version downgrade.
+Managed upgrade recognizes the exact known 2.0.1 four-profile installation, along with
+other supported historical template hashes, in LF and CRLF forms. It creates the three
+unbound profiles and removes recognized retired profiles in one all-or-nothing batch.
+Any modified or unknown target aborts before mutation; unrelated custom agents remain
+untouched. Failures restore the historical files and line endings. This is installation
+failure recovery, not a promise of arbitrary version downgrade.
 
 Windows PowerShell example:
 
@@ -165,6 +191,11 @@ Start a new Codex task after installation so native roles and the bundled Skill 
 rediscovered. If a new task still advertises an older cache path, reload Codex Desktop
 before creating another task.
 
+Checking out the `3.0.0` release does not update an existing global installation or
+plugin cache. Follow the installation steps above. Native smoke tests of the new
+role names require a fresh task that loads those profiles; source checks alone do
+not establish native behavior acceptance.
+
 ## Optional diagnostics
 
 After plugin and agent installation, run the read-only combined check:
@@ -174,23 +205,28 @@ python scripts/check-installation.py
 ```
 
 Run it from the plugin directory. It checks Codex registration, the cached plugin files
-and all four model-specific templates, and reports differences without reinstalling or
-overwriting customizations. `--cache PATH` supports offline checks and explicitly does
-not verify Codex registration.
+and all three model-independent templates, and reports differences without reinstalling
+or overwriting customizations. `--cache PATH` supports offline checks and explicitly
+does not verify Codex registration.
 
 These development diagnostics do not gate normal dispatch:
 
 ```sh
 sh "$plugin_dir/scripts/validate-agent-route.sh" \
-  sol_advisor_scout__gpt_5_6_luna openai gpt-5.6-luna high trace_boot__gpt_5_6_luna
+  sol_advisor_scout openai gpt-6-luna high trace_boot__gpt_6_luna
 
 sh "$plugin_dir/scripts/inspect-agent-runtime.sh" \
   <native-subagent-thread-id>
 ```
 
 The route script checks a documented role/model/effort combination. The runtime
-inspector emits only allowlisted routing fields and rejects a thread whose model or
-effort changes between turns.
+inspector accepts both the older top-level identity fields and nested v2
+`source.subagent.thread_spawn` identity. It requires non-empty, consistent
+`agent_role`, `model`, `effort` and `cwd`; missing or conflicting values are rejected.
+Optional `parent_thread_id`, `agent_path` and `model_provider` are emitted as null when
+absent; duplicated top-level and nested parent/path values must agree. Only allowlisted
+routing fields are emitted. The inspector rejects model or effort changes between
+turns; it diagnoses observed routing and does not enable mid-child switching.
 
 ## Local development
 
@@ -209,10 +245,15 @@ sh plugins/sol-advisor/scripts/verify.sh
 git diff --check
 ```
 
-The verifier checks model/profile consistency, mismatched route rejection, managed
-installation and failure recovery, historical upgrades, workspace snapshots, runtime
-metadata diagnostics and shell syntax/LF. It invokes no model API or compilation.
-Static configuration checks cannot prove role behavior or permissions enforcement.
+On Windows, run with Git for Windows' POSIX tools first in the shell PATH
+(`PATH="/usr/bin:$PATH"`). If multiple Python environments are installed, set
+`SOL_ADVISOR_PYTHON` to the intended Python 3.11+ executable. Mixing MSYS Python
+with a Windows-first PATH can select Windows `find.exe` instead of POSIX `find`.
+
+The verifier checks model-independent profiles, route rejection, managed installation
+and failure recovery, historical upgrades, workspace snapshots, runtime metadata
+diagnostics and shell syntax/LF. It invokes no model API or compilation. Static
+configuration checks cannot prove role behavior or permissions enforcement.
 
 For workspace-local temporary files, create a disposable directory beneath the checkout
 and set TMPDIR (and TEMP/TMP on Windows) before running tests. Installation regression
@@ -220,8 +261,9 @@ writes only to isolated targets and removes its own temporary contents.
 
 Native smoke tests should separately exercise discovery, direct evidence transfer,
 scoped implementation, leaf behavior and primary takeover in a disposable workspace.
-Use the newly loaded model-specific profiles and report the actual model/effort.
-Do not count old roles, simulated messages or static checks as those tests.
+Use freshly loaded `sol_advisor_scout`, `sol_advisor_worker` and
+`sol_advisor_reviewer` profiles and report the actual model/effort. Old roles, generic
+GPT-6 agents, simulated messages and static checks are not proof of the new profiles.
 
 See [architecture and rationale](docs/architecture-v2.md). Broad cost comparisons are
 separate from routine functional checks; no unmeasured speed or quota improvement is claimed.

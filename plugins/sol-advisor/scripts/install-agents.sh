@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage: install-agents.sh [--target-dir <path>] [--check | --upgrade-managed]
 
-Install four model-specific Sol Advisor custom-agent templates into the target directory.
+Install three unbound Sol Advisor custom-agent templates into the target directory.
 Without --target-dir, the target is "$CODEX_HOME/agents" when CODEX_HOME is already
 set, otherwise "$HOME/.codex/agents". Normal installation never overwrites a
 differing file.
@@ -74,11 +74,9 @@ done
 target_dir=$(sh "$python_runner" - "$target_dir" <<'PY'
 from pathlib import Path
 import sys
-print(Path(sys.argv[1]).expanduser().resolve(strict=False))
+print(Path(sys.argv[1]).expanduser().absolute())
 PY
 ) || fail "could not canonicalize target directory."
-
-[ "$target_dir" != "/" ] || fail "refusing to use the filesystem root as an agent target directory."
 
 exec sh "$python_runner" - "$template_dir" "$target_dir" "$mode" <<'PY'
 from __future__ import annotations
@@ -92,15 +90,43 @@ import sys
 import tempfile
 
 
+def fail(message: str) -> None:
+    raise RuntimeError(message)
+
+
 template_dir = Path(sys.argv[1]).resolve(strict=False)
-target_dir = Path(sys.argv[2]).resolve(strict=False)
+requested_target_dir = Path(sys.argv[2])
 mode = sys.argv[3]
 
+if requested_target_dir.parent == requested_target_dir:
+    fail(f"refusing to use a filesystem root as an agent target directory: {requested_target_dir}")
+
+# Keep the unresolved absolute path until every existing component has been checked.
+# Path.resolve() would otherwise erase the identity of a symlink or Windows junction.
+candidate = requested_target_dir
+while True:
+    try:
+        info = candidate.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as error:
+        fail(f"could not inspect target path component {candidate}: {error}")
+    else:
+        is_junction = getattr(candidate, "is_junction", lambda: False)
+        if stat.S_ISLNK(info.st_mode) or is_junction():
+            fail(f"target path contains a symbolic link or junction: {candidate}")
+    if candidate.parent == candidate:
+        break
+    candidate = candidate.parent
+
+target_dir = requested_target_dir.resolve(strict=False)
+if target_dir.parent == target_dir:
+    fail(f"refusing to use a filesystem root as an agent target directory: {target_dir}")
+
 agent_files = (
-    "sol-advisor-scout__gpt_5_6_luna.toml",
-    "sol-advisor-worker__gpt_5_6_sol.toml",
-    "sol-advisor-reviewer__gpt_5_6_sol.toml",
-    "sol-advisor-reviewer__gpt_6_astra.toml",
+    "sol-advisor-scout.toml",
+    "sol-advisor-worker.toml",
+    "sol-advisor-reviewer.toml",
 )
 
 # Accept exact LF and CRLF byte forms of recognized managed templates. A differing or
@@ -190,11 +216,12 @@ legacy_hashes.setdefault("sol-advisor-context-analyst.toml", set()).update(["a3d
 legacy_hashes.setdefault("sol-advisor-local-code-verifier.toml", set()).update(["0a64cc220e14bb3c8f448a992d16f0dd23b30688fa8eccd06e0d1219eadbe5fa","6f7fecbe86db8edf7b48cd61365f9e742d672c272350167f3b632082b63bbcb4"])
 legacy_hashes.setdefault("sol-advisor-mechanical-editor.toml", set()).update(["249e274ec116adf290a60aafded081d1a5ab4cc1fad953ae038bf03de7521e92","9890e8b2df86e8e46c272e23d298a320c5e73316b76bfb4c22e956e35256896e"])
 legacy_hashes.setdefault("sol-advisor-spark-worker.toml", set()).update(["3348b964814319df930d38584a989b7b4e1c6c4887dd63acc1d56e37d3d1fa8b","69e4ccd991568bad70e634bc2b99210a42e9a576f60f0f0124bf07dcb6487b65"])
+# Exact 2.0.1 release, preserved in fixtures/agents-2.0.1.
+legacy_hashes.setdefault("sol-advisor-scout__gpt_5_6_luna.toml", set()).update(["45b5b03b7e83692f0b6ffbe619dc1f8eea9ce0b6ebc473bac05eb2a4053f4f99","13b05e11c12ad8b70c3c405fdcb0ea119112fb41bff52665cf905dc93dcaf619"])
+legacy_hashes.setdefault("sol-advisor-worker__gpt_5_6_sol.toml", set()).update(["3e71befdb0e8c4be18d145a96d68c6d1028387eca5734538e6f2056ef0e4dfc0","07975033fe47f3f753c024f8e76c7c71263d9ea9f70adc79cd8b4d23b023f068"])
+legacy_hashes.setdefault("sol-advisor-reviewer__gpt_5_6_sol.toml", set()).update(["59f4f3ae5b4b593e8a1918b4698883c2d7f27048950ba47a42c30188f9f3b862","9c11a9f604a5588b1e2e7ad921db16154fd7bdb11bc0aae71ef795c5a90f163b"])
+legacy_hashes.setdefault("sol-advisor-reviewer__gpt_6_astra.toml", set()).update(["085e0f0195dd1a867b3fd8b21ff305d31eff5f87e91f1df4454fcba74c819b0c","342df70d6a9a12fc3642e009f81a27f5e30e8611ee2ddf7ddf3916b4f4d54024"])
 retired_files = tuple(legacy_hashes)
-
-
-def fail(message: str) -> None:
-    raise RuntimeError(message)
 
 
 def sha256(path: Path) -> str:
